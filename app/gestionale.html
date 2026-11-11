@@ -124,7 +124,7 @@ dialog.full{width:98vw;max-width:98vw}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;try{t.hidePopover()}catch(e){}try{t.showPopover()}catch(e){}clearTimeout(t._t);t._t=setTimeout(()=>{try{t.hidePopover()}catch(e){}},7000)}
 window.alert=toast;
 function askConfirm(msg,yes){const d=document.getElementById('cfm');document.getElementById('cfmm').textContent=msg;document.getElementById('cfmy').onclick=()=>{d.close();yes()};d.showModal()}
-const APP_VER='1.1.1', KEY='carp_proto_v2', TODAY=new Date().toISOString().slice(0,10);
+const APP_VER='1.1.2', KEY='carp_proto_v2', TODAY=new Date().toISOString().slice(0,10);
 const OLDPH=['Taglio','Saldatura','Assemblaggio','Verniciatura/zincatura','Collaudo','Montaggio'], PHMAP=[0,0,0,1,0,2];
 const V28=['In produzione','Verniciatura/zincatura','Montaggio'];
 const PH=['Produzione','Zincatura/Verniciatura','Montaggio'];
@@ -3025,15 +3025,25 @@ function showLogin(){
   const first=!D.users.length;
   $('#lg').innerHTML=`<div class="lgc"><div style="display:flex;gap:12px;align-items:center">${brandHtml(1)}</div><p class="mut">${first?'Primo avvio: crea l’utente amministratore. Potrai poi creare gli altri utenti e decidere cosa possono fare.':'Accedi con il tuo nome utente e la tua password.'}</p>
   ${first?`<label>Nome e cognome<input id="lgn" autocomplete="off"></label>`:''}
-  <label>Nome utente<input id="lgu" autocomplete="username" autocapitalize="off"></label>
+  ${first?`<label>Nome utente<input id="lgu" autocomplete="username" autocapitalize="off"></label>`:`<label>Utente<select id="lgu" onchange="lgPick()">${D.users.filter(u=>u.on).map(u=>`<option value="${esc(u.user)}">${esc(u.name)} (${esc(u.user)})</option>`).join('')}</select></label>`}
   <label>Password<input id="lgp" type="password" autocomplete="${first?'new-password':'current-password'}"></label>
+  ${first?'':`<label style="flex-direction:row;gap:8px;align-items:center;color:inherit;font-size:14px"><input id="lgr" type="checkbox" style="width:auto"> Ricorda password su questo computer</label>`}
   ${first?`<label>Ripeti password<input id="lgp2" type="password" autocomplete="new-password"></label>`:''}
   <div id="lge" class="neg" style="min-height:20px"></div>
   <button class="b pri" id="lgb" style="width:100%;padding:10px">${first?'Crea amministratore ed entra':'Accedi'}</button>
   ${first?'':'<div style="text-align:center;margin-top:12px"><a href="#" onclick="recOpen();return false" class="mut">Password dimenticata?</a></div><div style="text-align:center;margin-top:8px"><a href="#" onclick="sysResetOpen();return false" class="mut" style="font-size:12px">Reset totale del sistema</a></div>'}</div>`;
   const go=first?setupAdmin:doLogin;
   $('#lgb').onclick=go;$('#lg').onkeydown=e=>{if(e.key=='Enter')go()};
-  setTimeout(()=>$(first?'#lgn':'#lgu').focus(),50);
+  if(!first){let lu='';try{lu=localStorage.getItem('carp_lastuser')||''}catch(e){}const sl=$('#lgu');if(lu&&[...sl.options].some(o=>o.value==lu))sl.value=lu;lgPick();$('#lgp').oninput=()=>{delete $('#lgp').dataset.rem}}
+  setTimeout(()=>$(first?'#lgn':(first?'':($('#lgp').dataset.rem?'#lgb':'#lgp'))).focus(),50);
+}
+// ---------- "ricorda password": si conserva sul computer solo l'impronta cifrata della password
+const remGet=()=>{try{return JSON.parse(localStorage.getItem('carp_rem'))||{}}catch(e){return {}}};
+const remSet=m=>{try{localStorage.setItem('carp_rem',JSON.stringify(m))}catch(e){}};
+function lgPick(){
+  const u=D.users.find(x=>x.user==$('#lgu').value),r=remGet(),p=$('#lgp'),ok=u&&r[u.id]&&r[u.id]===u.hash;
+  $('#lgr').checked=!!ok;if(ok){p.value='••••••••';p.dataset.rem='1'}else{p.value='';delete p.dataset.rem}
+  if(u&&r[u.id]&&!ok){delete r[u.id];remSet(r)}
 }
 const lgErr=m=>{$('#lge').textContent=m};
 // ---------- recupero password amministratore (codice di recupero)
@@ -3092,16 +3102,19 @@ async function setupAdmin(){
   addLog('Creato amministratore',us);saveRaw();enter(D.users[0]);
 }
 async function doLogin(){
-  const us=$('#lgu').value.trim().toLowerCase(),p=$('#lgp').value, u=D.users.find(x=>x.user==us);
+  const us=$('#lgu').value.trim().toLowerCase(),p=$('#lgp').value, u=D.users.find(x=>x.user==us), viaRem=!!$('#lgp').dataset.rem;
   if(!us||!p)return lgErr('Inserisci nome utente e password.');
   if(u&&u.lock>Date.now())return lgErr('Account bloccato per troppi tentativi. Riprova tra '+Math.ceil((u.lock-Date.now())/60000)+' min o chiedi all’amministratore.');
-  const ok=u&&u.on&&(await hashPw(p,u.salt))==u.hash;
+  const ok=u&&u.on&&(viaRem?remGet()[u.id]===u.hash:(await hashPw(p,u.salt))==u.hash);
   if(!ok){
     if(u&&u.on){u.fails=(u.fails||0)+1;if(u.fails>=D.sec.maxFail){u.lock=Date.now()+D.sec.lockMin*60000;u.fails=0;addLog('Account bloccato (tentativi falliti)',u.user)}else addLog('Accesso fallito',u.user);saveRaw()}
     else addLog('Accesso fallito (utente sconosciuto o disattivato)',us);
     return lgErr(u&&!u.on?'Utente disattivato: contatta l’amministratore.':'Nome utente o password non validi.');
   }
-  u.fails=0;u.lock=0;enter(u);
+  u.fails=0;u.lock=0;
+  try{localStorage.setItem('carp_lastuser',u.user)}catch(e){}
+  const rm=remGet();if($('#lgr')&&$('#lgr').checked)rm[u.id]=u.hash;else delete rm[u.id];remSet(rm);
+  enter(u);
 }
 function enter(u){
   ME=u;try{sessionStorage.setItem('carp_sess',u.id)}catch(e){}
