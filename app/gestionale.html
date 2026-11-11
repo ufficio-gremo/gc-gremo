@@ -124,7 +124,7 @@ dialog.full{width:98vw;max-width:98vw}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;try{t.hidePopover()}catch(e){}try{t.showPopover()}catch(e){}clearTimeout(t._t);t._t=setTimeout(()=>{try{t.hidePopover()}catch(e){}},7000)}
 window.alert=toast;
 function askConfirm(msg,yes){const d=document.getElementById('cfm');document.getElementById('cfmm').textContent=msg;document.getElementById('cfmy').onclick=()=>{d.close();yes()};d.showModal()}
-const APP_VER='1.1.2', KEY='carp_proto_v2', TODAY=new Date().toISOString().slice(0,10);
+const APP_VER='1.2.0', KEY='carp_proto_v2', TODAY=new Date().toISOString().slice(0,10);
 const OLDPH=['Taglio','Saldatura','Assemblaggio','Verniciatura/zincatura','Collaudo','Montaggio'], PHMAP=[0,0,0,1,0,2];
 const V28=['In produzione','Verniciatura/zincatura','Montaggio'];
 const PH=['Produzione','Zincatura/Verniciatura','Montaggio'];
@@ -176,6 +176,8 @@ let D; try{D=JSON.parse(localStorage.getItem(KEY))}catch(e){} if(!D||!D.jobs)D=s
 // adatta i dati salvati con una versione precedente
 let AUTH_READY=false;
 const migrate=()=>{
+  D.xsheets=D.xsheets||[];
+  [...D.jobs,...D.xsheets].forEach(j=>{if(j.sheet){if(!j.docs||!j.docs.length)j.docs=[{...j.sheet,id:1,type:'dist',title:'Distinta di taglio'}];delete j.sheet}});
 if(AUTH_READY)authInit();
 D.rates=D.rates||{c:32,s:42};if(D.rates.cc===undefined)D.rates.cc=D.rates.c;if(D.rates.cs===undefined)D.rates.cs=D.rates.s; // fino a quando non imposti il costo aziendale vale la tariffa precedente
 if(!D.cfg)D.cfg=JSON.parse(JSON.stringify(DEF));
@@ -423,23 +425,54 @@ function rows(l){
   <td><div class="bar"><i style="width:${prog(j)}%"></i></div><small class="mut">${prog(j)}%</small></td><td>${eur(j.price)}</td><td class="${mar(j)<0?'neg':'pos'}">${pct(j)}%</td><td><button class="b" onclick="event.stopPropagation();pdfJob(${j.id})">PDF</button> <button class="b" onclick="event.stopPropagation();sheetOpen(${j.id})">Scheda</button></td></tr>`).join('');
 }
 // ---- elenco schede di lavorazione: una voce per ogni commessa (creata automaticamente con la commessa)
-const shInfo=j=>{const s=j.sheet;if(!s)return null;const n=(s.rows||[]).filter(r=>r.inc).length,v=(s.views||[]).length,p=(s.pdfs||[]).length,fl=(s.files||[]).length;return{n,v,p,fl,dist:s.dist!==false,d:s.imp||''}};
+const shInfo=j=>{const ds=shDocsOf(j);if(!ds.length)return null;let fl=0,d='';ds.forEach(s=>{fl+=(s.files||[]).length;if((s.imp||'')>d)d=s.imp});return{n:ds.length,fl,d,l:ds.map(s=>(s.title||SH_TY0[s.type||'dist'])+': '+shDocSum(s))}};
+// ---- schede di lavorazione non collegate a una commessa (D.xsheets, id negativo)
+const shJob=id=>D.jobs.find(x=>x.id==id)||D.xsheets.find(x=>x.id==id);
+const shCli=j=>j.client?cn(j.client):(j.cname||'');
+function shNewOpen(id){
+  const x=id?D.xsheets.find(y=>y.id==id):null,yr=new Date().getFullYear(),
+    code=x?x.code:'SCH-'+yr+'-'+String(D.xsheets.filter(y=>String(y.code).startsWith('SCH-'+yr)).length+1).padStart(3,'0');
+  const d=$('#dlg');d.oninput=null;d.oncancel=null;d.classList.remove('wide','full');
+  d.innerHTML=`<div class="dh"><h2>${x?'Dati della scheda':'Nuova scheda di lavorazione'}</h2><div class="mut">Scheda non collegata a una commessa.</div></div><div class="db" style="display:block">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">
+  <label style="display:flex;flex-direction:column;font-size:13px;gap:4px">Riferimento / codice<input id="shn_c" value="${esc(code)}"></label>
+  <label style="display:flex;flex-direction:column;font-size:13px;gap:4px">Cliente (facoltativo)<select id="shn_cl"><option value="0">— nessuno / altro —</option>${D.cl.map(c=>`<option value="${c.id}" ${x&&x.client==c.id?'selected':''}>${esc(c.n)}</option>`).join('')}</select></label>
+  <label style="display:flex;flex-direction:column;font-size:13px;gap:4px">Oppure scrivi il cliente<input id="shn_cn" value="${esc(x?x.cname||'':'')}" placeholder="Solo se non è in elenco"></label>
+  <label style="display:flex;flex-direction:column;font-size:13px;gap:4px;grid-column:1/-1">Descrizione del lavoro<input id="shn_d" value="${esc(x?x.desc:'')}"></label></div>
+  <div id="shn_e" class="neg" style="min-height:20px;margin-top:6px"></div></div>
+  <div class="df"><button class="b" onclick="$('#dlg').close()">Annulla</button><button class="b pri" onclick="shNewSave(${id||0})">${x?'Salva':'Crea e apri la scheda'}</button></div>`;
+  if(!d.open)d.showModal();setTimeout(()=>$('#shn_d').focus(),50);
+}
+function shNewSave(id){
+  const code=$('#shn_c').value.trim(),desc=$('#shn_d').value.trim(),cl=+$('#shn_cl').value||0,cname=cl?'':$('#shn_cn').value.trim();
+  if(!code)return $('#shn_e').textContent='Inserisci un riferimento o codice.';
+  if(D.xsheets.some(y=>y.id!=id&&y.code==code)||D.jobs.some(j=>j.code==code))return $('#shn_e').textContent='Questo codice è già usato da un’altra scheda o commessa.';
+  let x=id?D.xsheets.find(y=>y.id==id):null;
+  if(x){x.code=code;x.desc=desc;x.client=cl;x.cname=cname;save();$('#dlg').close();return}
+  x={id:-Date.now(),code,desc,client:cl,cname,docs:[]};D.xsheets.push(x);save();sheetOpen(x.id);
+}
+function shXDel(id){
+  const x=D.xsheets.find(y=>y.id==id);if(!x)return;
+  askConfirm('Eliminare la scheda «'+x.code+'»'+((x.docs||[]).length?' con tutti i documenti e i file archiviati':'')+'? L’operazione non si può annullare.',async()=>{
+    for(const s of (x.docs||[]))for(const f of [...(s.pdfs||[]),...(s.files||[])]){try{await fDel(f.fid)}catch(e){}}
+    D.xsheets=D.xsheets.filter(y=>y.id!=id);save();render()});
+}
 function sheetsRows(){
   const t=(qq||'').toLowerCase(),f=qfs||'';
-  const l=[...D.jobs].sort((a,b)=>a.due.localeCompare(b.due)||a.code.localeCompare(b.code)).filter(j=>{const i=shInfo(j);
-    return (!f||(f=='ok'?!!i:f=='no'?!i:j.status==f))&&(j.code+j.desc+cn(j.client)).toLowerCase().includes(t)});
+  const l=[...D.jobs].sort((a,b)=>a.due.localeCompare(b.due)||a.code.localeCompare(b.code)).concat([...D.xsheets].sort((a,b)=>String(a.code).localeCompare(b.code))).filter(j=>{const i=shInfo(j);
+    return (!f||(f=='ok'?!!i:f=='no'?!i:f=='xs'?j.id<0:j.id>0&&j.status==f))&&(j.code+j.desc+shCli(j)).toLowerCase().includes(t)});
   if(!l.length)return `<tr><td colspan="7" class="empty">Nessuna commessa trovata.</td></tr>`;
   return l.map(j=>{const i=shInfo(j);
-    return `<tr class="row" onclick="sheetOpen(${j.id})"><td><b>${esc(j.code)}</b>${linkTag(j)}</td><td>${cn(j.client)}<br><small class="mut">${esc(j.desc)}</small></td><td>${esc(j.status)}</td><td>${dt(j.due)}${late(j)?' <span class="tag late">ritardo</span>':''}</td>
-    <td>${i?`<span class="tag">Creata</span>`:'<span class="mut">Da creare</span>'}</td>
-    <td>${i?`Disegno: ${i.v||i.p?[i.v?i.v+' DXF':'',i.p?i.p+' PDF':''].filter(Boolean).join(' + '):'nessuno'}<br>Distinta: ${i.dist?i.n+(i.n==1?' posizione':' posizioni'):'non creata'}${i.fl?`<br>${i.fl} ${i.fl==1?'file archiviato':'file archiviati'}`:''}`:'-'}${i&&i.d?`<br><small class="mut">${dt(i.d)}</small>`:''}</td>
-    <td style="white-space:nowrap"><button class="b ${i?'':'pri'}" onclick="event.stopPropagation();sheetOpen(${j.id})">${i?'Apri scheda':'Crea scheda'}</button>${i?` <button class="b" onclick="event.stopPropagation();sheetPdf(${j.id})">PDF</button>`:''}</td></tr>`}).join('');
+    return `<tr class="row" onclick="sheetOpen(${j.id})"><td><b>${esc(j.code)}</b>${j.id<0?' <span class="tag">senza commessa</span>':linkTag(j)}</td><td>${shCli(j)||'—'}<br><small class="mut">${esc(j.desc)}</small></td><td>${j.id<0?'—':esc(j.status)}</td><td>${j.id<0?'—':dt(j.due)}${j.id>0&&late(j)?' <span class="tag late">ritardo</span>':''}</td>
+    <td>${i?`<span class="tag">${i.n} ${i.n==1?'documento':'documenti'}</span>`:'<span class="mut">Da creare</span>'}</td>
+    <td>${i?`${i.l.map(esc).join('<br>')}${i.fl?`<br>${i.fl} ${i.fl==1?'file archiviato':'file archiviati'}`:''}`:'-'}${i&&i.d?`<br><small class="mut">${dt(i.d)}</small>`:''}</td>
+    <td style="white-space:nowrap"><button class="b ${i?'':'pri'}" onclick="event.stopPropagation();sheetOpen(${j.id})">${i?'Documenti':'Crea scheda'}</button>${i?` <button class="b" onclick="event.stopPropagation();sheetPdf(${j.id})">PDF</button>`:''}${j.id<0?` <button class="b" onclick="event.stopPropagation();shNewOpen(${j.id})">Dati</button> <button class="b dng" onclick="event.stopPropagation();shXDel(${j.id})">Elimina</button>`:''}</td></tr>`}).join('');
 }
 function sheetsView(){
-  const tot=D.jobs.length,ok=D.jobs.filter(j=>j.sheet).length;
+  const tot=D.jobs.length,ok=D.jobs.filter(j=>(j.docs||[]).length).length;
   return `<div class="tools"><input id="hq" placeholder="Cerca per codice, cliente o descrizione" value="${esc(qq||'')}" style="flex:1;min-width:200px">
-  <select id="hf"><option value="">Tutte le commesse</option><option value="ok" ${qfs=='ok'?'selected':''}>Con scheda creata</option><option value="no" ${qfs=='no'?'selected':''}>Schede da creare</option>${ST.map(x=>`<option ${x==qfs?'selected':''}>${x}</option>`).join('')}</select></div>
-  <div class="mut" style="margin:-4px 0 8px">Ogni commessa ha la sua voce in elenco. ${ok} schede create su ${tot} commesse. Clicca una riga per aprire o creare la scheda di lavorazione.</div>
+  <select id="hf"><option value="">Tutte</option><option value="ok" ${qfs=='ok'?'selected':''}>Con scheda creata</option><option value="no" ${qfs=='no'?'selected':''}>Schede da creare</option><option value="xs" ${qfs=='xs'?'selected':''}>Solo schede senza commessa</option>${ST.map(x=>`<option ${x==qfs?'selected':''}>${x}</option>`).join('')}</select><button class="b pri" onclick="shNewOpen()">+ Nuova scheda senza commessa</button></div>
+  <div class="mut" style="margin:-4px 0 8px">Ogni commessa ha la sua voce in elenco. ${ok} schede create su ${tot} commesse${D.xsheets.length?' (più '+D.xsheets.length+(D.xsheets.length==1?' scheda':' schede')+' senza commessa)':''}. Clicca una riga per aprire o creare la scheda di lavorazione.</div>
   <div class="tw"><table><thead><tr><th>Commessa</th><th>Cliente e lavoro</th><th>Stato</th><th>Consegna</th><th>Scheda</th><th>Contenuto</th><th></th></tr></thead><tbody id="hl">${sheetsRows()}</tbody></table></div>`;
 }
 function jobs(){
@@ -1288,6 +1321,200 @@ function sdSave(){
   D.cfg={...D.cfg,vat:SD.vat,mk:SD.mk,vd:SD.vd,st:[...ST],prio:[...PRIO],ph:[...PH],ops:OPS.map(o=>({...o}))};
   save();SD=null;applyBrand();SDmsg={ok:'Impostazioni salvate.'};render();window.scrollTo(0,0);
 }
+// ===== importazione da Excel / CSV (prodotti, clienti, fornitori)
+const IMP_T={prod:'Prodotti (magazzino)',cl:'Clienti',sup:'Fornitori'};
+const IMP_F={
+ cl:[{k:'n',l:'Ragione sociale',req:1,syn:['ragione sociale','cliente','nome','denominazione','azienda','societa','intestazione']},{k:'iva',l:'Partita IVA',syn:['partita iva','p iva','piva','vat','iva','codice fiscale','cf']},{k:'ref',l:'Referente',syn:['referente','contatto','persona','riferimento']},{k:'tel',l:'Telefono',syn:['telefono','tel','cellulare','cell','phone','mobile']}],
+ sup:[{k:'n',l:'Ragione sociale',req:1,syn:['ragione sociale','fornitore','nome','denominazione','azienda','societa','intestazione']},{k:'cat',l:'Categoria merceologica',syn:['categoria merceologica','categoria','settore','tipologia']},{k:'iva',l:'Partita IVA',syn:['partita iva','p iva','piva','vat','iva','codice fiscale','cf']},{k:'ref',l:'Referente',syn:['referente','contatto','persona','riferimento']},{k:'tel',l:'Telefono',syn:['telefono','tel','cellulare','cell','phone','mobile']}],
+ prod:[{k:'code',l:'Codice prodotto',req:1,syn:['codice','codice articolo','codice prodotto','cod','cod art','articolo','sku']},{k:'desc',l:'Descrizione',syn:['descrizione','desc','nome','denominazione','articolo']},{k:'cat',l:'Categoria',syn:['categoria','famiglia','gruppo','tipologia']},{k:'mat',l:'Materiale / qualità',syn:['materiale','qualita','acciaio']},{k:'dim',l:'Dimensioni / sezione',syn:['dimensioni','dimensione','misura','misure','sezione','dim']},{k:'um',l:'Unità di misura',syn:['um','u m','unita di misura','unita','udm']},{k:'kg',l:'Peso (kg per unità)',num:1,syn:['peso','kg','peso kg','kg m','kg unita']},{k:'fin',l:'Finitura',syn:['finitura','trattamento','zincatura']},{k:'cost',l:'Costo unitario (€)',num:1,syn:['costo','costo unitario','prezzo','prezzo acquisto','costo acquisto','prezzo unitario','listino']},{k:'stock',l:'Giacenza',num:1,syn:['giacenza','quantita','qta','q ta','stock','disponibile','magazzino']},{k:'min',l:'Scorta minima',num:1,syn:['scorta minima','scorta','minimo','scorta min']},{k:'sup',l:'Fornitore abituale',syn:['fornitore','fornitore abituale','marca']},{k:'pnote',l:'Note',syn:['note','annotazioni','osservazioni']}]
+};
+let IMP=null;
+const impNorm=s=>String(s??'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+// --- lettura file
+function impCsv(t){
+  t=t.replace(/^﻿/,'');const first=t.split(/\r?\n/)[0]||'';const sep=[';','\t',','].map(c=>[c,first.split(c).length]).sort((a,b)=>b[1]-a[1])[0][0];
+  const rows=[];let row=[],f='',q=false;
+  for(let i=0;i<t.length;i++){const c=t[i];
+    if(q){if(c=='"'){if(t[i+1]=='"'){f+='"';i++}else q=false}else f+=c}
+    else if(c=='"')q=true;else if(c==sep){row.push(f);f=''}else if(c=='\n'||c=='\r'){if(c=='\r'&&t[i+1]=='\n')i++;row.push(f);f='';rows.push(row);row=[]}else f+=c}
+  if(f!==''||row.length){row.push(f);rows.push(row)}
+  return rows.map(r=>r.map(x=>x.trim()));
+}
+async function impInflate(u8){return new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer())}
+async function impUnzip(buf){
+  const u=new Uint8Array(buf),dv=new DataView(buf);let e=-1;
+  for(let i=u.length-22;i>=Math.max(0,u.length-70000);i--)if(dv.getUint32(i,true)==0x06054b50){e=i;break}
+  if(e<0)throw new Error('Il file non è un Excel (.xlsx) valido.');
+  const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const out={},td=new TextDecoder();
+  for(let k=0;k<n;k++){
+    if(dv.getUint32(p,true)!=0x02014b50)break;
+    const m=dv.getUint16(p+10,true),cs=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),el=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lo=dv.getUint32(p+42,true),name=td.decode(u.subarray(p+46,p+46+nl));
+    p+=46+nl+el+cl;
+    if(!/^xl\/(workbook\.xml|_rels\/workbook\.xml\.rels|sharedStrings\.xml|worksheets\/[^/]+\.xml)$/.test(name))continue;
+    const ds=lo+30+dv.getUint16(lo+26,true)+dv.getUint16(lo+28,true),raw=u.subarray(ds,ds+cs);
+    out[name]=td.decode(m==0?raw:await impInflate(raw));
+  }
+  return out;
+}
+async function impXlsx(buf){
+  const z=await impUnzip(buf),P=s=>new DOMParser().parseFromString(s,'application/xml');
+  if(!z['xl/workbook.xml'])throw new Error('Il file non sembra un Excel (.xlsx) valido.');
+  const wb=P(z['xl/workbook.xml']),rel=P(z['xl/_rels/workbook.xml.rels']||'<r/>'),tg={};
+  [...rel.getElementsByTagName('Relationship')].forEach(r=>{tg[r.getAttribute('Id')]=r.getAttribute('Target')});
+  const ss=[];
+  if(z['xl/sharedStrings.xml'])[...P(z['xl/sharedStrings.xml']).getElementsByTagName('si')].forEach(si=>{let t='';[...si.getElementsByTagName('t')].forEach(x=>{if(!x.parentNode||x.parentNode.nodeName!='rPh')t+=x.textContent});ss.push(t)});
+  const col=r=>{let n=0;for(const c of r.replace(/[0-9]/g,''))n=n*26+c.charCodeAt(0)-64;return n-1};
+  const sheets=[];
+  for(const s of [...wb.getElementsByTagName('sheet')]){
+    const rid=s.getAttribute('r:id')||s.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id');let t=tg[rid]||'';t=t.replace(/^\/?(xl\/)?/,'');
+    const xml=z['xl/'+t];if(!xml)continue;const rows=[];
+    [...P(xml).getElementsByTagName('row')].forEach(r=>{const ri=+r.getAttribute('r')-1,arr=[];
+      [...r.getElementsByTagName('c')].forEach(c=>{const ci=col(c.getAttribute('r')||''),ty=c.getAttribute('t'),v=c.getElementsByTagName('v')[0];let val='';
+        if(ty=='s')val=ss[+(v&&v.textContent)]||'';else if(ty=='inlineStr')val=[...c.getElementsByTagName('t')].map(x=>x.textContent).join('');else if(v)val=v.textContent;
+        arr[ci]=String(val).trim()});
+      rows[ri]=Array.from(arr,x=>x==null?'':x)});
+    const R=Array.from(rows,r=>r||[]);sheets.push({name:s.getAttribute('name'),rows:R});
+  }
+  if(!sheets.length)throw new Error('Nel file non ho trovato fogli leggibili.');
+  return sheets;
+}
+async function impRead(f){
+  if(/\.xls$/i.test(f.name))throw new Error('Il vecchio formato .xls non è supportato: in Excel scegli «Salva con nome» e poi .xlsx (oppure CSV).');
+  const buf=await f.arrayBuffer();
+  if(/\.(xlsx|xlsm)$/i.test(f.name))return impXlsx(buf);
+  let t=new TextDecoder('utf-8').decode(buf);if(t.includes('\uFFFD'))t=new TextDecoder('windows-1252').decode(buf);
+  return [{name:'CSV',rows:impCsv(t)}];
+}
+// --- configurazione e mappatura
+const impCfg=t=>{D.impcfg=D.impcfg||{};return D.impcfg[t]=D.impcfg[t]||{map:{},dup:'upd',hdr:true,gen:true,mkSup:false}};
+function impHeaders(){const r=IMP.sheets[IMP.sh].rows,c=impCfg(IMP.t),w=Math.max(0,...r.slice(0,50).map(x=>x.length));
+  return Array.from({length:w},(_,i)=>c.hdr?(String((r[0]||[])[i]??'').trim()||'Colonna '+impL(i)):'Colonna '+impL(i))}
+const impL=i=>{let s='',n=i+1;while(n>0){s=String.fromCharCode(65+(n-1)%26)+s;n=Math.floor((n-1)/26)}return s};
+function impGuess(){
+  const H=impHeaders(),c=impCfg(IMP.t),used=new Set(),map={};
+  IMP_F[IMP.t].forEach(f=>{
+    if(c.map[f.k]===null){map[f.k]=-1;return}
+    let i=c.map[f.k]!=null?H.findIndex(h=>h==c.map[f.k]):-1;
+    if(i<0&&c.hdr){const ns=H.map(impNorm);i=ns.findIndex((h,x)=>!used.has(x)&&f.syn.includes(h));if(i<0)i=ns.findIndex((h,x)=>!used.has(x)&&h&&f.syn.some(s=>s.length>3&&(h.includes(s))))}
+    if(i>=0){map[f.k]=i;used.add(i)}else map[f.k]=-1});
+  IMP.map=map;
+}
+function impLoad(){
+  IMP.sh=Math.min(IMP.sh||0,IMP.sheets.length-1);impGuess();impPlan();
+}
+async function impFile(ev){
+  const f=ev.target.files[0];if(!f)return;
+  const t=IMP?IMP.t:'prod';
+  try{const sheets=await impRead(f);IMP={t,sheets,sh:0,name:f.name,map:{},plan:null,res:null,err:''};
+    const best=sheets.findIndex(s=>s.rows.length>0);IMP.sh=best<0?0:best;impLoad()}
+  catch(e){IMP={t,sheets:null,err:e.message||'Impossibile leggere il file.',res:null}}
+  impDraw();
+}
+function impType(t){IMP=Object.assign(IMP||{},{t,plan:null,res:null});if(IMP.sheets)impLoad();impDraw()}
+function impSheet(i){IMP.sh=+i;impLoad();impDraw()}
+function impOpt(k,v){const c=impCfg(IMP.t);c[k]=v;saveRaw();if(k=='hdr'){impLoad()}else impPlan();impDraw()}
+function impMap(k,i){IMP.map[k]=+i;const c=impCfg(IMP.t),H=impHeaders();c.map[k]=+i>=0?H[+i]:null;saveRaw();impPlan();impDraw()}
+// --- piano di importazione
+function impNum(s){
+  s=String(s??'').replace(/[€\s]/g,'');if(!s)return {v:0,empty:true};
+  if(s.includes(',')&&s.includes('.')){s=s.lastIndexOf(',')>s.lastIndexOf('.')?s.replace(/\./g,'').replace(',','.'):s.replace(/,/g,'')}else if(s.includes(','))s=s.replace(',','.');
+  const v=Number(s);return isNaN(v)?{v:0,bad:true}:{v};
+}
+const IMP_UM={m:'m',mt:'m',ml:'m',metri:'m',metro:'m',kg:'kg',chili:'kg',pz:'pz',n:'pz',nr:'pz',pezzi:'pz',pezzo:'pz',cad:'pz',mq:'m²',m2:'m²','m²':'m²'};
+const impKey=(t,r)=>t=='prod'?String(r.code||'').trim().toLowerCase():(String(r.iva||'').replace(/[^0-9a-z]/gi,'').toUpperCase()||('n:'+String(r.n||'').trim().toLowerCase()));
+function impPlan(){
+  if(!IMP||!IMP.sheets)return;const t=IMP.t,c=impCfg(t),F=IMP_F[t],rows=IMP.sheets[IMP.sh].rows,body=c.hdr?rows.slice(1):rows,H=impHeaders();
+  const exist=new Map();D[t=='prod'?'items':t].forEach(x=>{exist.set(impKey(t,x),x)});
+  const seen=new Set(),plan=[],errs=[];let n=0,u=0,s=0,w=0;const newSup=new Set();
+  body.forEach((row,ri)=>{
+    if(!row.some(x=>String(x||'').trim()))return;const ln=ri+(c.hdr?2:1),r={},warn=[];
+    F.forEach(f=>{const i=IMP.map[f.k];if(i==null||i<0)return;let v=String(row[i]??'').trim();
+      if(f.num){const q=impNum(v);if(q.bad){warn.push(H[i]+': «'+v+'» non è un numero (messo a 0)')}r[f.k]=q.empty?undefined:q.v}else if(v!=='')r[f.k]=v});
+    if(t=='prod'){
+      if(r.um!==undefined){const k=IMP_UM[impNorm(r.um)]||IMP_UM[String(r.um).toLowerCase()];if(k)r.um=k;else{warn.push('Unità «'+r.um+'» non riconosciuta (messa a pz)');r.um='pz'}}
+      if(!r.code&&r.desc&&c.gen)r._gen=1;
+    }
+    const need=t=='prod'?(r.code||(r._gen&&r.desc)):r.n;
+    if(!need){errs.push('Riga '+ln+': manca '+(t=='prod'?'il codice':'la ragione sociale')+' (riga saltata).');s++;plan.push({ln,r,act:'err'});return}
+    if(t=='prod'&&r._gen){const g=genCode(r.desc);let cd=g,n2=2;while(exist.has(cd.toLowerCase())||seen.has(cd.toLowerCase()))cd=g+'-'+(n2++);r.code=cd}
+    const key=impKey(t,r);
+    if(seen.has(key)){errs.push('Riga '+ln+': duplicata nel file ('+(r.code||r.n)+'), saltata.');s++;plan.push({ln,r,act:'err'});return}seen.add(key);
+    const ex=exist.get(key);let act;
+    if(ex){if(c.dup=='upd'){act='upd';u++}else{act='skip';s++}}else{act='new';n++}
+    if(t=='prod'&&r.sup){const sp=impSup(r.sup);if(!sp){if(c.mkSup)newSup.add(String(r.sup).trim());else warn.push('Fornitore «'+r.sup+'» non trovato in anagrafica (campo lasciato vuoto)')}}
+    w+=warn.length?1:0;plan.push({ln,r,act,ex,warn});
+  });
+  IMP.plan={items:plan,n,u,s,w,errs,newSup:[...newSup],warns:plan.filter(p=>p.warn&&p.warn.length).flatMap(p=>p.warn.map(x=>'Riga '+p.ln+': '+x))};
+}
+const impSup=nm=>{const k=impNorm(nm);return D.sup.find(x=>impNorm(x.n)==k)||null};
+// --- esecuzione
+function impRun(){
+  if(!IMP||!IMP.plan)return;const P=IMP.plan,t=IMP.t,c=impCfg(t),coll=t=='prod'?'items':t;
+  const lvk=t=='prod'?'items':t;if(!ME||lv(lvk)<2){toast('Non hai il permesso di modificare questi dati.');return}
+  if(!P.n&&!P.u){toast('Non c’è nulla da importare.');return}
+  askConfirm('Importare '+P.n+' nuovi e aggiornare '+P.u+' esistenti ('+IMP_T[t].toLowerCase()+')? Potrai annullare l’importazione finché non chiudi il programma.',()=>{
+    IMP_UNDO={coll,t,snap:JSON.stringify(D[coll]),sup:JSON.stringify(D.sup)};
+    let id=Date.now();const nid=()=>++id;let cn=0,cu=0;
+    if(t=='prod'&&c.mkSup)P.newSup.forEach(nm=>{if(!impSup(nm))D.sup.push({id:nid(),n:nm,cat:'',iva:'',ref:'',tel:''})});
+    P.items.forEach(p=>{
+      if(p.act!='new'&&p.act!='upd')return;const r=p.r;
+      const sp=t=='prod'&&r.sup?impSup(r.sup):null;
+      if(t=='prod'){
+        const set=(o)=>{['code','desc','cat','mat','dim','um','fin','pnote'].forEach(k=>{if(r[k]!==undefined)o[k]=String(r[k])});
+          if(r.kg!==undefined)o.kg=r.kg;if(r.stock!==undefined)o.stock=r.stock;if(r.min!==undefined)o.min=r.min;
+          if(r.cost!==undefined){o.cost=r.cost;o.ca=(o.uc&&+o.fc>0)?r4(r.cost*o.fc):r.cost}
+          if(sp)o.sup=sp.id};
+        if(p.act=='new'){const o={id:nid(),code:'',desc:'',um:'pz',stock:0,min:0,cost:0,ca:0,sup:0,cat:'',mat:'',dim:'',fin:'',uc:'',fc:0,pc:0,pnote:''};set(o);if(!o.desc)o.desc=o.code;D.items.push(o);cn++}
+        else{set(p.ex);cu++}
+      }else{
+        if(p.act=='new'){D[coll].push({id:nid(),n:'',iva:'',ref:'',tel:'',...(t=='sup'?{cat:''}:{}),...Object.fromEntries(Object.entries(r).filter(([k])=>k[0]!='_'))});cn++}
+        else{Object.entries(r).forEach(([k,v])=>{if(k[0]!='_')p.ex[k]=v});cu++}
+      }
+    });
+    save();IMP.res={cn,cu,sk:P.s,coll:t};IMP.plan=null;impLoad();impDraw();toast('Importazione completata: '+cn+' nuovi, '+cu+' aggiornati.');
+  });
+}
+let IMP_UNDO=null;
+function impUndo(){
+  if(!IMP_UNDO)return;askConfirm('Annullare l’ultima importazione e ripristinare i dati com’erano prima?',()=>{
+    D[IMP_UNDO.coll]=JSON.parse(IMP_UNDO.snap);D.sup=JSON.parse(IMP_UNDO.sup);IMP_UNDO=null;save();if(IMP){IMP.res={undo:1};if(IMP.sheets)impLoad()}impDraw();toast('Importazione annullata.')});
+}
+function impTemplate(){
+  const t=IMP?IMP.t:'prod',h=IMP_F[t].map(f=>f.l),ex={prod:['HEA-200','Trave HEA 200','Profilati','S275JR','HEA 200','m','42,3','grezzo','1,85','120','20','Fornitore Rossi Srl',''],cl:['Rossi Costruzioni Srl','01234567890','Mario Rossi','333 1234567'],sup:['Acciaierie Bianchi Spa','Profilati','09876543210','Luca Bianchi','02 123456']}[t];
+  const csv='﻿'+[h,ex].map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\r\n')+'\r\n';
+  const u=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));sfSaveAs(u,'Modello_'+t+'.csv');setTimeout(()=>URL.revokeObjectURL(u),60000);
+}
+// --- interfaccia (scheda in Impostazioni)
+function impDraw(){const e=document.getElementById('impbox');if(e)e.innerHTML=impHtml()}
+function impHtml(){
+  if(!IMP)IMP={t:'prod',sheets:null,res:null,err:''};
+  const t=IMP.t,c=impCfg(t),F=IMP_F[t],lab='display:flex;flex-direction:column;font-size:13px;gap:4px',ok=ME&&lv(t=='prod'?'items':t)>=2;
+  let h=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;align-items:end">
+   <label style="${lab}">Che cosa vuoi importare<select onchange="impType(this.value)">${Object.entries(IMP_T).map(([k,v])=>`<option value="${k}" ${k==t?'selected':''}>${v}</option>`).join('')}</select></label>
+   <label style="${lab}">File Excel (.xlsx) o CSV<input type="file" accept=".xlsx,.xlsm,.csv,.txt,.tsv" onchange="impFile(event)"></label>
+   <div class="tools" style="margin:0"><button class="b" onclick="impTemplate()" title="Un file CSV con le colonne giuste, da compilare">Scarica modello CSV</button>${IMP_UNDO?'<button class="b dng" onclick="impUndo()">Annulla ultima importazione</button>':''}</div></div>`;
+  if(IMP.err)h+=`<div class="rsn neg" style="margin-top:10px">${esc(IMP.err)}</div>`;
+  if(IMP.res&&IMP.res.undo)h+=`<div class="rsn pos" style="margin-top:10px"><b>Importazione annullata.</b></div>`;
+  else if(IMP.res)h+=`<div class="rsn pos" style="margin-top:10px"><b>Importazione completata:</b> ${IMP.res.cn} nuovi, ${IMP.res.cu} aggiornati${IMP.res.sk?', '+IMP.res.sk+' righe saltate':''}.</div>`;
+  if(IMP.sheets){
+    const rows=IMP.sheets[IMP.sh].rows,H=impHeaders(),first=(rows[c.hdr?1:0]||[]),P=IMP.plan;
+    h+=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px;align-items:end">
+     ${IMP.sheets.length>1?`<label style="${lab}">Foglio<select onchange="impSheet(this.value)">${IMP.sheets.map((s,i)=>`<option value="${i}" ${i==IMP.sh?'selected':''}>${esc(s.name)} (${s.rows.length} righe)</option>`).join('')}</select></label>`:`<div class="mut">File: <b>${esc(IMP.name)}</b> · ${rows.length} righe</div>`}
+     <label style="display:flex;flex-direction:row;gap:8px;align-items:center;font-size:14px;color:inherit"><input type="checkbox" style="width:auto" ${c.hdr?'checked':''} onchange="impOpt('hdr',this.checked)"> La prima riga contiene i titoli delle colonne</label>
+     <label style="${lab}">Se l’elemento esiste già<select onchange="impOpt('dup',this.value)"><option value="upd" ${c.dup=='upd'?'selected':''}>Aggiorna i dati (solo le colonne compilate)</option><option value="skip" ${c.dup=='skip'?'selected':''}>Salta, non toccare l’esistente</option></select><span class="mut">${t=='prod'?'Un prodotto esiste già se ha lo stesso codice.':'Esiste già se ha la stessa partita IVA (o, senza P.IVA, la stessa ragione sociale).'}</span></label></div>`;
+    if(t=='prod')h+=`<div class="tools" style="margin:8px 0 0"><label style="display:flex;flex-direction:row;gap:8px;align-items:center;font-size:14px;color:inherit"><input type="checkbox" style="width:auto" ${c.gen?'checked':''} onchange="impOpt('gen',this.checked)"> Se manca il codice, crealo dalla descrizione</label><label style="display:flex;flex-direction:row;gap:8px;align-items:center;font-size:14px;color:inherit"><input type="checkbox" style="width:auto" ${c.mkSup?'checked':''} onchange="impOpt('mkSup',this.checked)"> Crea in anagrafica i fornitori che non esistono</label></div>`;
+    h+=`<h3 style="margin:14px 0 6px">Colonne del file → campi del programma</h3><div class="tw"><table style="min-width:0"><thead><tr><th>Campo del programma</th><th>Colonna del file</th><th>Primo valore</th></tr></thead><tbody>${F.map(f=>{const i=IMP.map[f.k]??-1;return `<tr><td>${f.l}${f.req?' <b title="obbligatorio">*</b>':''}</td><td><select onchange="impMap('${f.k}',this.value)"><option value="-1">— non importare —</option>${H.map((x,k)=>`<option value="${k}" ${k==i?'selected':''}>${esc(x)}</option>`).join('')}</select></td><td class="mut">${i>=0?esc(first[i]||''):''}</td></tr>`}).join('')}</tbody></table></div>`;
+    if(P){
+      const bad=(t=='prod'?IMP.map.code<0&&!(c.gen&&IMP.map.desc>=0):IMP.map.n<0);
+      h+=`<h3 style="margin:14px 0 6px">Anteprima</h3>${bad?`<div class="rsn neg">Scegli la colonna ${t=='prod'?'del codice (o della descrizione, con «crea il codice» attivo)':'della ragione sociale'}.</div>`:''}
+      <div class="tools" style="margin:0 0 6px"><span class="tag">${P.n} nuovi</span><span class="tag">${P.u} da aggiornare</span><span class="tag">${P.s} saltati</span>${P.w?`<span class="tag late">${P.w} con avvisi</span>`:''}</div>
+      <div class="tw"><table style="min-width:0"><thead><tr><th>Riga</th><th>Esito</th>${F.slice(0,t=='prod'?6:5).map(f=>`<th>${f.l}</th>`).join('')}</tr></thead><tbody>${P.items.slice(0,8).map(p=>`<tr><td>${p.ln}</td><td>${{new:'<span class="tag">nuovo</span>',upd:'<span class="tag" style="background:#ffd43b;color:#000">aggiorna</span>',skip:'<span class="mut">salta</span>',err:'<span class="tag late">errore</span>'}[p.act]}</td>${F.slice(0,t=='prod'?6:5).map(f=>`<td>${esc(p.r[f.k]??'')}</td>`).join('')}</tr>`).join('')||'<tr><td colspan="8" class="empty">Nessuna riga da importare.</td></tr>'}</tbody></table></div>
+      ${(P.errs.length||P.warns.length)?`<details style="margin-top:8px"><summary>Avvisi ed errori (${P.errs.length+P.warns.length})</summary><ul style="margin:6px 0 0 18px">${[...P.errs,...P.warns].slice(0,40).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>`:''}
+      <div class="tools" style="margin-top:10px"><button class="b pri" onclick="impRun()" ${(P.n||P.u)&&ok&&!bad?'':'disabled'}>Importa ${P.n+P.u} righe</button>${ok?'':'<span class="mut">Non hai il permesso di modificare questi dati.</span>'}</div>`;
+    }
+  }
+  return h;
+}
 function settingsView(){
   if(!SD){SD=sdNew();SD0=JSON.stringify(SD)}
   const m=SDmsg;SDmsg=null;
@@ -1322,6 +1549,7 @@ function settingsView(){
   card('Personale','Gli operai selezionabili nella registrazione delle ore. Il tipo decide quale costo orario aziendale si applica. Chi ha ore registrate non si può eliminare.',
     SD.ops.map((o,i)=>row(`<input value="${esc(o.n)}" style="flex:1;min-width:160px" oninput="sdSet('ops',${i},'n',this.value)">${tsel(i,o.t)}${use('ops',o)}${btns('ops',i,false)}`)).join('')+
     row(`<input id="newops" placeholder="Nome nuovo operaio" style="flex:1;min-width:160px"><select id="newopt"><option value="C">Operaio comune</option><option value="S">Operaio specializzato</option></select><button class="b pri" onclick="sdAdd('ops')">Aggiungi</button>`))+
+  card('Importazione da Excel o CSV','Carica un file con prodotti, clienti o fornitori: scegli quali colonne corrispondono ai campi del programma, controlla l’anteprima e importa. Le scelte fatte (colonne e opzioni) restano salvate per le prossime importazioni. Funziona con file .xlsx e CSV.',`<div id="impbox">${impHtml()}</div>`)+
   card('Stati della commessa','Completato, Consegnata e Fatturata sono usati dal programma (fatturazione, commesse in corso) e non si possono modificare. Uno stato usato da commesse non si può eliminare.',list('st'))+
   card('Priorità','La prima voce è evidenziata come priorità massima nell’elenco commesse. Una priorità usata da commesse non si può eliminare.',list('prio'))+
   card('Fasi di produzione','Le fasi mostrate nell’avanzamento di ogni commessa e nella registrazione delle ore. Eliminando una fase se ne perde l’avanzamento nelle commesse; le ore già registrate restano.',list('ph'))+
@@ -2577,6 +2805,7 @@ function shSuggest(ents,W,H){
 // ---- finestra
 let SHW=null,SHRAW=null;
 function shNorm(s){
+  s.rows=s.rows||[];s.type=s.type||'dist';s.title=s.title||SH_TY0[s.type];if(s.type=='tav'){s.vw=s.vw||[];s.paper=s.paper||'A4'}if(s.type=='ab')s.pl=s.pl||[];
   if(!s.views){s.views=[{name:'Vista 1',file:s.file||'',w:s.w,h:s.h,ents:s.ents||[]}];delete s.ents;delete s.w;delete s.h}
   s.details=s.details||[];s.pdfs=s.pdfs||[];s.files=s.files||[];if(s.dist===undefined)s.dist=true;
   s.rows.forEach(r=>{if(!r.refs){r.refs=r.ref?[{v:0,x:r.ref[0],y:r.ref[1]}]:[];delete r.ref}});
@@ -2597,16 +2826,475 @@ const shSvg=(ents,bb,balls,w,cl,sel,det)=>{
   const ev=cl?` id="shsvg" onmousedown="shDrag(event,0)" onmousemove="shMove(event);shDrag(event,1)" onmouseup="shDrag(event,2)" onmouseleave="shHl('')"`:'';
   return `<svg${ev} viewBox="${bb[0]-pad} ${-(bb[3]+pad)} ${W+2*pad} ${H+2*pad}" style="width:${w};${cl?'user-select:none;':'max-width:100%;'}background:#fff;display:block;${cl?'cursor:crosshair':'border:1px solid var(--line)'}" ${cl?'onclick="shClick(event)"':''}><g transform="scale(1,-1)" fill="none" stroke="#000" stroke-width="1">${pth}${bal}${dr}<g id="shhl" stroke-width="4" opacity=".5"></g><rect id="shrect" display="none" fill="rgba(0,0,0,.08)" stroke="#000" stroke-width="2" stroke-dasharray="8 5" vector-effect="non-scaling-stroke"/></g>${num}${dl}</svg>`;
 };
+// ===== documenti della scheda (distinta di taglio, tavole esecutive, abaco piastre)
+const SH_TY0={dist:'Distinta di taglio',tav:'Tavole esecutive',ab:'Abaco piastre'};
+const shDocsOf=j=>j.docs||[];
+const r1n=n=>Math.round(n*10)/10, f1=n=>(Math.round(n*10)/10).toString().replace('.',','), f2=n=>(Math.round(n*100)/100).toFixed(2).replace('.',',');
+function shDocSum(s){
+  if(s.type=='tav'){const n=(s.vw||[]).length;return n+(n==1?' vista':' viste')}
+  if(s.type=='ab'){const n=(s.pl||[]).length;return n+(n==1?' piastra':' piastre')}
+  const n=(s.rows||[]).filter(r=>r.inc).length,v=(s.views||[]).length,p=(s.pdfs||[]).length;
+  return (s.dist!==false?n+(n==1?' posizione':' posizioni'):'solo disegno')+(v||p?' · disegno '+[v?v+' DXF':'',p?p+' PDF':''].filter(Boolean).join(' + '):'');
+}
+const shSt=id=>({id,list:false,s:null,doc:0,type:'dist',start:false,imp:false,mkDist:true,add:false,av:0,mode:null,sel:null,z:1,page:'sheet'});
+function docList(){
+  if(SHW&&SHW.s&&lv(view)>=2&&!SHW.start&&!SHW.imp)shSave(true);
+  const id=SHW.id;SHRAW=null;SHW=shSt(id);SHW.list=true;{const j=shJob(id);if(j)shAssignAll(j)}shRender();
+}
+function shDocsHtml(){
+  const j=shJob(SHW.id),ds=shDocsOf(j),pick=SHW.pick||!ds.length;
+  const rows=ds.map(s=>`<tr><td><span class="tag">${SH_TY0[s.type||'dist']}</span></td><td>${SHW.ren==s.id?`<input id="shrn" value="${esc(s.title||'')}" style="width:100%;box-sizing:border-box" onkeydown="if(event.key=='Enter')shDocRenOk(${s.id})">`:`<b>${esc(s.title||SH_TY0[s.type||'dist'])}</b>`}</td><td>${esc(shDocSum(s))}${(s.files||[]).length?` · ${(s.files||[]).length} file`:''}</td><td>${s.imp?dt(s.imp):''}</td>
+   <td style="white-space:nowrap"><button class="b pri" onclick="docOpen(${s.id})">Apri</button> <button class="b" onclick="sheetPdf(${j.id},${s.id})">PDF</button> ${SHW.ren==s.id?`<button class="b" onclick="shDocRenOk(${s.id})">Salva nome</button>`:`<button class="b" onclick="shDocRen(${s.id})">Rinomina</button>`} <button class="b dng" onclick="shDocDel(${s.id})">Elimina</button></td></tr>`).join('');
+  const card=(t,tx)=>`<div style="border:2px solid var(--line);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:8px"><b style="font-size:17px">${SH_TY0[t]}${t=='dist'?' ed etichette':''}</b><div class="mut" style="flex:1">${tx}</div><button class="b pri" onclick="shDocNew('${t}')">Crea documento</button></div>`;
+  return `<div class="db" style="display:block">
+  <div class="mut" style="margin-bottom:10px">Una scheda può contenere più documenti: distinte di taglio, tavole esecutive, abachi di piastre. Ogni documento ha il suo PDF.</div>
+  ${ds.length?`<div class="tw"><table><thead><tr><th>Tipo</th><th>Titolo</th><th>Contenuto</th><th>Data</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="mut" style="margin:6px 0 12px">Questa scheda non ha ancora documenti: scegli che cosa creare.</div>'}
+  ${pick?`<h3 style="margin:16px 0 8px">Nuovo documento</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px">
+  ${card('dist','Elenco dei pezzi da tagliare con lunghezze e angoli, partendo da un disegno DXF/PDF oppure inserendo i dati a mano. Da qui si stampano le etichette dei pezzi.')}
+  ${card('tav','Importi un disegno DXF e ne ritagli più aree: ogni area diventa una vista in una tavola, con note scritte a mano e cartiglio.')}
+  ${card('ab','Elenco di piastre con misure, spessore e fori (anche in griglia), inseriti a mano o letti da un disegno DXF.')}</div>`
+  :`<div class="tools" style="margin-top:10px"><button class="b pri" onclick="SHW.pick=true;shRender()">+ Nuovo documento</button></div>`}
+  </div><div class="df"><button class="b" onclick="$('#dlg').close()">Chiudi</button></div>`;
+}
+function docOpen(did){
+  const j=shJob(SHW.id),d=shDocsOf(j).find(x=>x.id==did);if(!d)return;
+  const id=SHW.id;SHRAW=null;SHW=shSt(id);SHW.doc=did;SHW.type=d.type||'dist';SHW.s=shNorm(JSON.parse(JSON.stringify(d)));SHW.tv=0;SHW.ab=null;SHW.page='sheet';shRender();
+}
+function shDocNew(t){
+  const id=SHW.id;SHRAW=null;SHW=shSt(id);SHW.type=t;
+  if(t=='ab'){SHW.s=Object.assign(shNew(),{type:'ab',title:SH_TY0.ab,dist:false,pl:[{w:'',l:'',t:'',qty:1,mat:'',note:'',holes:[]}]});SHW.ab=null;shSave(true)}
+  else SHW.start=true;
+  shRender();
+}
+function shDocRen(did){SHW.ren=did;shRender();const e=$('#shrn');if(e){e.focus();e.select()}}
+function shDocRenOk(did){
+  const j=shJob(SHW.id),d=shDocsOf(j).find(x=>x.id==did),e=$('#shrn');if(!d)return;
+  d.title=(e&&e.value.trim())||SH_TY0[d.type||'dist'];save();SHW.ren=null;shRender();
+}
+function shDocDel(did){
+  const j=shJob(SHW.id),d=shDocsOf(j).find(x=>x.id==did);if(!d)return;
+  askConfirm('Eliminare il documento «'+(d.title||SH_TY0[d.type||'dist'])+'» con i file archiviati? L’operazione non si può annullare.',async()=>{
+    for(const f of [...(d.pdfs||[]),...(d.files||[])]){try{await fDel(f.fid)}catch(e){}}
+    j.docs=j.docs.filter(x=>x.id!=did);save();shRender()});
+}
+const shFTbl=(s,k)=>(s[k]||[]).length?`<div class="tw"><table style="min-width:0"><thead><tr><th>File</th><th class="n">Dimensione</th><th>Data</th><th>Note</th><th></th></tr></thead><tbody>${s[k].map((f,i)=>`<tr><td>${esc(f.name)}</td><td class="n">${shSize(f.size)}</td><td>${f.date?dt(f.date):''}</td><td><input value="${esc(f.note||'')}" placeholder="Nota" oninput="shFileNote('${k}',${i},this.value)" style="width:100%;box-sizing:border-box"></td><td style="white-space:nowrap"><button class="b" onclick="sfOpen('${k}',${i})">Apri</button> <button class="b" onclick="sfDown('${k}',${i})">Scarica</button> <button class="b dng" onclick="shFileDel('${k}',${i})">Elimina</button></td></tr>`).join('')}</tbody></table></div>`:'';
+// ---- codici dei pezzi e collegamenti profili <-> piastre
+const SH_PFX={dist:'PR',ab:'PL'};
+const itemsOf=(t,d)=>t=='ab'?(d.pl||[]):(d.rows||[]);
+let LK_OK=new Set();
+const lkSet=j=>new Set(shDocsOf(j).flatMap(d=>itemsOf(d.type||'dist',d).map(r=>r.code).filter(Boolean)));
+function shAssignDoc(j,d){
+  const t=d.type||'dist',pf=SH_PFX[t];if(!pf)return false;
+  const re=new RegExp('^'+pf+'-(\\d+)$'),num=c=>{const m=re.exec(c||'');return m?+m[1]:0};
+  j.cnt=j.cnt||{};let mx=j.cnt[pf]||0,ch=false;
+  shDocsOf(j).forEach(x=>{if((x.type||'dist')==t)itemsOf(t,x).forEach(r=>{mx=Math.max(mx,num(r.code))})});itemsOf(t,d).forEach(r=>{mx=Math.max(mx,num(r.code))});
+  const seen=new Set();
+  itemsOf(t,d).forEach(r=>{if(!r.code||seen.has(r.code)){r.code=pf+'-'+String(++mx).padStart(3,'0');r.lk=[];ch=true}seen.add(r.code)});
+  if(mx!=(j.cnt[pf]||0)){j.cnt[pf]=mx;ch=true}
+  return ch;
+}
+function shAssignAll(j){let ch=false;shDocsOf(j).forEach(d=>{if(shAssignDoc(j,d))ch=true});if(ch)save()}
+const lkOk=r=>(r.lk||[]).filter(c=>LK_OK.has(c));
+function lkItems(t,d){
+  return (t=='ab'?(d.pl||[]).filter(p=>p.w&&abL(p)):(d.rows||[]).filter(r=>r.inc)).filter(r=>r.code).map(r=>({code:r.code,lab:t=='ab'?abDim(r)+(r.t?' × '+f1(+r.t):'')+(r.mat?' · '+r.mat:''):[r.desc,r.sec,r.len?r.len+' mm':''].filter(Boolean).join(' · '),it:r}));
+}
+function lkOthers(){const j=shJob(SHW.id),t=SHW.type=='ab'?'dist':'ab';return shDocsOf(j).filter(d=>(d.type||'dist')==t).flatMap(d=>lkItems(t,d).map(o=>({...o,doc:d.title||SH_TY0[t]})))}
+function lkOpen(){SHW.lkSel=null;SHW.page='lk';shRender()}
+function lkBack(){SHW.page='sheet';shRender()}
+function lkHtml(){
+  const ab=SHW.type=='ab',mine=lkItems(SHW.type,SHW.s),oth=lkOthers(),ok=new Set(oth.map(o=>o.code)),sel=SHW.lkSel,cur=mine.find(m=>m.code==sel);
+  const rows=mine.map(m=>{const l=(m.it.lk||[]).filter(c=>ok.has(c));
+    return `<tr class="${m.code==sel?'sel':''}"><td><b>${esc(m.code)}</b></td><td>${esc(m.lab)}</td><td>${l.length?l.map(c=>`<span class="tag">${esc(c)}</span>`).join(' '):'<span class="mut">nessuno</span>'}</td><td><button class="b ${m.code==sel?'pri':''}" onclick="shLkSel('${m.code}')">Collega…</button></td></tr>`}).join('');
+  let panel='';
+  if(cur)panel=`<div style="border:2px solid var(--steel);border-radius:4px;padding:12px;margin-top:12px"><h3 style="margin:0 0 6px">${esc(cur.code)} · ${esc(cur.lab)}</h3><div class="mut" style="margin-bottom:6px">Spunta ${ab?'i profili':'le piastre'} che vanno assemblati con questo pezzo.</div>
+   ${oth.length?`<div class="tw"><table style="min-width:0"><thead><tr><th></th><th>Codice</th><th>${ab?'Profilo':'Piastra'}</th><th>Documento</th></tr></thead><tbody>${oth.map(o=>`<tr><td><input type="checkbox" style="width:20px;height:20px" ${(cur.it.lk||[]).includes(o.code)?'checked':''} onchange="shLkTog('${o.code}',this.checked)"></td><td><b>${esc(o.code)}</b></td><td>${esc(o.lab)}</td><td>${esc(o.doc)}</td></tr>`).join('')}</tbody></table></div>`
+   :`<div class="mut">Non ci sono ${ab?'profili':'piastre'} da collegare: crea prima ${ab?'una distinta di taglio con almeno una posizione':'un abaco piastre con almeno una piastra'} nella stessa scheda e salvala.</div>`}</div>`;
+  return `<div class="db" style="display:block"><h3 style="margin:0 0 4px">Collegamenti ${ab?'piastre → profili':'profili → piastre'}</h3><div class="mut" style="margin-bottom:10px">Ogni pezzo ha un codice (${ab?'PL':'PR'}-001…) che non cambia. Collega ${ab?'ogni piastra ai profili':'ogni profilo alle piastre'} con cui va assemblata: il collegamento vale nei due sensi e compare sulle etichette e nei PDF.</div>
+  <div class="tw"><table style="min-width:0"><thead><tr><th>Codice</th><th>${ab?'Piastra':'Profilo'}</th><th>Collegato a</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="4" class="empty">Nessun pezzo.</td></tr>'}</tbody></table></div>${panel}</div>
+  <div class="df"><button class="b" onclick="lkBack()">${ab?'Torna all’abaco':'Torna alla scheda'}</button></div>`;
+}
+function shLkSel(c){SHW.lkSel=SHW.lkSel===c?null:c;shKeep()}
+function shLkTog(oc,on){
+  const j=shJob(SHW.id),mc=SHW.lkSel,t=SHW.type,ot=t=='ab'?'dist':'ab';
+  const mine=itemsOf(t,SHW.s).find(r=>r.code==mc);if(!mine)return;
+  const add=(a,c)=>{a.lk=a.lk||[];const i=a.lk.indexOf(c);if(on&&i<0)a.lk.push(c);if(!on&&i>=0)a.lk.splice(i,1)};
+  add(mine,oc);
+  shDocsOf(j).forEach(d=>{if((d.type||'dist')!=ot)return;const it=itemsOf(ot,d).find(r=>r.code==oc);if(it)add(it,mc)});
+  shSave(true);shKeep();
+}
+const shDocFoot=()=>`<h3 style="margin:18px 0 4px;font-size:20px">Archivio file</h3><div class="mut" style="margin-bottom:6px">Allega a questo documento fotografie, certificati, disegni (massimo 20 MB per file). I file restano salvati in questo browser e non sono inclusi nel PDF.</div>${shFTbl(SHW.s,'files')}
+  <div class="tools" style="margin-top:8px"><label class="b" style="cursor:pointer;display:inline-block">+ Aggiungi file<input type="file" multiple style="display:none" onchange="shFilesAdd(this.files);this.value=''"></label></div></div>
+  <div class="df"><button class="b" onclick="docList()">‹ Documenti</button><button class="b" onclick="shSave()">Salva</button><button class="b pri" onclick="sheetPdf(${SHW.id},0)">Genera PDF</button></div>`;
+const shDocHead=()=>`<div class="db" style="display:block"><div class="tools" style="align-items:center;margin-bottom:10px"><label style="display:flex;flex-direction:row;gap:8px;align-items:center;font-size:14px;white-space:nowrap;color:inherit">Titolo del documento <input value="${esc(SHW.s.title||'')}" oninput="SHW.s.title=this.value" style="min-width:260px"></label></div>`;
+
+// ---- tavole esecutive: ritaglio di aree dello stesso disegno
+function tavStartHtml(){
+  return `<div class="db" style="display:block"><h3 style="margin:0 0 4px">Tavole esecutive</h3><div class="mut" style="margin-bottom:12px">Importa il disegno in formato <b>DXF</b>: poi scegli quante aree ritagliare (una per ogni vista), aggiungi le note e genera il PDF con il cartiglio.</div>
+  <label style="display:flex;flex-direction:column;font-size:13px;gap:4px;max-width:420px">File DXF<input id="shf" type="file" accept=".dxf"></label>
+  <div class="neg" style="margin-top:10px">${esc(SHW.err||'')}</div></div><div class="df"><button class="b" onclick="docList()">Annulla</button></div>`;
+}
+function tvSvg(s,v,live){
+  const d=s.views[v.dr];if(!d)return '<div class="mut">Disegno mancante.</div>';
+  const W=d.w,H=d.h,pad=live?Math.max(W,H)*.02:0,b=live?[0,0,W,H]:(v.box||[0,0,W,H]),bw=Math.max(1,b[2]-b[0]),bh=Math.max(1,b[3]-b[1]),bx=v.box;
+  const sel=live?`<rect id="tvbox" x="${bx?bx[0]:0}" y="${bx?bx[1]:0}" width="${bx?bx[2]-bx[0]:0}" height="${bx?bx[3]-bx[1]:0}" fill="rgba(30,100,200,.14)" stroke="#1e64c8" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke" pointer-events="none"/>`:'';
+  return `<svg ${live?'id="tvsvg" onpointerdown="tvDrag(event,0)" onpointermove="tvDrag(event,1)" onpointerup="tvDrag(event,2)"':''} viewBox="${b[0]-pad} ${-(b[3]+pad)} ${bw+2*pad} ${bh+2*pad}" style="${live?'width:100%;max-height:52vh;cursor:crosshair;touch-action:none;user-select:none;':'width:100%;height:90px;'}display:block;background:#fff;border:1px solid var(--line)"><g transform="scale(1,-1)" fill="none" stroke="#000" stroke-width="1">${tvEnts(d,v)}${sel}</g><g fill="none">${tvAnnSvg(v,-1)}</g></svg>`;
+}
+let TVD=null;
+function tvPt(ev){const sv=$('#tvsvg'),pt=sv.createSVGPoint();pt.x=ev.clientX;pt.y=ev.clientY;const q=pt.matrixTransform(sv.getScreenCTM().inverse());return{x:q.x,y:-q.y}}
+function tvDrag(ev,ph){
+  if(lv(view)<2||!SHW||!SHW.s||SHW.type!='tav')return;const s=SHW.s,v=(s.vw||[])[SHW.tv];if(!v)return;const d=s.views[v.dr];if(!d)return;
+  if(ph==0){TVD=tvPt(ev);try{$('#tvsvg').setPointerCapture(ev.pointerId)}catch(e){}return}
+  if(!TVD)return;const p=tvPt(ev),x0=Math.max(0,Math.min(TVD.x,p.x)),x1=Math.min(d.w,Math.max(TVD.x,p.x)),y0=Math.max(0,Math.min(TVD.y,p.y)),y1=Math.min(d.h,Math.max(TVD.y,p.y)),r=$('#tvbox');
+  r.setAttribute('x',x0);r.setAttribute('y',y0);r.setAttribute('width',Math.max(0,x1-x0));r.setAttribute('height',Math.max(0,y1-y0));
+  if(ph==2){TVD=null;const m=Math.max(d.w,d.h)*.01;if(x1-x0>m&&y1-y0>m)v.box=[r1n(x0),r1n(y0),r1n(x1),r1n(y1)];shKeep()}
+}
+function tavSel(i){SHW.tv=i;SHW.tsel=null;SHW.tmp=null;SHW.un=[];shKeep()}
+function tavHtml(){
+  const s=SHW.s,vw=s.vw||(s.vw=[]);if(SHW.tv==null||SHW.tv>=vw.length)SHW.tv=0;const v=vw[SHW.tv],ed=lv(view)>=2;
+  const cards=vw.map((x,i)=>`<div onclick="tavSel(${i})" style="width:170px;border:2px solid ${i==SHW.tv?'var(--steel)':'var(--line)'};border-radius:4px;padding:6px;cursor:pointer"><b>${i+1}. ${esc(x.title||'Vista '+(i+1))}</b><div style="margin-top:4px">${tvSvg(s,x,false)}</div></div>`).join('');
+  let ed1='';
+  if(v){const d=s.views[v.dr]||{w:0,h:0},b=v.box||[0,0,d.w,d.h];
+    ed1=`<div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:16px;align-items:start;margin-top:12px">
+    <div><div class="mut" style="margin-bottom:6px">${ed?'<b>Trascina sul disegno</b> per scegliere l’area di questa vista.':''} Area scelta: <b>${f1(b[2]-b[0])} × ${f1(b[3]-b[1])} mm</b>${v.box?'':' (disegno intero)'} <button class="b" onclick="shTavFull()">Vista intera</button></div>${tvSvg(s,v,true)}</div>
+    <div style="display:flex;flex-direction:column;gap:10px"><label style="display:flex;flex-direction:column;font-size:13px;gap:4px">Titolo della vista<input value="${esc(v.title||'')}" oninput="SHW.s.vw[${SHW.tv}].title=this.value"></label>
+    ${s.views.length>1?`<label style="display:flex;flex-direction:column;font-size:13px;gap:4px">Disegno<select onchange="shTavDr(this.value)">${s.views.map((q,i)=>`<option value="${i}" ${i==v.dr?'selected':''}>${esc(q.file||q.name||'Disegno '+(i+1))} · ${Math.round(q.w)} × ${Math.round(q.h)} mm</option>`).join('')}</select></label>`:''}
+    <label style="display:flex;flex-direction:column;font-size:13px;gap:4px">Note di questa vista<textarea rows="7" oninput="SHW.s.vw[${SHW.tv}].notes=this.value" placeholder="Una riga per ogni nota (es. quote da verificare in cantiere, saldature, finiture)">${esc(v.notes||'')}</textarea></label>
+    <div class="tools" style="margin:0"><button class="b" onclick="shTavMv(-1)" ${SHW.tv?'':'disabled'}>▲ Su</button><button class="b" onclick="shTavMv(1)" ${SHW.tv<vw.length-1?'':'disabled'}>▼ Giù</button><button class="b dng" onclick="shTavDel()">Elimina vista</button></div></div></div>`}
+  return shDocHead()+`<div class="tools" style="align-items:center"><label style="display:flex;flex-direction:row;gap:8px;align-items:center;font-size:14px;color:inherit">Foglio <select onchange="shTavPaper(this.value)"><option ${s.paper!='A3'?'selected':''}>A4</option><option ${s.paper=='A3'?'selected':''}>A3</option></select></label><button class="b pri" onclick="shTavAdd()">+ Aggiungi vista</button><button class="b" onclick="shAddDraw()">+ Importa altro disegno DXF</button><button class="b pri" onclick="tvvOpen()">Visualizza e modifica la tavola</button></div>
+  <div class="mut" style="margin:4px 0 8px">Ogni vista è un’area del disegno stampata su un foglio, con scala, cartiglio e note. ${vw.length} ${vw.length==1?'vista':'viste'}.</div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">${cards}</div>${ed1}`+shDocFoot();
+}
+function shTavPaper(v){SHW.s.paper=v;shKeep()}
+function shTavAdd(){const s=SHW.s,vw=s.vw;vw.push({id:Math.max(0,...vw.map(x=>x.id||0))+1,dr:vw[SHW.tv]?vw[SHW.tv].dr:0,title:'Vista '+(vw.length+1),notes:'',box:null});SHW.tv=vw.length-1;shKeep()}
+function shTavFull(){const v=SHW.s.vw[SHW.tv];if(v)v.box=null;shKeep()}
+function shTavDr(i){const v=SHW.s.vw[SHW.tv];if(v){v.dr=+i;v.box=null}shKeep()}
+function shTavMv(d){const vw=SHW.s.vw,i=SHW.tv,k=i+d;if(k<0||k>=vw.length)return;[vw[i],vw[k]]=[vw[k],vw[i]];SHW.tv=k;shKeep()}
+function shTavDel(){const vw=SHW.s.vw,v=vw[SHW.tv];if(!v)return;askConfirm('Eliminare la vista «'+(v.title||'')+'»?',()=>{vw.splice(SHW.tv,1);SHW.tv=Math.max(0,SHW.tv-1);shKeep()})}
+// ---- visualizzatore delle tavole: note, quote, linee colorate
+const TV_COL=['#000000','#d62828','#1d4ed8','#15803d','#ea580c','#a21caf'];
+const hexRgb=c=>[1,3,5].map(i=>parseInt(String(c||'#000000').slice(i,i+2),16)||0);
+const tvEnts=(d,v,sel)=>{const hid=new Set(v.hid||[]),ec=v.ecol||{};return d.ents.map((e,i)=>{if(hid.has(i))return '';const c=ec[i],at=i===sel?' stroke="#e0a800" stroke-width="4"':(c?` stroke="${c}"`:'');
+  return e.t=='C'?`<circle vector-effect="non-scaling-stroke"${at} cx="${e.p[0]}" cy="${e.p[1]}" r="${e.r}"/>`:`<path vector-effect="non-scaling-stroke"${at} d="${e.p.reduce((a,x,k)=>a+(k%2?','+x:(k?' L':'M')+x),'')}${e.c?'Z':''}"/>`}).join('')};
+const tvFmt=n=>{const r=Math.abs(n)>=100?Math.round(n):Math.round(n*10)/10;return String(r).replace('.',',')};
+function annGeom(a){
+  if(a.t=='ln')return{L:[[a.x1,a.y1,a.x2,a.y2]],T:[]};
+  if(a.t=='txt')return{L:[],T:[{x:a.x,y:a.y,s:a.s,h:a.h,ang:0,al:'left'}]};
+  const dx=a.x2-a.x1,dy=a.y2-a.y1,Lg=Math.hypot(dx,dy)||1,ux=dx/Lg,uy=dy/Lg,nx=-uy,ny=ux,o=a.o||0,h=a.h,ax=a.x1+nx*o,ay=a.y1+ny*o,bx=a.x2+nx*o,by=a.y2+ny*o,sg=o>=0?1:-1,e=h*.5,t=h*.4;
+  const L=[[a.x1+nx*sg*h*.3,a.y1+ny*sg*h*.3,ax+nx*sg*e,ay+ny*sg*e],[a.x2+nx*sg*h*.3,a.y2+ny*sg*h*.3,bx+nx*sg*e,by+ny*sg*e],[ax,ay,bx,by],
+    [ax-(ux+nx)*t,ay-(uy+ny)*t,ax+(ux+nx)*t,ay+(uy+ny)*t],[bx-(ux+nx)*t,by-(uy+ny)*t,bx+(ux+nx)*t,by+(uy+ny)*t]];
+  let ang=Math.atan2(dy,dx)*180/Math.PI;if(ang>90||ang<=-90)ang+=ang>0?-180:180;
+  const ar=ang*Math.PI/180,upx=-Math.sin(ar),upy=Math.cos(ar);
+  return{L,T:[{x:(ax+bx)/2+upx*h*.35,y:(ay+by)/2+upy*h*.35,s:(a.s&&String(a.s).trim())||tvFmt(Lg),h,ang,al:'center'}]};
+}
+function tvAnnSvg(v,sel){
+  return (v.ann||[]).map((a,i)=>{const g=annGeom(a),c=a.c||'#000000',hl=i===sel;
+    return `<g stroke="${c}" fill="${c}" pointer-events="none">`+g.L.map(l=>`<line x1="${l[0]}" y1="${-l[1]}" x2="${l[2]}" y2="${-l[3]}" vector-effect="non-scaling-stroke" stroke-width="${hl?4:1.3}" ${hl?'stroke="#e0a800"':''}/>`).join('')
+      +g.T.map(t=>`<text transform="translate(${t.x},${-t.y}) rotate(${-t.ang})" font-size="${t.h}" text-anchor="${t.al=='left'?'start':'middle'}" font-family="Arial" stroke="none"${hl?' style="paint-order:stroke;stroke:#e0a800;stroke-width:'+t.h*.25+'px"':''}>${esc(t.s)}</text>`).join('')+'</g>'}).join('');
+}
+const tvvH=v=>{const d=SHW.s.views[v.dr],b=v.box||[0,0,d.w,d.h];return Math.max(b[2]-b[0],b[3]-b[1])/45*(SHW.tsz||1)};
+const tvvR=n=>Math.round(n*100)/100;
+function tvvOpen(){SHW.page='tv';SHW.tool='sel';SHW.tmp=null;SHW.tsel=null;SHW.un=[];SHW.vz=SHW.vz||1;shKeep()}
+function tvvBack(){if(lv(view)>=2)shSave(true);SHW.page='sheet';SHW.tmp=null;SHW.tsel=null;shKeep()}
+function tvvSvg(s,v,z){
+  const d=s.views[v.dr],b=v.box||[0,0,d.w,d.h],bw=b[2]-b[0],bh=b[3]-b[1],pad=Math.max(bw,bh)*.03,ts=SHW.tsel,tm=SHW.tmp||[],lp=tm[tm.length-1];
+  const prev=lp?`<line id="tvprev" x1="${lp.x}" y1="${-lp.y}" x2="${lp.x}" y2="${-lp.y}" stroke="#1e64c8" stroke-width="1.2" stroke-dasharray="5 4" vector-effect="non-scaling-stroke" pointer-events="none"/>`+tm.map(q=>`<circle cx="${q.x}" cy="${-q.y}" r="${pad*.3}" fill="#1e64c8" pointer-events="none"/>`).join(''):'';
+  return `<svg id="tvsvg" onclick="tvvClick(event)" onmousemove="tvvMove(event)" viewBox="${b[0]-pad} ${-(b[3]+pad)} ${bw+2*pad} ${bh+2*pad}" style="width:${100*z}%;display:block;background:#fff;cursor:${(SHW.tool||'sel')=='sel'?'pointer':'crosshair'}"><defs><clipPath id="tvc"><rect x="${b[0]}" y="${-b[3]}" width="${bw}" height="${bh}"/></clipPath></defs>
+   <rect x="${b[0]}" y="${-b[3]}" width="${bw}" height="${bh}" fill="none" stroke="#aaa" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>
+   <g clip-path="url(#tvc)"><g transform="scale(1,-1)" fill="none" stroke="#000" stroke-width="1">${tvEnts(d,v,ts&&ts.k=='e'?ts.i:-1)}</g></g><g fill="none">${tvAnnSvg(v,ts&&ts.k=='a'?ts.i:-1)}</g>${prev}</svg>`;
+}
+function tvvHtml(){
+  const s=SHW.s,v=s.vw[SHW.tv],ed=lv(view)>=2,tool=SHW.tool||'sel',z=SHW.vz||1,col=SHW.col||TV_COL[0],ts=SHW.tsel,tm=SHW.tmp||[];
+  if(!v)return '<div class="db">Nessuna vista.</div>';
+  const tb=(t,n)=>`<button class="b ${tool==t?'pri':''}" onclick="shTvTool('${t}')">${n}</button>`;
+  const sw=TV_COL.map(c=>`<button onclick="shTvCol('${c}')" title="Colore" style="width:26px;height:26px;border-radius:50%;background:${c};border:${col==c?'3px solid #e0a800':'2px solid #888'};padding:0;cursor:pointer"></button>`).join(' ');
+  const an=ts&&ts.k=='a'?(v.ann||[])[ts.i]:null;
+  const hint={sel:'Clicca una linea del disegno o una nota/quota per selezionarla: poi cambia colore con i pallini o eliminala.',txt:'Scrivi il testo nella casella e clicca sul disegno nel punto dove deve comparire.',ln:tm.length?'Clicca il punto finale della linea (tieni premuto Maiusc per allinearla).':'Clicca il punto iniziale della linea.',dim:['Quota: clicca il primo punto.','Quota: clicca il secondo punto.','Quota: clicca dove vuoi la linea di quota.'][tm.length]||''}[tool];
+  const nh=(v.hid||[]).length;
+  return `<div class="db" style="display:block">
+  <div class="tools" style="align-items:center;gap:8px">
+   <label style="font-size:13px;display:flex;gap:6px;align-items:center;color:inherit">Vista <select onchange="tavSel(+this.value)">${s.vw.map((x,i)=>`<option value="${i}" ${i==SHW.tv?'selected':''}>${i+1}. ${esc(x.title||'Vista '+(i+1))}</option>`).join('')}</select></label>
+   ${ed?`<span style="border-left:1px solid var(--line);height:26px"></span>${tb('sel','Seleziona')}${tb('txt','Testo')}${tb('dim','Quota')}${tb('ln','Linea')}<span style="border-left:1px solid var(--line);height:26px"></span><span class="mut">Colore</span>${sw}
+   <label style="font-size:13px;color:inherit"><input type="checkbox" style="width:auto" ${SHW.snap!==false?'checked':''} onchange="SHW.snap=this.checked"> Aggancia ai punti</label>
+   <label style="font-size:13px;color:inherit">Testo <select onchange="SHW.tsz=+this.value"><option value=".7" ${SHW.tsz==.7?'selected':''}>piccolo</option><option value="1" ${!SHW.tsz||SHW.tsz==1?'selected':''}>medio</option><option value="1.6" ${SHW.tsz==1.6?'selected':''}>grande</option></select></label>`:''}
+   <span style="border-left:1px solid var(--line);height:26px"></span><button class="b" onclick="tvvZoom(-1)">−</button><span>${z}×</span><button class="b" onclick="tvvZoom(1)">+</button></div>
+  ${ed?`<div class="tools" style="align-items:center;gap:8px;margin-top:4px">${tool=='txt'?`<input id="tvtxt" placeholder="Testo della nota" value="${esc(SHW.ttxt||'')}" oninput="SHW.ttxt=this.value" style="min-width:260px">`:''}
+   ${an&&(an.t=='txt'||an.t=='dim')?`<input placeholder="${an.t=='dim'?'Testo quota (vuoto = misura automatica)':'Testo'}" value="${esc(an.s||'')}" oninput="shTvAnnTxt(this.value)" style="min-width:260px">`:''}
+   ${ts?`<button class="b dng" onclick="shTvDel()">Elimina ${ts.k=='a'?'selezione':'linea'}</button>`:''}<button class="b" onclick="shTvUndo()" ${(SHW.un||[]).length?'':'disabled'}>↶ Annulla</button>${nh?`<button class="b" onclick="shTvRestore()">Ripristina ${nh} ${nh==1?'linea nascosta':'linee nascoste'}</button>`:''}</div>`:''}
+  <div class="mut" style="margin:6px 0">${ed?hint:'Visualizzazione della tavola (sola lettura).'}</div>
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px;align-items:start"><div id="shbox" style="overflow:auto;max-height:66vh;border:1px solid var(--line)">${tvvSvg(s,v,z)}</div>
+  <div><label style="display:flex;flex-direction:column;font-size:13px;gap:4px">Titolo della vista<input value="${esc(v.title||'')}" oninput="SHW.s.vw[${SHW.tv}].title=this.value"></label>
+  <label style="display:flex;flex-direction:column;font-size:13px;gap:4px;margin-top:10px">Note della vista (colonna a destra nel PDF)<textarea rows="10" oninput="SHW.s.vw[${SHW.tv}].notes=this.value">${esc(v.notes||'')}</textarea></label>
+  <div class="mut" style="margin-top:8px">${(v.ann||[]).length} annotazioni · scala del PDF scelta in automatico.</div></div></div></div>
+  <div class="df"><button class="b" onclick="tvvBack()">‹ Torna alla tavola</button><button class="b" onclick="shSave()">Salva</button><button class="b pri" onclick="sheetPdf(${SHW.id},0)">Genera PDF</button></div>`;
+}
+function tvvZoom(d){SHW.vz=Math.max(1,Math.min(8,(SHW.vz||1)*(d>0?2:.5)));shKeep()}
+function shTvTool(t){SHW.tool=t;SHW.tmp=null;SHW.tsel=null;shKeep();if(t=='txt'){const e=$('#tvtxt');if(e)e.focus()}}
+function tvvPush(v){(SHW.un=SHW.un||[]).push(JSON.stringify([v.ann||[],v.hid||[],v.ecol||{}]));if(SHW.un.length>40)SHW.un.shift()}
+function shTvUndo(){const v=SHW.s.vw[SHW.tv],q=(SHW.un||[]).pop();if(!q||!v)return;[v.ann,v.hid,v.ecol]=JSON.parse(q);SHW.tsel=null;shKeep()}
+function shTvCol(c){SHW.col=c;const v=SHW.s.vw[SHW.tv],ts=SHW.tsel;if(ts&&v){tvvPush(v);if(ts.k=='a')v.ann[ts.i].c=c;else(v.ecol=v.ecol||{})[ts.i]=c}shKeep()}
+function shTvDel(){const v=SHW.s.vw[SHW.tv],ts=SHW.tsel;if(!ts||!v)return;tvvPush(v);if(ts.k=='a')v.ann.splice(ts.i,1);else(v.hid=v.hid||[]).push(ts.i);SHW.tsel=null;shKeep()}
+function shTvRestore(){const v=SHW.s.vw[SHW.tv];tvvPush(v);v.hid=[];shKeep()}
+function shTvAnnTxt(t){const ts=SHW.tsel,v=SHW.s.vw[SHW.tv];if(ts&&ts.k=='a'&&v.ann[ts.i]){v.ann[ts.i].s=t;const g=$('#tvsvg');if(g)g.outerHTML=tvvSvg(SHW.s,v,SHW.vz||1)}}
+const dseg=(px,py,x1,y1,x2,y2)=>{const dx=x2-x1,dy=y2-y1,L=dx*dx+dy*dy;let t=L?((px-x1)*dx+(py-y1)*dy)/L:0;t=Math.max(0,Math.min(1,t));return Math.hypot(px-x1-t*dx,py-y1-t*dy)};
+function tvvTol(){const sv=$('#tvsvg'),r=sv.getBoundingClientRect(),vb=sv.viewBox.baseVal;return 9*vb.width/Math.max(1,r.width)}
+function tvvHit(x,y,tol){
+  const s=SHW.s,v=s.vw[SHW.tv],d=s.views[v.dr],an=v.ann||[];
+  for(let i=an.length-1;i>=0;i--){const g=annGeom(an[i]);
+    if(g.L.some(l=>dseg(x,y,l[0],l[1],l[2],l[3])<=tol))return{k:'a',i};
+    if(g.T.some(t=>{const w=String(t.s).length*t.h*.55,c=t.al=='left'?t.x+w/2:t.x;return Math.abs(x-c)<=w/2+tol&&Math.abs(y-t.y)<=t.h+tol}))return{k:'a',i}}
+  const hid=new Set(v.hid||[]);let best=null,bd=tol;
+  d.ents.forEach((e,i)=>{if(hid.has(i))return;let m=1e18;
+    if(e.t=='C')m=Math.abs(Math.hypot(x-e.p[0],y-e.p[1])-e.r);
+    else{const p=e.p,n=p.length/2,k=e.c?n:n-1;for(let a=0;a<k;a++){const b=(a+1)%n;m=Math.min(m,dseg(x,y,p[2*a],p[2*a+1],p[2*b],p[2*b+1]))}}
+    if(m<bd){bd=m;best={k:'e',i}}});
+  return best;
+}
+function tvvSnap(p,tol){
+  const s=SHW.s,v=s.vw[SHW.tv],d=s.views[v.dr],hid=new Set(v.hid||[]);let b=null,bd=tol;
+  const t=(x,y)=>{const m=Math.hypot(x-p.x,y-p.y);if(m<bd){bd=m;b={x,y}}};
+  d.ents.forEach((e,i)=>{if(hid.has(i))return;if(e.t=='C'){t(e.p[0],e.p[1]);t(e.p[0]+e.r,e.p[1]);t(e.p[0]-e.r,e.p[1]);t(e.p[0],e.p[1]+e.r);t(e.p[0],e.p[1]-e.r)}else for(let a=0;a<e.p.length;a+=2)t(e.p[a],e.p[a+1])});
+  (v.ann||[]).forEach(a=>{if(a.t=='ln'){t(a.x1,a.y1);t(a.x2,a.y2)}});
+  return b||p;
+}
+function tvvMove(ev){const e=$('#tvprev');if(!e)return;const p=tvPt(ev);e.setAttribute('x2',p.x);e.setAttribute('y2',-p.y)}
+function tvvClick(ev){
+  if(lv(view)<2||!SHW||!SHW.s)return;const s=SHW.s,v=s.vw[SHW.tv];if(!v)return;
+  let p=tvPt(ev);const tol=tvvTol(),tool=SHW.tool||'sel';
+  if(tool=='sel'){SHW.tsel=tvvHit(p.x,p.y,tol);shKeep();return}
+  if(SHW.snap!==false)p=tvvSnap(p,tol*1.6);
+  const tm=SHW.tmp||[];
+  if(ev.shiftKey&&tool=='ln'&&tm.length){const q=tm[0];if(Math.abs(p.x-q.x)>=Math.abs(p.y-q.y))p={x:p.x,y:q.y};else p={x:q.x,y:p.y}}
+  p={x:tvvR(p.x),y:tvvR(p.y)};const c=SHW.col||TV_COL[0];v.ann=v.ann||[];
+  if(tool=='txt'){const t=(SHW.ttxt||'').trim();if(!t){toast('Scrivi il testo nella casella, poi clicca sul disegno.');return}
+    tvvPush(v);v.ann.push({t:'txt',x:p.x,y:p.y,s:t,h:tvvR(tvvH(v)),c});SHW.tsel={k:'a',i:v.ann.length-1};shKeep();return}
+  if(tool=='ln'){if(!tm.length){SHW.tmp=[p];shKeep();return}
+    const q=tm[0];SHW.tmp=null;if(Math.hypot(p.x-q.x,p.y-q.y)<1e-6){shKeep();return}
+    tvvPush(v);v.ann.push({t:'ln',x1:q.x,y1:q.y,x2:p.x,y2:p.y,c});SHW.tsel={k:'a',i:v.ann.length-1};shKeep();return}
+  if(tool=='dim'){
+    if(tm.length<2){if(tm.length&&Math.hypot(p.x-tm[0].x,p.y-tm[0].y)<1e-6)return;SHW.tmp=[...tm,p];shKeep();return}
+    const a=tm[0],b=tm[1],dx=b.x-a.x,dy=b.y-a.y,Lg=Math.hypot(dx,dy)||1,h=tvvR(tvvH(v));let o=((p.x-a.x)*(-dy/Lg)+(p.y-a.y)*(dx/Lg));if(Math.abs(o)<h*.6)o=h*2.2;
+    SHW.tmp=null;tvvPush(v);v.ann.push({t:'dim',x1:a.x,y1:a.y,x2:b.x,y2:b.y,o:tvvR(o),s:'',h,c});SHW.tsel={k:'a',i:v.ann.length-1};shKeep()}
+}
+const TV_SC=[1,2,3,4,5,8,10,12,15,20,25,30,40,50,60,75,100,125,150,200,250,300,400,500,750,1000,1500,2000,3000,5000];
+function tavPdf(j,s){
+  const A3=s.paper=='A3',PW=A3?420:297,PHH=A3?297:210,M=10,CH=20,N=s.vw.length;
+  const doc=new window.jspdf.jsPDF({unit:'mm',format:A3?'a3':'a4',orientation:'landscape'});
+  doc.setDrawColor(0,0,0);doc.setTextColor(0,0,0);doc.setFillColor(255,255,255);
+  const T=(t,x,y,fs,b,al)=>{doc.setFont('helvetica',b?'bold':'normal');doc.setFontSize(fs);doc.text(String(t),x,y,al?{align:al}:undefined)};
+  const tw=(t,fs,b)=>{doc.setFont('helvetica',b?'bold':'normal');doc.setFontSize(fs);return doc.getTextWidth(String(t))};
+  const fit=(t,w,fs,b)=>{t=String(t??'');if(tw(t,fs,b)<=w-2)return t;while(t.length>1&&tw(t+'...',fs,b)>w-2)t=t.slice(0,-1);return t+'...'};
+  const LN=(x1,y1,x2,y2,w)=>{doc.setLineWidth(w||.25);doc.line(x1,y1,x2,y2)};
+  const clipR=(x1,y1,x2,y2,xa,ya,xb,yb)=>{let t0=0,t1=1;const dx=x2-x1,dy=y2-y1;
+    for(const[p,q]of[[-dx,x1-xa],[dx,xb-x1],[-dy,y1-ya],[dy,yb-y1]]){if(Math.abs(p)<1e-9){if(q<0)return null}else{const r=q/p;if(p<0){if(r>t1)return null;if(r>t0)t0=r}else{if(r<t0)return null;if(r<t1)t1=r}}}
+    return[x1+dx*t0,y1+dy*t0,x1+dx*t1,y1+dy*t1]};
+  function drawingR(ents,ox,oy,sc,x0,y0,x1,y1,lw,v){
+    const X=x=>ox+(x-x0)*sc,Y=y=>oy+(y1-y)*sc,hid=new Set(v.hid||[]),ec=v.ecol||{};doc.setLineWidth(lw);
+    ents.forEach((e,i)=>{if(hid.has(i))return;if(ec[i])doc.setDrawColor(...hexRgb(ec[i]));else doc.setDrawColor(0,0,0);
+      if(e.t=='C'){const a=e.p[0]-e.r,b=e.p[1]-e.r,c=e.p[0]+e.r,d=e.p[1]+e.r;if(c<x0||a>x1||d<y0||b>y1)return;
+        if(a>=x0&&c<=x1&&b>=y0&&d<=y1){doc.circle(X(e.p[0]),Y(e.p[1]),Math.max(e.r*sc,.05),'S');return}
+        let pr=null;for(let k=0;k<=36;k++){const t=k*Math.PI/18,px=e.p[0]+e.r*Math.cos(t),py=e.p[1]+e.r*Math.sin(t);if(pr){const q=clipR(pr[0],pr[1],px,py,x0,y0,x1,y1);if(q)LN(X(q[0]),Y(q[1]),X(q[2]),Y(q[3]),lw)}pr=[px,py]}return}
+      const p=e.p,n=p.length/2,m=e.c?n:n-1;
+      for(let i=0;i<m;i++){const a=i*2,b=((i+1)%n)*2,q=clipR(p[a],p[a+1],p[b],p[b+1],x0,y0,x1,y1);if(q)LN(X(q[0]),Y(q[1]),X(q[2]),Y(q[3]),lw)}});
+    doc.setDrawColor(0,0,0);return{X,Y};
+  }
+  const dimH=(ox,dw,q,txt)=>{LN(ox,q,ox+dw,q,.3);LN(ox,q-1.8,ox,q+1.8,.3);LN(ox+dw,q-1.8,ox+dw,q+1.8,.3);T(txt,ox+dw/2,q-1.3,8,0,'center')};
+  const dimV=(vx,oy,dh,txt)=>{LN(vx,oy,vx,oy+dh,.3);LN(vx-1.8,oy,vx+1.8,oy,.3);LN(vx-1.8,oy+dh,vx+1.8,oy+dh,.3);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text(txt,vx-1.2,oy+dh/2+tw(txt,8)/2,{angle:90})};
+  s.vw.forEach((v,k)=>{
+    if(k)doc.addPage();
+    const d=s.views[v.dr];if(!d)return;
+    const b=v.box||[0,0,d.w,d.h],bw=Math.max(1,b[2]-b[0]),bh=Math.max(1,b[3]-b[1]),nw=String(v.notes||'').trim(),NW=nw?(A3?96:72):0;
+    doc.setLineWidth(.6);doc.rect(M,M,PW-2*M,PHH-2*M,'S');
+    const cy=PHH-M-CH;LN(M,cy,PW-M,cy,.5);
+    // cartiglio
+    const TW=PW-2*M,cells=[['Commessa / scheda',j.code,.14],['Cliente',shCli(j),.19],['Lavoro',j.desc,.24],['Vista',v.title||'Vista '+(k+1),.20]];
+    // area di disegno
+    const ax=M+3,ay=M+3,aw=PW-2*M-6-NW,ah=cy-ay-3,dx0=ax+12,dy1=ay+ah-12,dw0=aw-12,dh0=dy1-ay;
+    const sn=TV_SC.find(n=>bw/n<=dw0&&bh/n<=dh0)||Math.ceil(Math.max(bw/dw0,bh/dh0)),sc=1/sn,dw=bw*sc,dh=bh*sc,ox=dx0+(dw0-dw)/2,oy=ay+(dh0-dh)/2;
+    const PX=drawingR(d.ents,ox,oy,sc,b[0],b[1],b[2],b[3],.25,v);
+    (v.ann||[]).forEach(a=>{const g=annGeom(a),c=hexRgb(a.c);doc.setDrawColor(...c);doc.setTextColor(...c);
+      g.L.forEach(l=>LN(PX.X(l[0]),PX.Y(l[1]),PX.X(l[2]),PX.Y(l[3]),.25));
+      g.T.forEach(t=>{doc.setFont('helvetica','normal');doc.setFontSize(Math.max(5,t.h*sc/.3528));doc.text(String(t.s),PX.X(t.x),PX.Y(t.y),{angle:t.ang,align:t.al=='left'?'left':'center'})})});
+    doc.setDrawColor(0,0,0);doc.setTextColor(0,0,0);
+    dimH(ox,dw,oy+dh+6,Math.round(bw)+' mm');dimV(ox-6,oy,dh,Math.round(bh)+' mm');
+    // note
+    if(nw){const nx=PW-M-NW;LN(nx,M,nx,cy,.5);T('NOTE',nx+3,M+7,10,1);let y=M+14;
+      for(const par of nw.split('\n')){for(const ln of doc.splitTextToSize(par||' ',NW-6)){if(y>cy-4)break;T(ln,nx+3,y,9,0);y+=4.6}}}
+    const cw=[...cells.map(c=>c[2]*TW),0.07*TW,0.10*TW,0.06*TW];let x=M;
+    const all=[...cells,['Scala','1:'+sn,.07],['Data',today(),.10],['Foglio',(k+1)+'/'+N,.06]];
+    all.forEach((c,i)=>{const w=cw[i]||c[2]*TW;if(i)LN(x,cy,x,PHH-M,.3);T(c[0],x+1.5,cy+4.2,6.5,0);T(fit(c[1],w,10,1),x+1.5,cy+12.5,10,1);x+=w});
+  });
+  return doc;
+}
+
+// ---- abaco piastre
+const abRnd=p=>p.sh=='r', abL=p=>abRnd(p)?(+p.w||0):(+p.l||0);
+const abKg=p=>{const w=+p.w||0,l=abL(p),t=+p.t||0;let a=abRnd(p)?Math.PI*w*w/4:w*l;(p.holes||[]).forEach(h=>{const r=(+h.d||0)/2;a-=Math.PI*r*r});return Math.max(0,a)*t*7.85e-6};
+const abHP=(p,h)=>abRnd(p)?[(+p.w||0)/2+(+h.x||0),(+p.w||0)/2+(+h.y||0)]:[+h.x||0,+h.y||0];
+const abDim=p=>abRnd(p)?'Ø'+f1(+p.w||0):f1(+p.w||0)+' × '+f1(+p.l||0);
+function abSk(p,big){
+  const w=+p.w||0,l=abL(p);if(w<=0||l<=0)return '<span class="mut">—</span>';
+  const m=Math.max(w,l)*.14,fs=m*.5,hs=(p.holes||[]).map((h,i)=>{const r=(+h.d||0)/2,q=abHP(p,h);return `<circle cx="${q[0]}" cy="${l-q[1]}" r="${r}" fill="#fff" stroke="#000" stroke-width="1" vector-effect="non-scaling-stroke"/>`+(big?`<text x="${q[0]}" y="${l-q[1]}" font-size="${Math.max(fs*.8,r*.9)}" text-anchor="middle" dy="${fs*.3}" font-family="Arial" fill="#000">${i+1}</text>`:'')}).join('');
+  const body=abRnd(p)?`<circle cx="${w/2}" cy="${l/2}" r="${w/2}" fill="#f3f3f3" stroke="#000" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`:`<rect x="0" y="0" width="${w}" height="${l}" fill="#f3f3f3" stroke="#000" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
+  return `<svg viewBox="${-m} ${-m} ${w+2*m} ${l+2*m}" style="width:${big?'420px':'130px'};max-width:100%;max-height:${big?'300px':'90px'};background:#fff;display:block">${body}${hs}<text x="${w/2}" y="${-m*.25}" font-size="${fs}" text-anchor="middle" font-family="Arial" fill="#000">${abRnd(p)?'Ø'+f1(w):f1(w)}</text>${abRnd(p)?'':`<text transform="translate(${-m*.25},${l/2}) rotate(-90)" font-size="${fs}" text-anchor="middle" font-family="Arial" fill="#000">${f1(l)}</text>`}</svg>`;
+}
+function abUpd(i){const p=SHW.s.pl[i],a=document.querySelector('[data-abk="'+i+'"]'),b=document.querySelector('[data-abw="'+i+'"]'),c=document.querySelector('[data-abh="'+i+'"]');if(a)a.innerHTML=abSk(p,false);if(b)b.textContent=p.w&&abL(p)&&p.t?f2(abKg(p))+' kg':'—';if(c)c.textContent=abHoleSum(p);const g=document.getElementById('abbig');if(g&&SHW.ab==i)g.innerHTML=abSk(p,true)}
+function abHoleSum(p){const m={};(p.holes||[]).forEach(h=>{const d=+h.d||0;m[d]=(m[d]||0)+1});const k=Object.keys(m).sort((a,b)=>a-b);return k.length?k.map(d=>m[d]+' × Ø'+f1(+d)).join(', '):'nessun foro'}
+function abHtml(){
+  const s=SHW.s,pl=s.pl||(s.pl=[]);if(SHW.ab!=null&&!pl[SHW.ab])SHW.ab=null;const sel=SHW.ab,P=sel!=null?pl[sel]:null;
+  const inp=(i,k,v,w)=>`<input type="number" step="any" min="0" value="${esc(v)}" oninput="shAbSet(${i},'${k}',this.value)" style="width:${w||78}px">`;
+  const rows=pl.map((p,i)=>`<tr class="${i===sel?'sel':''}"><td style="text-align:center"><span class="pn">${i+1}</span><div style="font-size:11px;font-weight:700">${esc(p.code||'')}</div>${(p.lk||[]).length?`<div class="mut" style="font-size:11px">→ ${esc(p.lk.join(', '))}</div>`:''}</td><td data-abk="${i}">${abSk(p,false)}</td>
+   <td style="white-space:nowrap"><select onchange="shAbShape(${i},this.value)" style="margin-bottom:4px"><option value="">Rettangolare</option><option value="r" ${abRnd(p)?'selected':''}>Rotonda</option></select><br>${abRnd(p)?'Ø '+inp(i,'w',p.w)+' × '+inp(i,'t',p.t,64):inp(i,'w',p.w)+' × '+inp(i,'l',p.l)+' × '+inp(i,'t',p.t,64)}<div class="mut" style="font-size:12px">${abRnd(p)?'diametro × spessore (mm)':'larghezza × lunghezza × spessore (mm)'}</div></td>
+   <td>${inp(i,'qty',p.qty,60)}</td><td><input value="${esc(p.mat||'')}" oninput="shAbSet(${i},'mat',this.value)" placeholder="Es. S275JR" style="width:130px"><input value="${esc(p.note||'')}" oninput="shAbSet(${i},'note',this.value)" placeholder="Nota" style="width:130px;margin-top:3px"></td>
+   <td><span data-abh="${i}">${abHoleSum(p)}</span><br><button class="b ${i===sel?'pri':''}" onclick="shAbSel(${i})">Fori…</button></td><td class="n" data-abw="${i}">${p.w&&abL(p)&&p.t?f2(abKg(p))+' kg':'—'}</td>
+   <td style="white-space:nowrap"><button class="b" onclick="shAbDup(${i})" title="Duplica la piastra">⧉</button><button class="b dng" onclick="shAbRm(${i})">Elimina</button></td></tr>`).join('');
+  const tot=pl.reduce((a,p)=>a+(+p.qty||0),0),kg=pl.reduce((a,p)=>a+abKg(p)*(+p.qty||0),0);
+  let panel='';
+  if(P){const g=SHW.abg||(SHW.abg={d:14,nx:2,ny:2,m:30,n:6,pc:100,a0:0}),rn=abRnd(P),R=(+P.w||0)/2;
+    const bad=h=>rn?Math.hypot(+h.x||0,+h.y||0)+(+h.d||0)/2>R+.01:(+h.x<0||+h.x>+P.w||+h.y<0||+h.y>+P.l);
+    const lab=(t,k,w,st)=>`<label style="font-size:13px">${t} <input type="number" ${st||''} value="${g[k]}" oninput="SHW.abg.${k}=+this.value" style="width:${w}px"></label>`;
+    panel=`<div style="border:2px solid var(--steel);border-radius:4px;padding:12px;margin-top:12px"><h3 style="margin:0 0 8px">Fori della piastra ${sel+1} <span class="mut" style="font-size:13px;font-weight:400">· ${rn?'posizione del centro del foro dal centro della piastra: X verso destra, Y verso l’alto':'posizione del centro dal vertice in basso a sinistra: X = lungo la larghezza, Y = lungo la lunghezza'}</span></h3>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start"><div id="abbig">${abSk(P,true)}</div><div>
+    <div class="tw"><table style="min-width:0"><thead><tr><th>#</th><th>Ø (mm)</th><th>X</th><th>Y</th><th></th></tr></thead><tbody>${(P.holes||[]).map((h,k)=>`<tr><td>${k+1}</td><td>${inp2(sel,k,'d',h.d)}</td><td>${inp2(sel,k,'x',h.x)}</td><td>${inp2(sel,k,'y',h.y)}</td><td style="white-space:nowrap">${bad(h)?'<span class="neg" title="Il foro è fuori dalla piastra">!</span> ':''}<button class="b dng" onclick="shAbHRm(${k})">×</button></td></tr>`).join('')||'<tr><td colspan="5" class="mut">Nessun foro.</td></tr>'}</tbody></table></div>
+    <div class="tools" style="margin-top:8px"><button class="b" onclick="shAbHAdd()">+ Aggiungi foro</button></div>
+    <div style="border-top:1px solid var(--line);margin-top:10px;padding-top:8px"><b>Griglia di fori</b> <span class="mut">(sostituisce i fori attuali)</span><div class="tools" style="margin:6px 0;align-items:center">
+     ${lab('Ø','d',64)}${lab('Colonne','nx',56,'min="1"')}${lab('Righe','ny',56,'min="1"')}${lab('Distanza dal bordo','m',64)}<button class="b pri" onclick="shAbGrid()">Genera fori</button></div><div class="mut">Con 2 colonne e 2 righe ottieni i 4 fori agli angoli.</div></div>
+    ${rn?`<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:8px"><b>Fori su circonferenza</b> <span class="mut">(sostituisce i fori attuali)</span><div class="tools" style="margin:6px 0;align-items:center">${lab('Ø foro','d',64)}${lab('N. fori','n',56,'min="1"')}${lab('Ø circonferenza','pc',70)}${lab('Angolo iniziale °','a0',56)}<button class="b pri" onclick="shAbCirc()">Genera fori</button></div></div>`:''}
+    </div></div></div>`}
+  let prop='';
+  if(SHW.abp){const L=SHW.abp;prop=`<div style="border:2px solid var(--steel);border-radius:4px;padding:12px;margin-top:12px"><h3 style="margin:0 0 6px">Piastre trovate nel disegno</h3>${L.length?`<div class="mut" style="margin-bottom:6px">Sono stati letti i rettangoli chiusi (con i cerchi interni come fori). Controlla, togli la spunta a quelli da non usare e inserisci lo spessore dopo l’importazione.</div>
+    <div class="tw"><table style="min-width:0"><thead><tr><th></th><th>Misure (mm)</th><th class="n">Quantità</th><th>Fori</th></tr></thead><tbody>${L.map((p,i)=>`<tr><td><input type="checkbox" ${p.on?'checked':''} onchange="SHW.abp[${i}].on=this.checked" style="width:20px;height:20px"></td><td>${f1(p.w)} × ${f1(p.l)}</td><td class="n">${p.qty}</td><td>${abHoleSum(p)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="tools" style="margin-top:8px"><button class="b pri" onclick="shAbAdd()">Aggiungi le piastre selezionate</button><button class="b" onclick="shAbNo()">Annulla</button></div>`
+    :`<div class="mut">Nel disegno non ho trovato rettangoli chiusi: le piastre devono essere polilinee chiuse a 4 vertici, con assi paralleli ai lati del foglio. Prova a cambiare livelli o unità, oppure inserisci le piastre a mano.</div><div class="tools" style="margin-top:8px"><button class="b" onclick="shAbNo()">Chiudi</button></div>`}</div>`}
+  return shDocHead()+`<div class="tools"><button class="b pri" onclick="shAbAddRow()">+ Aggiungi piastra</button><button class="b" onclick="shAbDxf()">Leggi le piastre da un disegno DXF</button><button class="b" onclick="labOpen()" title="Stampa le etichette per identificare le piastre">Etichette delle piastre</button><button class="b" onclick="lkOpen()" title="Collega le piastre ai profili">Collegamenti ai profili</button></div>
+  <div class="tw" style="margin-top:8px"><table><thead><tr><th>#</th><th>Schizzo</th><th>Forma e dimensioni</th><th>Qtà</th><th>Materiale / note</th><th>Fori</th><th class="n">Peso unitario</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="8" class="empty">Nessuna piastra: premi «+ Aggiungi piastra».</td></tr>'}</tbody></table></div>
+  <div class="mut" style="margin-top:6px"><b>${tot}</b> ${tot==1?'piastra':'piastre'} in totale · peso complessivo circa <b>${f1(kg)} kg</b> (acciaio, 7,85 kg/dm³, fori sottratti).</div>${prop}${panel}`+shDocFoot();
+}
+const inp2=(i,k,f,v)=>`<input type="number" step="any" value="${esc(v)}" oninput="shAbHSet(${i},${k},'${f}',this.value)" style="width:70px">`;
+const abNum=v=>v===''||v==null?'':(isFinite(+v)?+v:'');
+function shAbSet(i,k,v){const p=SHW.s.pl[i];p[k]=(k=='mat'||k=='note')?v:abNum(v);if(k=='w'&&abRnd(p))p.l=p.w;abUpd(i)}
+function shAbHSet(i,k,f,v){SHW.s.pl[i].holes[k][f]=abNum(v);abUpd(i)}
+function shAbShape(i,v){
+  const p=SHW.s.pl[i],w=+p.w||0,l=+p.l||0,was=abRnd(p);if(was==(v=='r'))return;
+  if(v=='r'){const D=w||l;(p.holes||[]).forEach(h=>{h.x=r1n((+h.x||0)-w/2);h.y=r1n((+h.y||0)-l/2)});p.sh='r';p.w=D;p.l=D}
+  else{(p.holes||[]).forEach(h=>{h.x=r1n((+h.x||0)+w/2);h.y=r1n((+h.y||0)+w/2)});delete p.sh}
+  shKeep();
+}
+function shAbAddRow(){const pl=SHW.s.pl,l=pl[pl.length-1];pl.push({w:'',l:'',t:l?l.t:'',qty:1,mat:l?l.mat:'',note:'',holes:[]});SHW.ab=pl.length-1;shKeep()}
+function shAbDup(i){const pl=SHW.s.pl;{const c=JSON.parse(JSON.stringify(pl[i]));delete c.code;c.lk=[];pl.splice(i+1,0,c)}SHW.ab=i+1;shKeep()}
+function shAbRm(i){askConfirm('Eliminare la piastra '+(i+1)+'?',()=>{SHW.s.pl.splice(i,1);SHW.ab=null;shKeep()})}
+function shAbSel(i){SHW.ab=SHW.ab===i?null:i;shKeep()}
+function shAbHAdd(){const P=SHW.s.pl[SHW.ab];P.holes.push({d:14,x:'',y:''});shKeep()}
+function shAbHRm(k){SHW.s.pl[SHW.ab].holes.splice(k,1);shKeep()}
+function shAbGrid(){
+  const P=SHW.s.pl[SHW.ab],g=SHW.abg,w=+P.w,l=abL(P),rn=abRnd(P);
+  if(!(w>0&&l>0))return toast('Inserisci prima le dimensioni della piastra.');
+  const nx=Math.max(1,Math.round(g.nx||1)),ny=Math.max(1,Math.round(g.ny||1)),m=+g.m||0,d=+g.d||0;
+  if(d<=0)return toast('Inserisci il diametro dei fori.');
+  const H=[];for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const x=nx==1?w/2:m+i*(w-2*m)/(nx-1),y=ny==1?l/2:m+j*(l-2*m)/(ny-1);H.push({d,x:r1n(rn?x-w/2:x),y:r1n(rn?y-l/2:y)})}
+  P.holes=H;shKeep();
+}
+function shAbCirc(){
+  const P=SHW.s.pl[SHW.ab],g=SHW.abg,n=Math.max(1,Math.round(g.n||1)),d=+g.d||0,R=(+g.pc||0)/2;
+  if(d<=0||R<=0)return toast('Inserisci il diametro dei fori e quello della circonferenza.');
+  const H=[];for(let k=0;k<n;k++){const a=((+g.a0||0)+k*360/n)*Math.PI/180;H.push({d,x:r1n(R*Math.cos(a)),y:r1n(R*Math.sin(a))})}
+  P.holes=H;shKeep();
+}
+function shAbDxf(){SHW.abdxf=true;SHW.imp=true;SHW.add=true;SHW.addRows=false;SHW.err='';shRender()}
+function shAbNo(){SHW.abp=null;shKeep()}
+function shAbAdd(){
+  const L=(SHW.abp||[]).filter(p=>p.on);if(!L.length)return toast('Seleziona almeno una piastra.');
+  const pl=SHW.s.pl;if(pl.length==1&&!pl[0].w&&!pl[0].l&&!(pl[0].holes||[]).length)pl.length=0;
+  L.forEach(p=>pl.push({w:p.w,l:p.l,t:'',qty:p.qty,mat:'',note:'',holes:p.holes.map(h=>({...h}))}));
+  SHW.abp=null;SHW.ab=pl.length-1;shSave(true);shKeep();toast(L.length+(L.length==1?' piastra aggiunta':' piastre aggiunte')+': inserisci lo spessore.');
+}
+function abFromDxf(lists){
+  const m=new Map();
+  lists.forEach(ents=>{
+  const rc=[];
+  ents.forEach(e=>{
+    if(e.t!='P')return;let p=e.p.slice(),n=p.length/2,drop=false;
+    if(n==5&&Math.abs(p[0]-p[8])<.05&&Math.abs(p[1]-p[9])<.05){p=p.slice(0,8);n=4;drop=true}
+    if(n!=4||!(e.c||drop))return;
+    const xs=[p[0],p[2],p[4],p[6]],ys=[p[1],p[3],p[5],p[7]],x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),tol=.05,cs=new Set();
+    for(let i=0;i<4;i++){const ex=Math.abs(xs[i]-x0)<tol?0:Math.abs(xs[i]-x1)<tol?1:-1,ey=Math.abs(ys[i]-y0)<tol?0:Math.abs(ys[i]-y1)<tol?1:-1;if(ex<0||ey<0)return;cs.add(ex+''+ey)}
+    if(cs.size!=4||x1-x0<1||y1-y0<1)return;
+    rc.push({x0,y0,x1,y1,holes:[]});
+  });
+  ents.filter(e=>e.t=='C').forEach(c=>{
+    const in_=rc.filter(r=>c.p[0]-c.r>=r.x0-.05&&c.p[0]+c.r<=r.x1+.05&&c.p[1]-c.r>=r.y0-.05&&c.p[1]+c.r<=r.y1+.05).sort((a,b)=>(a.x1-a.x0)*(a.y1-a.y0)-(b.x1-b.x0)*(b.y1-b.y0));
+    if(in_[0])in_[0].holes.push({d:r1n(c.r*2),x:r1n(c.p[0]-in_[0].x0),y:r1n(c.p[1]-in_[0].y0)});
+  });
+  rc.forEach(r=>{r.holes.sort((a,b)=>a.y-b.y||a.x-b.x);const w=r1n(r.x1-r.x0),l=r1n(r.y1-r.y0),k=w+'x'+l+'|'+r.holes.map(h=>h.d+','+h.x+','+h.y).join(';');
+    if(m.has(k))m.get(k).qty++;else m.set(k,{w,l,qty:1,holes:r.holes,on:true})});
+  });
+  return [...m.values()].sort((a,b)=>b.w*b.l-a.w*a.l);
+}
+function abPdf(j,s){
+  const PW=297,PHH=210,M=10,GY=36,pl=s.pl.filter(p=>p.w&&abL(p));
+  const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4',orientation:'landscape'});
+  doc.setDrawColor(0,0,0);doc.setTextColor(0,0,0);doc.setFillColor(255,255,255);
+  const T=(t,x,y,fs,b,al)=>{doc.setFont('helvetica',b?'bold':'normal');doc.setFontSize(fs);doc.text(String(t),x,y,al?{align:al}:undefined)};
+  const tw=(t,fs,b)=>{doc.setFont('helvetica',b?'bold':'normal');doc.setFontSize(fs);return doc.getTextWidth(String(t))};
+  const fit=(t,w,fs,b)=>{t=String(t??'');if(tw(t,fs,b)<=w-2)return t;while(t.length>1&&tw(t+'...',fs,b)>w-2)t=t.slice(0,-1);return t+'...'};
+  const LN=(x1,y1,x2,y2,w)=>{doc.setLineWidth(w||.25);doc.line(x1,y1,x2,y2)};
+  const CWd=(PW-2*M)/2,CH=(PHH-M-6-GY)/2,pages=Math.max(1,Math.ceil(pl.length/4));let totQ=0,totKg=0;
+  const head=pg=>{
+    T('ABACO PIASTRE',M,18,18,1);T(fit(s.title&&s.title!=SH_TY0.ab?s.title:'Commessa '+j.code+' - '+j.desc,130,9),M,25,9,0);
+    [['Commessa',j.code,0,0],['Cliente',shCli(j),1,0],['Data',today(),0,1],['Foglio',pg+'/'+pages,1,1]].forEach(([l,v,c,r])=>{const x=150+c*68,y=15+r*8.5;T(l,x,y-3.2,7,0);T(fit(v,64,10,1),x,y+.8,10,1);LN(x,y+2,x+64,y+2,.3)});
+    LN(M,31,PW-M,31,.8);
+  };
+  const uniq=a=>[...new Set(a.map(v=>Math.round(v*10)/10))].sort((x,y)=>x-y);
+  // quota orizzontale tra due ascisse (carta), testo adattato alla lunghezza
+  const dH=(xa,xb,y,txt,fs)=>{LN(xa,y,xb,y,.2);LN(xa,y-1.3,xa,y+1.3,.2);LN(xb,y-1.3,xb,y+1.3,.2);let f=fs;while(tw(txt,f)>xb-xa-.6&&f>4)f-=.3;T(txt,(xa+xb)/2,y-.9,f,0,'center')};
+  const dV=(ya,yb,x,txt,fs)=>{LN(x,ya,x,yb,.2);LN(x-1.3,ya,x+1.3,ya,.2);LN(x-1.3,yb,x+1.3,yb,.2);let f=fs;while(tw(txt,f)>yb-ya-.6&&f>4)f-=.3;doc.setFont('helvetica','normal');doc.setFontSize(f);doc.text(txt,x-.9,(ya+yb)/2+tw(txt,f)/2,{angle:90})};
+  function card(p,k,cx,cy){
+    const w=+p.w,l=abL(p),rn=abRnd(p),q=+p.qty||0,kg=abKg(p);totQ+=q;totKg+=kg*q;
+    doc.setLineWidth(.4);doc.rect(cx+1,cy+1,CWd-2,CH-2,'S');
+    doc.setLineWidth(.4);doc.circle(cx+8,cy+7,4.2,'S');T(k+1,cx+8,cy+8.6,11,1,'center');
+    T(abDim(p)+(p.t?' × '+f1(+p.t):''),cx+15,cy+6.2,11,1);
+    T(fit([p.mat,p.t?'sp. '+f1(+p.t):'',p.t?f2(kg)+' kg':''].filter(Boolean).join('  ·  '),CWd-40,7.5),cx+15,cy+10.6,7.5,0);
+    T('Qtà '+q,cx+CWd-4,cy+7,12,1,'right');if(p.code)T(p.code,cx+CWd-4,cy+11.4,8,1,'right');
+    LN(cx+1,cy+13,cx+CWd-1,cy+13,.3);
+    // disegno
+    const aw=72,ah=CH-16-3-17,sk=Math.min(aw/w,ah/l),dw=w*sk,dh=l*sk,ox=cx+3+16+(aw-dw)/2,oy=cy+16+(ah-dh)/2;
+    doc.setLineWidth(.5);if(rn)doc.circle(ox+dw/2,oy+dh/2,dw/2,'S');else doc.rect(ox,oy,dw,dh,'S');
+    const P=(p.holes||[]).map(h=>{const a=abHP(p,h);return{d:+h.d||0,px:a[0],py:a[1],cx:ox+a[0]*sk,cy:oy+dh-a[1]*sk}});
+    P.forEach(h=>{const r=Math.max(h.d/2*sk,.5);doc.setLineWidth(.3);doc.circle(h.cx,h.cy,r,'S');LN(h.cx-r-1,h.cy,h.cx+r+1,h.cy,.12);LN(h.cx,h.cy-r-1,h.cx,h.cy+r+1,.12)});
+    // etichette diametro: una per ogni diametro diverso
+    const seen={};P.forEach(h=>{if(seen[h.d])return;seen[h.d]=1;const n=P.filter(z=>z.d==h.d).length,r=Math.max(h.d/2*sk,.5);T('Ø'+f1(h.d)+(n>1?' ×'+n:''),h.cx+r+1,h.cy-r-.3,6.5,1)});
+    // catene di quote dai bordi (per i tondi: dal quadrato che li contiene)
+    const xs=uniq([0,w,...P.map(h=>h.px),...(rn?[w/2]:[])]),ys=uniq([0,l,...P.map(h=>h.py),...(rn?[l/2]:[])]);
+    const yb1=oy+dh+5,yb2=oy+dh+11,xl1=ox-5,xl2=ox-11;
+    if(xs.length>2){xs.forEach(x=>LN(ox+x*sk,oy+dh+.8,ox+x*sk,yb1+1.5,.12));for(let i=0;i<xs.length-1;i++)dH(ox+xs[i]*sk,ox+xs[i+1]*sk,yb1,f1(xs[i+1]-xs[i]),6.5);LN(ox,yb1+1.5,ox,yb2+1.5,.12);LN(ox+dw,yb1+1.5,ox+dw,yb2+1.5,.12);dH(ox,ox+dw,yb2,f1(w),7.5)}
+    else{LN(ox,oy+dh+.8,ox,yb1+1.5,.12);LN(ox+dw,oy+dh+.8,ox+dw,yb1+1.5,.12);dH(ox,ox+dw,yb1,f1(w),7.5)}
+    if(ys.length>2){ys.forEach(y=>LN(ox-.8,oy+dh-y*sk,xl1-1.5,oy+dh-y*sk,.12));for(let i=0;i<ys.length-1;i++)dV(oy+dh-ys[i+1]*sk,oy+dh-ys[i]*sk,xl1,f1(ys[i+1]-ys[i]),6.5);LN(xl1-1.5,oy,xl2-1.5,oy,.12);LN(xl1-1.5,oy+dh,xl2-1.5,oy+dh,.12);dV(oy,oy+dh,xl2,f1(l),7.5)}
+    else{LN(ox-.8,oy,xl1-1.5,oy,.12);LN(ox-.8,oy+dh,xl1-1.5,oy+dh,.12);dV(oy,oy+dh,xl1,f1(l),7.5)}
+    // colonna testo
+    const tx=cx+98,tW=CWd-98-3;let ty=cy+18;
+    T('FORI',tx,ty,8,1);ty+=4;doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(90,90,90);{const ls=doc.splitTextToSize(rn?'quote dal centro (X;Y)':'quote dal vertice in basso a sinistra (X;Y)',tW);ls.forEach((t,i)=>doc.text(t,tx,ty+i*3.2));ty+=ls.length*3.2+.8}doc.setTextColor(0,0,0);
+    const lkc=lkOk(p),lkl=lkc.length?doc.splitTextToSize('COLLEGATA A: '+lkc.join(', '),tW):[];
+    const g={};(p.holes||[]).forEach(h=>{(g[+h.d]=g[+h.d]||[]).push(h)});const out=[];
+    Object.keys(g).sort((a,b)=>a-b).forEach(d=>doc.splitTextToSize(g[d].length+' × Ø'+f1(+d)+': '+g[d].map(h=>'('+f1(+h.x)+';'+f1(+h.y)+')').join(' '),tW).forEach(z=>out.push(z)));
+    const maxL=Math.max(1,Math.floor((cy+CH-4-ty-(lkl.length+(p.note?3:0))*3.3)/3.3));if(!out.length)T('nessun foro',tx,ty,7.5,0);
+    out.slice(0,maxL).forEach((t,i)=>T(i==maxL-1&&out.length>maxL?t+' ...':t,tx,ty+i*3.3,7,0));
+    if(p.note){const ny=cy+CH-4-doc.splitTextToSize(p.note,tW).slice(0,3).length*3.3-lkl.length*3.3-(lkl.length?1.5:0);doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(60,60,60);doc.splitTextToSize(p.note,tW).slice(0,3).forEach((t,i)=>doc.text(t,tx,ny+i*3.3));doc.setTextColor(0,0,0)}
+    if(lkl.length){doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(0,0,0);lkl.forEach((t,i)=>doc.text(t,tx,cy+CH-4-(lkl.length-1-i)*3.3))}
+  }
+  pl.forEach((p,k)=>{const pg=Math.floor(k/4)+1,r=k%4;if(r==0){if(k)doc.addPage();head(pg)}card(p,k,M+(r%2)*CWd,GY+Math.floor(r/2)*CH)});
+  if(!pl.length)head(1);
+  T('Totale: '+totQ+(totQ==1?' piastra':' piastre')+(totKg>0?'  -  peso complessivo circa '+f1(totKg)+' kg':''),M,PHH-M-1,10,1);
+  return doc;
+}
 function sheetOpen(id){
-  const j=D.jobs.find(x=>x.id==id);if(!j)return;
-  SHRAW=null;SHW={id,s:j.sheet?shNorm(JSON.parse(JSON.stringify(j.sheet))):null,start:!j.sheet,imp:false,mkDist:true,add:false,av:0,mode:null,sel:null,z:1,page:'sheet'};
+  const j=shJob(id);if(!j)return;shAssignAll(j);
+  SHRAW=null;SHW=shSt(id);SHW.list=true;
   shRender();$('#dlg').showModal();
 }
 function shRender(){
-  const j=D.jobs.find(x=>x.id==SHW.id),d=$('#dlg');d.oninput=null;d.oncancel=null;d.classList.add('wide');
-  const pins=!SHW.imp&&!SHW.start&&SHW.page=='pins';d.classList.toggle('full',pins);
-  const head=`<div class="dh"><h2>${pins?'Inserimento pallini':'Scheda di lavorazione'} · ${esc(j.code)}</h2><div class="mut">${esc(j.desc)} · ${esc(cn(j.client))}</div></div>`;
-  d.innerHTML=head+(SHW.start?shStartHtml():SHW.imp?shImportHtml():pins?shPinsHtml():shEditHtml());
+  const j=shJob(SHW.id),d=$('#dlg');if(j&&SHW.s&&!SHW.list&&!SHW.imp&&!SHW.start&&SH_PFX[SHW.type])shAssignDoc(j,SHW.s);d.oninput=null;d.oncancel=null;d.classList.add('wide');
+  const pins=!SHW.list&&!SHW.imp&&!SHW.start&&SHW.page=='pins',tvp=!SHW.list&&!SHW.imp&&!SHW.start&&SHW.type=='tav'&&SHW.page=='tv'&&SHW.s&&(SHW.s.vw||[]).length>0;d.classList.toggle('full',pins||tvp);
+  const head=`<div class="dh"><h2>${pins?'Inserimento pallini':tvp?'Visualizzatore tavola':SHW.list?'Documenti della scheda':(SHW.s&&SHW.type!='dist'?SH_TY0[SHW.type]:'Scheda di lavorazione')} · ${esc(j.code)}</h2><div class="mut">${esc(j.desc)}${j.desc&&shCli(j)?' · ':''}${esc(shCli(j))}</div></div>`;
+  d.innerHTML=head+(SHW.list?shDocsHtml():SHW.start?(SHW.type=='tav'?tavStartHtml():shStartHtml()):SHW.imp?shImportHtml():SHW.page=='lab'?labHtml():SHW.page=='lk'?lkHtml():pins?shPinsHtml():tvp?tvvHtml():SHW.type=='tav'?tavHtml():SHW.type=='ab'?abHtml():shEditHtml());
   const f=$('#shf');if(f)f.onchange=shRead;
 }
 function shImportHtml(){
@@ -2619,16 +3307,16 @@ function shImportHtml(){
     ${Object.keys(R.skip).length?`<div class="mut" style="margin-top:6px">Non letti: ${Object.entries(R.skip).map(([k,v])=>v+' '+k).join(', ')}</div>`:''}</div>
     <div><h3 style="margin:0 0 6px">2. Unità del disegno</h3><select onchange="shUnit(this.value)"><option value="1000" ${R.k==1000?'selected':''}>Metri</option><option value="10" ${R.k==10?'selected':''}>Centimetri</option><option value="1" ${R.k==1?'selected':''}>Millimetri</option></select>
     <div class="mut" style="margin-top:6px">Controlla le misure della vista scelta qui sotto: se non corrispondono, cambia unità.</div>
-    ${add?`<label style="display:flex;flex-direction:row;gap:8px;align-items:center;margin-top:14px;color:inherit;font-size:14px"><input type="checkbox" style="width:auto" ${SHW.addRows?'checked':''} onchange="SHW.addRows=this.checked"> Proponi anche righe automatiche per questa vista (facoltativo)</label>`:`<label style="display:flex;flex-direction:row;gap:8px;align-items:center;margin-top:14px;color:inherit;font-size:14px"><input type="checkbox" style="width:auto" ${SHW.mkDist!==false?'checked':''} onchange="SHW.mkDist=this.checked"> Crea anche la distinta di taglio (poi inserisci i pallini sul disegno)</label><div class="mut" style="margin-top:4px">Se lo lasci spento importi solo il disegno: la distinta si potrà creare dopo.</div>`}</div></div>
+    ${SHW.type=='tav'||SHW.abdxf?'':add?`<label style="display:flex;flex-direction:row;gap:8px;align-items:center;margin-top:14px;color:inherit;font-size:14px"><input type="checkbox" style="width:auto" ${SHW.addRows?'checked':''} onchange="SHW.addRows=this.checked"> Proponi anche righe automatiche per questa vista (facoltativo)</label>`:`<label style="display:flex;flex-direction:row;gap:8px;align-items:center;margin-top:14px;color:inherit;font-size:14px"><input type="checkbox" style="width:auto" ${SHW.mkDist!==false?'checked':''} onchange="SHW.mkDist=this.checked"> Crea anche la distinta di taglio (poi inserisci i pallini sul disegno)</label><div class="mut" style="margin-top:4px">Se lo lasci spento importi solo il disegno: la distinta si potrà creare dopo.</div>`}</div></div>
     <h3 style="margin:14px 0 6px">3. Vista da usare${vs.length>1?' (nel file ci sono '+vs.length+' disegni)':''}</h3>
     <div style="display:flex;gap:12px;flex-wrap:wrap">${vs.map((v,i)=>`<label style="display:block;border:2px solid ${R.vi==i?'var(--steel)':'var(--line)'};padding:6px;border-radius:4px;cursor:pointer;width:260px;color:inherit;font-size:14px"><input type="radio" style="width:auto" name="shv" ${R.vi==i?'checked':''} onchange="shView(${i})"> Vista ${i+1}: <b>${Math.round(v.bb[2]-v.bb[0])} × ${Math.round(v.bb[3]-v.bb[1])} mm</b> <span class="mut">(${v.n} elementi)</span>${shSvg(v.ix.map(k=>ents[k]),v.bb,null,'100%')}</label>`).join('')||'<div class="mut">Nessuna vista con i livelli scelti.</div>'}</div>`}
-  return `<div class="db" style="display:block">${body}</div><div class="df"><button class="b" onclick="${SHW.s?'shBack()':`SHW.imp=false;SHW.start=true;SHRAW=null;SHW.err='';shRender()`}">${SHW.s?'Torna alla scheda':'Indietro'}</button>${R&&R.views&&R.views.length?`<button class="b pri" onclick="shImport()">${add?'Aggiungi vista selezionata':'Importa vista selezionata'}</button>`:''}</div>`;
+  return `<div class="db" style="display:block">${body}</div><div class="df"><button class="b" onclick="${SHW.s?'shBack()':`SHW.imp=false;SHW.start=true;SHRAW=null;SHW.err='';shRender()`}">${SHW.s?'Torna alla scheda':'Indietro'}</button>${R&&R.views&&R.views.length?`<button class="b pri" onclick="shImport()">${SHW.abdxf?'Leggi le piastre da questa vista':SHW.type=='tav'?(add?'Aggiungi disegno e vista':'Importa disegno'):add?'Aggiungi vista selezionata':'Importa vista selezionata'}</button>`:''}</div>`;
 }
 const shScaled=()=>SHRAW.ents.filter(e=>SHRAW.on[e.ly]).map(e=>e.t=='C'?{...e,p:e.p.map(v=>v*SHRAW.k),r:e.r*SHRAW.k}:{...e,p:e.p.map(v=>v*SHRAW.k)});
 function shReview(){const e=shScaled();SHRAW.views=e.length?shViews(e):[];if(SHRAW.vi>=SHRAW.views.length)SHRAW.vi=0}
 function shRead(ev){
   const f=ev.target.files[0];if(!f)return;SHW.err='';
-  if(/\.pdf$/i.test(f.name)||f.type=='application/pdf'){shPdfAdd(f);return}
+  if(/\.pdf$/i.test(f.name)||f.type=='application/pdf'){if(SHW.type=='tav'||SHW.abdxf){SHW.err='Per questa funzione serve un disegno in formato DXF.';shRender();return}shPdfAdd(f);return}
   const fr=new FileReader();fr.onerror=()=>{SHW.err='Impossibile leggere il file.';shRender()};
   fr.onload=()=>{try{const p=dxfParse(String(fr.result)),on={};Object.keys(p.layers).forEach(l=>on[l]=!SH_OFF.test(l));
       if(!Object.values(on).some(Boolean))Object.keys(on).forEach(l=>on[l]=true);
@@ -2643,29 +3331,150 @@ function shImport(){
   const R=SHRAW,v=R.views[R.vi],ents=shScaled(),x0=v.bb[0],y0=v.bb[1],r1=n=>Math.round(n*10)/10;
   const out=v.ix.map(k=>{const e=ents[k];return e.t=='C'?{t:'C',p:[r1(e.p[0]-x0),r1(e.p[1]-y0)],r:r1(e.r)}:{t:'P',c:e.c,p:e.p.map((q,i)=>r1(q-(i%2?y0:x0)))}});
   const W=r1(v.bb[2]-x0),H=r1(v.bb[3]-y0);
+  if(SHW.abdxf&&SHW.s){SHW.abdxf=false;SHW.abp=abFromDxf([ents]);SHW.imp=false;SHW.add=false;SHRAW=null;SHW.page='sheet';shRender();return}
   if(SHW.add&&SHW.s){
     const s=SHW.s,idx=s.views.length;s.views.push({name:'Vista '+(idx+1),file:R.name,w:W,h:H,ents:out});
+    if(SHW.type=='tav'){const vw=s.vw=s.vw||[];vw.push({id:Math.max(0,...vw.map(x=>x.id||0))+1,dr:idx,title:'Vista '+(vw.length+1),notes:'',box:null});SHW.tv=vw.length-1}
     if(SHW.addRows){s.rows.push(...shRefs(shSuggest(out,W,H),idx));s.dist=true}
     SHW.av=idx;SHW.mode={t:'add'};SHW.sel=null;toast('Vista aggiunta: clicca sul disegno per inserire i pallini.');
+  }else if(SHW.type=='tav'){
+    SHW.s=Object.assign(shNew(),{type:'tav',title:SH_TY0.tav,dist:false,paper:'A4',views:[{name:'Vista 1',file:R.name,w:W,h:H,ents:out}],vw:[{id:1,dr:0,title:'Vista 1',notes:'',box:null}]});SHW.tv=0;SHW.av=0;
+    toast('Disegno importato: trascina sul disegno per scegliere l’area di ogni vista.');
   }else{
     SHW.s=Object.assign(shNew(),{views:[{name:'Vista 1',file:R.name,w:W,h:H,ents:out}],dist:SHW.mkDist!==false});SHW.av=0;
     SHW.mode={t:'add'};SHW.sel=null;toast('Disegno importato: clicca sul disegno per inserire i pallini numerati.');
   }
-  const tp=SHW.s.dist;SHW.imp=false;SHW.add=false;SHRAW=null;SHW.page=tp?'pins':'sheet';SHW.mode=tp?{t:'add'}:null;SHW.sel=null;SHW.snap=JSON.stringify(SHW.s);shRender();
+  const tp=SHW.s.dist;SHW.imp=false;SHW.add=false;SHRAW=null;SHW.page=tp?'pins':'sheet';SHW.mode=tp?{t:'add'}:null;SHW.sel=null;SHW.snap=JSON.stringify(SHW.s);if(SHW.type=='tav')shSave(true);shRender();
 }
-const shNew=()=>({qty:1,views:[],rows:[],details:[],steps:shSteps(),notes:'',pdfs:[],files:[],dist:false,imp:new Date().toISOString().slice(0,10)});
+const shNew=()=>({type:'dist',title:'Distinta di taglio',qty:1,views:[],rows:[],details:[],steps:shSteps(),notes:'',pdfs:[],files:[],dist:false,imp:new Date().toISOString().slice(0,10)});
 // scheda senza disegno: la distinta di taglio si crea poi a mano
 function shNoDraw(){SHW.s=shNew();SHW.start=false;SHW.imp=false;SHW.page='sheet';SHW.mode=null;SHW.av=0;SHW.sel=null;shRender()}
 function shDistManual(){const s=SHW.s;s.dist=true;if(!s.rows.length)s.rows.push({inc:1,desc:'',type:'Profilo',qty:1,len:'',cl:0,cr:0,sec:'',mat:'',note:'',refs:[]});SHW.sel=0;shRender()}
 function shDistDxf(){SHW.s.dist=true;SHW.av=0;shPins()}
 function shAddDraw(){SHW.imp=true;SHW.add=true;SHW.addRows=false;SHW.err='';shRender()}
+// ---- etichette per identificare i pezzi della distinta di taglio
+const LAB_FMT=[
+ {id:'a21',n:'Foglio A4 · 21 etichette (63,5 × 38,1 mm)',cols:3,rows:7,w:63.5,h:38.1,x0:7.2,y0:15.1,px:66,py:38.1},
+ {id:'a24',n:'Foglio A4 · 24 etichette (70 × 36 mm)',cols:3,rows:8,w:70,h:36,x0:0,y0:4.5,px:70,py:36},
+ {id:'a14',n:'Foglio A4 · 14 etichette (99,1 × 38,1 mm)',cols:2,rows:7,w:99.1,h:38.1,x0:4.65,y0:15.15,px:101.6,py:38.1},
+ {id:'a8',n:'Foglio A4 · 8 etichette (99,1 × 67,7 mm)',cols:2,rows:4,w:99.1,h:67.7,x0:4.65,y0:13,px:101.6,py:67.7},
+ {id:'r10060',n:'Etichettatrice · 100 × 60 mm (una per pagina)',w:100,h:60,roll:1},
+ {id:'r10050',n:'Etichettatrice · 100 × 50 mm (una per pagina)',w:100,h:50,roll:1},
+ {id:'r6229',n:'Etichettatrice · 62 × 29 mm (una per pagina)',w:62,h:29,roll:1}];
+const labPl=()=>SHW.type=='ab';
+const labList=()=>{const s=SHW.s;let n=0;return labPl()?(s.pl||[]).map((r,i)=>({r,i})).filter(o=>o.r.w&&abL(o.r)).map(o=>({...o,n:++n})):s.rows.map((r,i)=>({r,i})).filter(o=>o.r.inc).map(o=>({...o,n:++n}))};
+const labDef=r=>Math.max(1,Math.round((+r.qty||1)*(labPl()?1:(+SHW.s.qty||1))));
+function labOpen(){
+  const s=SHW.s,cfg=D.labcfg||{},c={};
+  labList().forEach(o=>{c[o.i]=labDef(o.r)});
+  SHW.lab={fmt:LAB_FMT.some(x=>x.id==cfg.fmt)?cfg.fmt:'a21',border:cfg.border!==false,skip:0,c};
+  SHW.page='lab';shRender();
+}
+function labBack(){SHW.page='sheet';shRender()}
+function labSet(k,v){
+  const L=SHW.lab;if(k=='fmt'){L.fmt=v;L.skip=0}else if(k=='border')L.border=!!v;else if(k=='skip')L.skip=Math.max(0,Math.round(+v||0));
+  D.labcfg={fmt:L.fmt,border:L.border};saveRaw();if(k!='skip'){const b=$('#dlg .db'),y=b?b.scrollTop:0;shRender();const c=$('#dlg .db');if(c)c.scrollTop=y}
+}
+function labCnt(i,v){SHW.lab.c[i]=Math.max(0,Math.round(+v||0));const t=$('#labtot');if(t)t.textContent=labTotal()}
+function labDefault(){labList().forEach(o=>{SHW.lab.c[o.i]=labDef(o.r)});labBack2()}
+function labBack2(){const b=$('#dlg .db'),y=b?b.scrollTop:0;shRender();const c=$('#dlg .db');if(c)c.scrollTop=y}
+function labAll(v){Object.keys(SHW.lab.c).forEach(i=>{SHW.lab.c[i]=v?Math.max(1,SHW.lab.c[i]||1):0});labBack2()}
+const labTotal=()=>Object.values(SHW.lab.c).reduce((t,n)=>t+(+n||0),0);
+function labHtml(){
+  const s=SHW.s,L=SHW.lab,P=LAB_FMT.find(x=>x.id==L.fmt)||LAB_FMT[0];let n=0;
+  const pl=labPl();
+  const rows=labList().map(({r,i,n})=>pl
+    ?`<tr><td style="text-align:center"><span class="pn">${n}</span></td><td>${esc(abDim(r)+(r.t?' × '+f1(+r.t):''))}<div class="mut" style="font-size:12px">${esc([r.mat,r.note].filter(Boolean).join(' · '))}</div></td><td class="n">${esc(abHoleSum(r))}</td><td class="n">${esc(r.qty||1)}</td><td><input type="number" min="0" value="${L.c[i]??0}" oninput="labCnt(${i},this.value)" style="width:80px"></td></tr>`
+    :`<tr><td style="text-align:center"><span class="pn">${n}</span></td><td>${esc(r.desc||'-')}<div class="mut" style="font-size:12px">${esc([r.type,r.mat,r.sec].filter(Boolean).join(' · '))}</div></td><td class="n">${esc(r.len||'-')}</td><td class="n">${esc(r.qty||1)}</td><td><input type="number" min="0" value="${L.c[i]??0}" oninput="labCnt(${i},this.value)" style="width:80px"></td></tr>`).join('');
+  return `<div class="db" style="display:block">
+  <h3 style="margin:0 0 4px">${pl?'Etichette delle piastre':'Etichette dei pezzi'}</h3><div class="mut" style="margin-bottom:10px">${pl?'Per ogni piastra viene stampata un’etichetta con commessa, numero, forma e dimensioni, materiale, schizzo con i fori e riepilogo dei fori. Il numero di etichette proposto è la quantità della piastra.':`Per ogni pezzo della distinta di taglio viene stampata un’etichetta con commessa, numero di posizione, descrizione, materiale, misura e angoli di taglio. Il numero di etichette proposto è la quantità per pezzo × i pezzi finiti da produrre (${esc(s.qty)}).`}</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:12px">
+   <label style="display:flex;flex-direction:column;font-size:13px;gap:4px">Formato delle etichette<select onchange="labSet('fmt',this.value)">${LAB_FMT.map(x=>`<option value="${x.id}" ${x.id==L.fmt?'selected':''}>${x.n}</option>`).join('')}</select></label>
+   ${P.roll?'':`<label style="display:flex;flex-direction:column;font-size:13px;gap:4px">Salta le prime etichette del foglio<input type="number" min="0" max="${P.cols*P.rows-1}" value="${L.skip}" oninput="labSet('skip',this.value)"><span class="mut">Utile se il foglio è già stato usato in parte.</span></label>`}
+   <label style="display:flex;flex-direction:row;gap:8px;align-items:center;font-size:14px;color:inherit"><input type="checkbox" style="width:auto" ${L.border?'checked':''} onchange="labSet('border',this.checked)"> Stampa il contorno dell’etichetta</label></div>
+  <div class="tw"><table style="min-width:0"><thead><tr><th>N.</th><th>${pl?'Piastra':'Descrizione'}</th><th class="n">${pl?'Fori':'Lungh. mm'}</th><th class="n">${pl?'Q.tà':'Q.tà per pz'}</th><th>N. etichette</th></tr></thead><tbody>${rows||`<tr><td colspan="5" class="empty">${pl?'Nessuna piastra con dimensioni.':'Nessuna posizione nella distinta.'}</td></tr>`}</tbody></table></div>
+  <div class="tools" style="margin-top:8px"><button class="b" onclick="labDefault()">Quantità proposte</button><button class="b" onclick="labAll(0)">Nessuna</button><button class="b" onclick="labAll(1)">Una per posizione</button><b style="margin-left:auto">Totale: <span id="labtot">${labTotal()}</span> etichette</b></div>
+  <div class="mut" style="margin-top:8px">Stampa il PDF al 100% (senza «adatta alla pagina»). Se le etichette risultano spostate, controlla le misure del tuo foglio adesivo.</div></div>
+  <div class="df"><button class="b" onclick="labBack()">${labPl()?'Torna all’abaco':'Torna alla scheda'}</button><button class="b pri" onclick="labPdf()">Genera PDF etichette</button></div>`;
+}
+async function labPdf(){
+  const j=shJob(SHW.id),s=SHW.s,L=SHW.lab,P=LAB_FMT.find(x=>x.id==L.fmt)||LAB_FMT[0];
+  if(!j||!pdfReady())return;LK_OK=lkSet(j);
+  const items=[];
+  labList().forEach(({r,i,n})=>{const c=+L.c[i]||0;for(let k=1;k<=c;k++)items.push({r,n,k,c})});
+  if(!items.length){toast('Imposta almeno un’etichetta da stampare.');return}
+  const roll=!!P.roll,ori=P.w>P.h?'landscape':'portrait';
+  const doc=new window.jspdf.jsPDF(roll?{unit:'mm',format:[P.w,P.h],orientation:ori}:{unit:'mm',format:'a4',orientation:'portrait'});
+  const per=roll?1:P.cols*P.rows,skip=roll?0:Math.min(L.skip||0,per-1);let pg=0;
+  items.forEach((it,idx)=>{
+    const slot=skip+idx,page=Math.floor(slot/per);
+    while(pg<page){roll?doc.addPage([P.w,P.h],ori):doc.addPage();pg++}
+    const q=slot%per,x=roll?0:P.x0+(q%P.cols)*P.px,y=roll?0:P.y0+Math.floor(q/P.cols)*P.py;
+    (labPl()?labDrawPl:labDraw)(doc,x,y,P.w,P.h,j,it,L.border);
+  });
+  await pdfSave(doc,(labPl()?'Etichette_piastre_':'Etichette_')+String(j.code).replace(/[^\w-]+/g,'-')+'.pdf',true);
+}
+function labDraw(doc,x,y,w,h,j,it,border){
+  const r=it.r,sc=Math.max(.7,Math.min(1.6,Math.min(w/70,h/36))),pad=2.2*sc;
+  const tx=(t,px,py,sz,b,al)=>{doc.setFont('helvetica',b?'bold':'normal');doc.setFontSize(sz);doc.setTextColor(0);doc.text(String(t),px,py,al?{align:al}:undefined)};
+  const fit=(t,mw,sz,b)=>{t=String(t||'');doc.setFont('helvetica',b?'bold':'normal');doc.setFontSize(sz);if(doc.getTextWidth(t)<=mw)return t;while(t.length>1&&doc.getTextWidth(t+'.')>mw)t=t.slice(0,-1);return t+'.'};
+  doc.setDrawColor(0);doc.setTextColor(0);
+  if(border){doc.setLineWidth(.2);doc.rect(x+.4,y+.4,w-.8,h-.8)}
+  const L0=x+pad,R0=x+w-pad,cnt=it.k+'/'+it.c;
+  // riga alta: commessa, cliente e numero del pezzo
+  tx(cnt,R0,y+h*.15,8.5*sc,1,'right');
+  const cw=R0-L0-doc.getTextWidth(cnt)-2;
+  tx(fit(j.code+(shCli(j)?'  '+shCli(j):''),cw,8*sc,1),L0,y+h*.15,8*sc,1);
+  doc.setLineWidth(.25);doc.line(L0,y+h*.2,R0,y+h*.2);
+  // posizione e descrizione
+  const bn=String(it.n);tx(bn,L0,y+h*.46,Math.min(22*sc,h*1.05),1);
+  const dx=L0+doc.getTextWidth(bn)+2.2*sc;
+  const cd=r.code||'',lk=lkOk(r);let cw2=0;if(cd){doc.setFont('helvetica','bold');doc.setFontSize(9*sc);cw2=doc.getTextWidth(cd)+2}
+  tx(fit(r.desc||'-',R0-dx-cw2,10*sc,1),dx,y+h*.35,10*sc,1);if(cd)tx(cd,R0,y+h*.35,9*sc,1,'right');
+  if(lk.length)tx(fit('COLLEGATO A: '+lk.join(', '),R0-L0,7.5*sc,1),L0,y+h*.95,7.5*sc,1);
+  tx(fit([r.type,r.mat,r.sec].filter(Boolean).join(' · '),R0-dx,7.5*sc,0),dx,y+h*.455,7.5*sc,0);
+  // schizzo del pezzo con misura e angoli
+  const Ln=r.len===''||r.len==null?'':String(r.len).trim(),ay=y+h*.53,ah=lk.length?h*.3:h*.42;
+  if(!Ln){tx('misura da definire',(L0+R0)/2,ay+ah/2,7.5*sc,0,'center');return}
+  const cl=+r.cl||0,cr=+r.cr||0,hb=Math.min(5*sc,ah*.34),x0=L0+8*sc,x1=R0-8*sc,yb=ay+ah-hb-.8,
+    t=a=>Math.min(Math.abs(Math.tan(Math.min(Math.abs(a),80)*Math.PI/180))*hb,(x1-x0)*.3),oL=t(cl),oR=t(cr),
+    tl=x0+(cl<0?oL:0),bl=x0+(cl>0?oL:0),tr=x1-(cr<0?oR:0),br=x1-(cr>0?oR:0);
+  doc.setLineWidth(.45);doc.line(tl,yb,tr,yb);doc.line(bl,yb+hb,br,yb+hb);doc.line(tl,yb,bl,yb+hb);doc.line(tr,yb,br,yb+hb);
+  const qy=yb-2.4*sc;doc.setLineWidth(.25);doc.line(x0,qy,x1,qy);doc.line(x0,qy-1,x0,qy+1);doc.line(x1,qy-1,x1,qy+1);
+  tx(Ln+' mm',(x0+x1)/2,qy-.9,9*sc,1,'center');
+  if(cl)tx(Math.abs(cl)+'°',x0-1,yb+hb/2+1,7*sc,0,'right');if(cr)tx(Math.abs(cr)+'°',x1+1,yb+hb/2+1,7*sc,0);
+}
+function labDrawPl(doc,x,y,w,h,j,it,border){
+  const p=it.r,sc=Math.max(.7,Math.min(1.6,Math.min(w/70,h/36))),pad=2.2*sc;
+  const tx=(t,px,py,sz,b,al)=>{doc.setFont('helvetica',b?'bold':'normal');doc.setFontSize(sz);doc.setTextColor(0);doc.text(String(t),px,py,al?{align:al}:undefined)};
+  const fit=(t,mw,sz,b)=>{t=String(t||'');doc.setFont('helvetica',b?'bold':'normal');doc.setFontSize(sz);if(doc.getTextWidth(t)<=mw)return t;while(t.length>1&&doc.getTextWidth(t+'.')>mw)t=t.slice(0,-1);return t+'.'};
+  doc.setDrawColor(0);doc.setTextColor(0);
+  if(border){doc.setLineWidth(.2);doc.rect(x+.4,y+.4,w-.8,h-.8)}
+  const L0=x+pad,R0=x+w-pad,cnt=it.k+'/'+it.c;
+  tx(cnt,R0,y+h*.15,8.5*sc,1,'right');
+  tx(fit(j.code+(shCli(j)?'  '+shCli(j):''),R0-L0-doc.getTextWidth(cnt)-2,8*sc,1),L0,y+h*.15,8*sc,1);
+  doc.setLineWidth(.25);doc.line(L0,y+h*.2,R0,y+h*.2);
+  const bn=String(it.n);tx(bn,L0,y+h*.46,Math.min(22*sc,h*1.05),1);
+  const dx=L0+doc.getTextWidth(bn)+2.2*sc;
+  const cd=p.code||'',lk=lkOk(p);let cw2=0;if(cd){doc.setFont('helvetica','bold');doc.setFontSize(9*sc);cw2=doc.getTextWidth(cd)+2}
+  tx(fit(abDim(p)+(p.t?' × '+f1(+p.t):''),R0-dx-cw2,10*sc,1),dx,y+h*.35,10*sc,1);if(cd)tx(cd,R0,y+h*.35,9*sc,1,'right');
+  if(lk.length)tx(fit('COLLEGATA A: '+lk.join(', '),R0-L0,7.5*sc,1),L0,y+h*.95,7.5*sc,1);
+  tx(fit([p.mat,p.t?f2(abKg(p))+' kg':''].filter(Boolean).join(' · '),R0-dx,7.5*sc,0),dx,y+h*.455,7.5*sc,0);
+  const pw=+p.w,pl=abL(p),rn=abRnd(p),ay=y+h*.53,ah=lk.length?h*.3:h*.4,sw=(R0-L0)*.46,sk=Math.min(sw/pw,(ah-1)/pl),dw=pw*sk,dh=pl*sk,ox=L0+(sw-dw)/2,oy=ay+(ah-dh)/2;
+  doc.setLineWidth(.4);if(rn)doc.circle(ox+dw/2,oy+dh/2,dw/2,'S');else doc.rect(ox,oy,dw,dh,'S');
+  (p.holes||[]).forEach(hh=>{const q=abHP(p,hh);doc.setLineWidth(.2);doc.circle(ox+q[0]*sk,oy+dh-q[1]*sk,Math.max((+hh.d||0)/2*sk,.3),'S')});
+  const g={};(p.holes||[]).forEach(hh=>{g[+hh.d]=(g[+hh.d]||0)+1});const lines=Object.keys(g).sort((a,b)=>a-b).map(d=>g[d]+' × Ø'+f1(+d));
+  if(!lines.length)lines.push('nessun foro');if(p.note)lines.push(p.note);
+  const tx0=L0+sw+3*sc,lh=3.7*sc,max=Math.max(1,Math.floor(ah/lh));
+  lines.slice(0,max).forEach((t,i)=>tx(fit(t,R0-tx0,7.5*sc,i==0&&!!(p.holes||[]).length),tx0,ay+3.2*sc+i*lh,7.5*sc,i==0&&!!(p.holes||[]).length));
+}
 function shStartHtml(){
-  return `<div class="db" style="display:block"><h3 style="margin:0 0 4px">Come vuoi creare la scheda di lavorazione?</h3><div class="mut" style="margin-bottom:12px">Il disegno e la distinta di taglio sono due parti separate: potrai aggiungere o creare quella che manca anche in un secondo momento.</div>
+  return `<div class="db" style="display:block"><h3 style="margin:0 0 4px">Distinta di taglio ed etichette: come vuoi iniziare?</h3><div class="mut" style="margin-bottom:12px">Il disegno e la distinta di taglio sono due parti separate: potrai aggiungere o creare quella che manca anche in un secondo momento.</div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
    <div style="border:2px solid var(--steel);border-radius:4px;padding:14px"><b style="font-size:17px">Importa disegno</b><div class="mut" style="margin:6px 0 10px"><b>DXF</b>: il programma legge il disegno e potrai inserire i pallini per creare la distinta di taglio.<br><b>PDF</b>: viene archiviato nella scheda come disegno.</div>
     <label style="display:flex;flex-direction:column;font-size:13px;gap:4px">File DXF o PDF<input id="shf" type="file" accept=".dxf,.pdf,application/pdf"></label></div>
    <div style="border:2px solid var(--line);border-radius:4px;padding:14px"><b style="font-size:17px">Continua senza disegno</b><div class="mut" style="margin:6px 0 10px">Crei la scheda vuota e poi compili a mano la distinta di taglio: materiale, lunghezza e angoli dei tagli.</div><button class="b pri" onclick="shNoDraw()">Continua senza disegno</button></div></div>
-  <div class="neg" style="margin-top:10px">${esc(SHW.err||'')}</div></div><div class="df"><button class="b" onclick="$('#dlg').close()">Annulla</button></div>`;
+  <div class="neg" style="margin-top:10px">${esc(SHW.err||'')}</div></div><div class="df"><button class="b" onclick="docList()">Annulla</button></div>`;
 }
 // ---- archivio file (IndexedDB nel browser, metadati nella scheda)
 const SH_MAXF=20*1024*1024, shFid=()=>'f'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -2692,7 +3501,7 @@ async function sfGet(k,i){const f=SHW.s[k][i];try{const b=await fGet(f.fid);if(b
 function sfSaveAs(u,n){const a=document.createElement('a');a.href=u;a.download=n;document.body.appendChild(a);a.click();a.remove()}
 async function sfOpen(k,i){const r=await sfGet(k,i);if(!r)return;const u=URL.createObjectURL(r.b),w=window.open(u,'_blank');if(!w)sfSaveAs(u,r.f.name);setTimeout(()=>URL.revokeObjectURL(u),120000)}
 async function sfDown(k,i){const r=await sfGet(k,i);if(!r)return;const u=URL.createObjectURL(r.b);sfSaveAs(u,r.f.name);setTimeout(()=>URL.revokeObjectURL(u),120000)}
-function shBack(){SHW.imp=false;SHW.add=false;shRender()}
+function shBack(){SHW.imp=false;SHW.add=false;SHW.abdxf=false;shRender()}
 const shIn=(i,k,x='',t='text')=>`<input type="${t}" value="${esc(x)}" oninput="shSet(${i},'${k}',this.value)" style="width:100%;box-sizing:border-box;${t=='number'?'min-width:60px':''}">`;
 function shPinsHtml(){
   const s=SHW.s,av=Math.min(SHW.av,s.views.length-1),V=s.views[av],md=SHW.mode,z=SHW.z||1;SHW.av=av;
@@ -2718,12 +3527,12 @@ function shPinsHtml(){
 function shEditHtml(){
   const s=SHW.s,nv=!s.views.length,av=nv?0:Math.min(SHW.av,s.views.length-1),V=s.views[av],md=SHW.mode,z=SHW.z||1;SHW.av=av;let n=0;
   const sel=SHW.sel!=null&&s.rows[SHW.sel]?SHW.sel:null;
-  const fld=(i,k,x,t)=>`<input data-f="${i}_${k}" type="${t||'text'}" value="${esc(x)}" oninput="shSet(${i},'${k}',this.value)" style="width:100%;box-sizing:border-box">`;
+  const fld=(i,k,x,t)=>k=='mat'?`<select data-s="${i}" onchange="shMatSel(${i},this.value)" style="width:100%;box-sizing:border-box;margin-bottom:3px" title="Scegli un prodotto registrato in magazzino"><option value="">— prodotto a magazzino —</option>${shItemOpts(s.rows[i]&&s.rows[i].item)}</select><input data-f="${i}_${k}" type="text" value="${esc(x)}" oninput="shSet(${i},'${k}',this.value)" placeholder="oppure scrivi il materiale" style="width:100%;box-sizing:border-box">`:`<input data-f="${i}_${k}" type="${t||'text'}" value="${esc(x)}" oninput="shSet(${i},'${k}',this.value)" style="width:100%;box-sizing:border-box">`;
   const typ=(i,v)=>`<select data-f="${i}_type" onchange="shSet(${i},'type',this.value)">${SH_TYPES.map(t=>`<option ${t==v?'selected':''}>${t}</option>`).join('')}</select>`;
   const rows=s.rows.map((r,i)=>{const p=r.inc?++n:'';const here=(r.refs||[]).some(q=>q.v==av),on=r.inc&&here;
    return `<tr class="${i===sel?'sel':''}${r.inc?'':' off'}"><td><input type="checkbox" ${r.inc?'checked':''} onchange="shInc(${i},this.checked)" title="Includi nella scheda" style="width:20px;height:20px"></td>
-  <td onclick="shSel(${i})" style="cursor:pointer;text-align:center" title="Seleziona e modifica tutti i dati"><span class="pn">${p||'-'}</span></td>
-  <td>${fld(i,'desc',r.desc)}<div class="mut" style="font-size:12px;margin-top:2px">${esc(r.type||'')}</div></td>
+  <td onclick="shSel(${i})" style="cursor:pointer;text-align:center" title="Seleziona e modifica tutti i dati"><span class="pn">${p||'-'}</span><div style="font-size:11px;font-weight:700">${esc(r.code||'')}</div></td>
+  <td>${fld(i,'desc',r.desc)}<div class="mut" style="font-size:12px;margin-top:2px">${esc(r.type||'')}${(r.lk||[]).length?' · → '+esc(r.lk.join(', ')):''}</div></td>
   <td>${fld(i,'sec',r.sec)}</td><td>${fld(i,'mat',r.mat)}</td><td>${fld(i,'qty',r.qty,'number')}</td><td>${fld(i,'len',r.len)}</td><td>${fld(i,'cl',r.cl||0,'number')}</td><td>${fld(i,'cr',r.cr||0,'number')}</td>
   <td data-m="${i}" style="text-align:center">${shMini(r)}</td>
   <td style="text-align:center;white-space:nowrap">${nv?'<span class="mut">-</span>':`<button class="b ${md&&md.t=='place'&&md.i==i?'pri':''}" onclick="shPlace(${i})" title="${here?'Sposta il pallino sul disegno':'Posiziona il pallino sul disegno'}">${here?'● sì':'○ no'}</button>`}</td>
@@ -2734,7 +3543,7 @@ function shEditHtml(){
   const pn=sel!=null?s.rows[sel]:null;
   const panel=pn?`<div style="border:2px solid var(--steel);border-radius:4px;padding:10px;margin:8px 0;background:#fffdf6"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><b>Posizione ${pn.inc?shPos(sel):'(esclusa)'}</b>${nv?'':`<span class="mut">${(pn.refs||[]).some(q=>q.v==av)?'pallino su questa vista':'nessun pallino su questa vista'}</span>
    <button class="b" onclick="shPlace(${sel})">${(pn.refs||[]).some(q=>q.v==av)?'Sposta pallino':'Posiziona pallino'}</button>`}<button class="b dng" onclick="shDel(${sel})">Elimina posizione</button><button class="b" onclick="SHW.sel=null;shKeep()">Chiudi</button></div>
-   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">${[['Descrizione',fld(sel,'desc',pn.desc)],['Tipologia',typ(sel,pn.type)],['Q.tà per pezzo',fld(sel,'qty',pn.qty,'number')],['Lunghezza di taglio (mm)',fld(sel,'len',pn.len)],['Taglio sinistro (°)',fld(sel,'cl',pn.cl||0,'number')],['Taglio destro (°)',fld(sel,'cr',pn.cr||0,'number')],['Sezione / ingombro',fld(sel,'sec',pn.sec)],['Materiale',fld(sel,'mat',pn.mat)],['Note',fld(sel,'note',pn.note)]].map(([l,h])=>`<label style="display:flex;flex-direction:column;font-size:12px;gap:3px">${l}${h}</label>`).join('')}</div></div>`:'';
+   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">${[['Descrizione',fld(sel,'desc',pn.desc)],['Tipologia',typ(sel,pn.type)],['Q.tà per pezzo',fld(sel,'qty',pn.qty,'number')],['Lunghezza di taglio (mm)',fld(sel,'len',pn.len)],['Taglio sinistro (°)',fld(sel,'cl',pn.cl||0,'number')],['Taglio destro (°)',fld(sel,'cr',pn.cr||0,'number')],['Sezione / ingombro',fld(sel,'sec',pn.sec)],['Materiale',fld(sel,'mat',pn.mat)],['Note',fld(sel,'note',pn.note)]].map(([l,h])=>`<label style="display:flex;flex-direction:column;font-size:12px;gap:3px${l=='Materiale'?';grid-column:span 2':''}">${l}${h}</label>`).join('')}</div></div>`:'';
   return `<div class="db" style="display:block">
   <h3 style="margin:4px 0 6px;font-size:20px">Disegno</h3>
   ${nv?'<div class="mut" style="margin-bottom:8px">Nessun disegno DXF nella scheda.</div>':`  <div class="tools" style="margin-bottom:8px;align-items:center">${s.views.map((v,i)=>`<button class="b ${i==av?'pri':''}" onclick="sheetAv(${i})">${esc(v.name||'Vista '+(i+1))}</button>`).join('')}</div>
@@ -2745,16 +3554,26 @@ ${s.dist?`  <div class="tools" style="margin-bottom:8px;align-items:center"><but
   ${fTbl('pdfs')}
   <div class="tools" style="margin:8px 0"><button class="b" onclick="shAddDraw()">+ Importa disegno (DXF o PDF)</button></div>
   ${panel}
-${s.dist?`  <h3 style="margin:14px 0 2px;font-size:20px">Distinta di taglio <span class="mut" style="font-size:14px;font-weight:400">· ${s.rows.filter(r=>r.inc).length} posizioni</span></h3><div class="mut" style="margin-bottom:6px">Clicca il numero per modificare tutti i dati (tipologia, note) nel pannello sopra. Lunghezza = misura massima del pezzo. Angoli: 0 = taglio retto, positivo = lato sopra più lungo, negativo = lato sotto più lungo (45 e 45 = trapezio, 45 e −45 = parallelogramma). ${nv?'':'Pallino ● = la posizione ha il pallino su questa vista.'}</div>${s.rows.length?'':'<div class="mut" style="margin-bottom:6px">Ancora nessuna posizione: '+(nv?'premi «+ Aggiungi posizione».':'clicca sul disegno per inserire il primo pallino.')+'</div>'}<div class="tw"><table class="dt"><colgroup><col style="width:34px"><col style="width:56px"><col style="width:24%"><col style="width:15%"><col style="width:13%"><col style="width:72px"><col style="width:96px"><col style="width:80px"><col style="width:80px"><col style="width:130px"><col style="width:84px"><col style="width:136px"></colgroup><thead><tr><th></th><th>N.</th><th>Descrizione</th><th>Sezione</th><th>Materiale</th><th>Q.tà</th><th>Lungh. mm</th><th>Taglio sx °</th><th>Taglio dx °</th><th>Pezzo</th><th>Pallino</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-  <div class="tools" style="margin-top:10px"><button class="b ${nv?'pri':''}" onclick="shAdd()">${nv?'+ Aggiungi posizione':'+ Riga manuale (senza pallino)'}</button>${nv?'':`<button class="b" onclick="shRegen()">Proposta automatica righe (sostituisce)</button>`}</div>`:`  <h3 style="margin:14px 0 6px;font-size:20px">Distinta di taglio</h3><div style="border:2px dashed var(--line);border-radius:4px;padding:14px;margin-bottom:6px"><div class="mut" style="margin-bottom:10px">La distinta di taglio non è ancora stata creata.</div><div class="tools" style="margin:0"><button class="b pri" onclick="shDistManual()">Crea distinta manualmente</button>${nv?'':`<button class="b" onclick="shDistDxf()">Crea dal disegno DXF (inserisci i pallini)</button>`}</div><div class="mut" style="margin-top:8px">A mano inserisci materiale, lunghezza e angolazione dei tagli di ogni posizione.</div></div>`}
+${s.dist?`  <h3 style="margin:14px 0 2px;font-size:20px">Distinta di taglio <span class="mut" style="font-size:14px;font-weight:400">· ${s.rows.filter(r=>r.inc).length} posizioni</span></h3><div class="mut" style="margin-bottom:6px">Clicca il numero per modificare tutti i dati (tipologia, note) nel pannello sopra. Lunghezza = misura massima del pezzo. Angoli: 0 = taglio retto, positivo = lato sopra più lungo, negativo = lato sotto più lungo (45 e 45 = trapezio, 45 e −45 = parallelogramma). ${nv?'':'Pallino ● = la posizione ha il pallino su questa vista.'}</div>${s.rows.length?'':'<div class="mut" style="margin-bottom:6px">Ancora nessuna posizione: '+(nv?'premi «+ Aggiungi posizione».':'clicca sul disegno per inserire il primo pallino.')+'</div>'}<div class="tw"><table class="dt"><colgroup><col style="width:34px"><col style="width:56px"><col style="width:18%"><col style="width:12%"><col style="width:24%"><col style="width:72px"><col style="width:96px"><col style="width:80px"><col style="width:80px"><col style="width:130px"><col style="width:84px"><col style="width:136px"></colgroup><thead><tr><th></th><th>N.</th><th>Descrizione</th><th>Sezione</th><th>Materiale</th><th>Q.tà</th><th>Lungh. mm</th><th>Taglio sx °</th><th>Taglio dx °</th><th>Pezzo</th><th>Pallino</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="tools" style="margin-top:10px"><button class="b ${nv?'pri':''}" onclick="shAdd()">${nv?'+ Aggiungi posizione':'+ Riga manuale (senza pallino)'}</button><button class="b" onclick="labOpen()" title="Stampa le etichette per identificare i pezzi">Etichette dei pezzi</button><button class="b" onclick="lkOpen()" title="Collega i profili alle piastre">Collegamenti alle piastre</button>${nv?'':`<button class="b" onclick="shRegen()">Proposta automatica righe (sostituisce)</button>`}</div>`:`  <h3 style="margin:14px 0 6px;font-size:20px">Distinta di taglio</h3><div style="border:2px dashed var(--line);border-radius:4px;padding:14px;margin-bottom:6px"><div class="mut" style="margin-bottom:10px">La distinta di taglio non è ancora stata creata.</div><div class="tools" style="margin:0"><button class="b pri" onclick="shDistManual()">Crea distinta manualmente</button>${nv?'':`<button class="b" onclick="shDistDxf()">Crea dal disegno DXF (inserisci i pallini)</button>`}</div><div class="mut" style="margin-top:8px">A mano inserisci materiale, lunghezza e angolazione dei tagli di ogni posizione.</div></div>`}
   <div style="display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:16px;align-items:start;margin-top:14px"><label style="display:flex;flex-direction:column;font-size:13px;gap:4px">Pezzi finiti da produrre<input type="number" min="1" value="${esc(s.qty)}" oninput="SHW.s.qty=Math.max(1,+this.value||1)"></label>
    <label style="display:flex;flex-direction:column;font-size:13px;gap:4px">Note per il reparto<textarea rows="4" oninput="SHW.s.notes=this.value">${esc(s.notes)}</textarea></label>
    </div>
   <h3 style="margin:18px 0 4px;font-size:20px">Archivio file</h3><div class="mut" style="margin-bottom:6px">Allega alla scheda documenti, foto, certificati, disegni di dettaglio (massimo 20 MB per file). I file restano salvati in questo browser e non sono inclusi nel PDF.</div>${fTbl('files')}
   <div class="tools" style="margin-top:8px"><label class="b" style="cursor:pointer;display:inline-block">+ Aggiungi file<input type="file" multiple style="display:none" onchange="shFilesAdd(this.files);this.value=''"></label></div></div>
-  <div class="df"><button class="b" onclick="$('#dlg').close()">Chiudi</button><button class="b" onclick="shSave()">Salva</button><button class="b pri" onclick="sheetPdf(${SHW.id})">Genera PDF</button></div>`;
+  <div class="df"><button class="b" onclick="docList()">‹ Documenti</button><button class="b" onclick="shSave()">Salva</button><button class="b pri" onclick="sheetPdf(${SHW.id},0)">Genera PDF</button></div>`;
 }
-const shSet=(i,k,v)=>{SHW.s.rows[i][k]=(k=='qty'||k=='cl'||k=='cr')?(+v||0):v;if(k=='len'||k=='cl'||k=='cr')document.querySelectorAll(`[data-m="${i}"]`).forEach(e=>e.innerHTML=shMini(SHW.s.rows[i]));document.querySelectorAll(`[data-f="${i}_${k}"]`).forEach(e=>{if(e!==document.activeElement)e.value=v})};
+// materiale: si può scrivere a mano oppure inserire il codice di un prodotto registrato in magazzino
+const shItemOpts=sel=>[...D.items].sort((a,b)=>String(a.code).localeCompare(String(b.code))).map(x=>`<option value="${x.id}" ${x.id==sel?'selected':''}>${esc(x.code)} · ${esc(x.desc||'')}${x.dim?' · '+esc(x.dim):''}</option>`).join('');
+function shMatSel(i,v){
+  const r=SHW.s.rows[i];
+  if(!v){delete r.item;shKeep();return}
+  const it=D.items.find(x=>x.id==v);if(!it)return;
+  r.mat=(it.code+' · '+(it.desc||'')).trim().replace(/ ·$/,'');r.item=it.id;
+  if(!r.sec&&it.dim)r.sec=it.dim;
+  shKeep();
+}
+const shSet=(i,k,v)=>{if(k=='mat')delete SHW.s.rows[i].item;SHW.s.rows[i][k]=(k=='qty'||k=='cl'||k=='cr')?(+v||0):v;if(k=='len'||k=='cl'||k=='cr')document.querySelectorAll(`[data-m="${i}"]`).forEach(e=>e.innerHTML=shMini(SHW.s.rows[i]));document.querySelectorAll(`[data-f="${i}_${k}"]`).forEach(e=>{if(e!==document.activeElement)e.value=v})};
 function shInc(i,v){SHW.s.rows[i].inc=v?1:0;shKeep()}
 const shKeep=()=>{const b=$('#dlg .db'),x=$('#shbox'),y=b?b.scrollTop:0,sl=x?x.scrollLeft:0,st=x?x.scrollTop:0;shRender();const c=$('#dlg .db');if(c)c.scrollTop=y;const x2=$('#shbox');if(x2){x2.scrollLeft=sl;x2.scrollTop=st}};
 function shSel(i){SHW.sel=i;shKeep();shUp()}
@@ -2842,19 +3661,28 @@ function shClick(ev){
   row.refs=[{v:SHW.av,x,y}];s.rows.push(row);SHW.sel=s.rows.length-1;shKeep();
 }
 function shSave(q){
-  const j=D.jobs.find(x=>x.id==SHW.id);if(!j)return;
-  const s=JSON.parse(JSON.stringify(SHW.s));s.steps=(s.steps||[]).map(x=>x.trim()).filter(Boolean);j.sheet=s;save();if(!q)toast('Scheda salvata.');
+  const j=shJob(SHW.id);if(!j||!SHW.s)return;
+  shAssignDoc(j,SHW.s);
+  const s=JSON.parse(JSON.stringify(SHW.s));s.type=SHW.type||s.type||'dist';s.steps=(s.steps||[]).map(x=>x.trim()).filter(Boolean);
+  j.docs=j.docs||[];
+  if(!SHW.doc||!j.docs.some(x=>x.id==SHW.doc)){SHW.doc=s.id=Math.max(0,...j.docs.map(x=>x.id||0))+1;SHW.s.id=s.id;j.docs.push(s)}
+  else{s.id=SHW.doc;j.docs[j.docs.findIndex(x=>x.id==SHW.doc)]=s}
+  save();if(!q)toast('Documento salvato.');
 }
 // ---- PDF in bianco e nero
-async function sheetPdf(id){
-  const j=D.jobs.find(x=>x.id==id),s0=(SHW&&SHW.id==id&&SHW.s)?SHW.s:(j&&j.sheet);
-  if(!j||!s0||!pdfReady())return;
-  if((!s0.views||!s0.views.length)&&!(s0.rows||[]).some(r=>r.inc)){toast('Aggiungi almeno una posizione alla distinta di taglio prima di generare il PDF.');return}
-  if(SHW&&SHW.id==id&&SHW.s&&lv(view)>=2)shSave(true);
-  const s=shNorm(JSON.parse(JSON.stringify(s0)));
+async function sheetPdf(id,did){
+  const j=shJob(id);if(!j||!pdfReady())return;shAssignAll(j);LK_OK=lkSet(j);const ds=shDocsOf(j);
+  if(SHW&&SHW.id==id&&SHW.s&&!SHW.list&&(!did||SHW.doc==did)){if(lv(view)>=2)shSave(true);did=SHW.doc}
+  if(!did){if(ds.length==1)did=ds[0].id;else{if(ds.length>1){sheetOpen(id);toast('Scegli il documento di cui generare il PDF.')}return}}
+  const s0=ds.find(x=>x.id==did)||(SHW&&SHW.id==id&&SHW.s&&SHW.doc==did?SHW.s:null);
+  if(!s0)return;
+  const s=shNorm(JSON.parse(JSON.stringify(s0))),ty=s.type||'dist',sl=String(j.code).replace(/[^\w-]+/g,'-')+(ds.length>1?'_'+String(s.title||'').replace(/[^\w-]+/g,'-').replace(/^-+|-+$/g,''):'');
+  if(ty=='tav'){if(!s.vw.length||!s.views.length){toast('Aggiungi almeno una vista prima di generare il PDF.');return}await pdfSave(tavPdf(j,s),'Tavole_'+sl+'.pdf',true);return}
+  if(ty=='ab'){if(!s.pl.some(p=>p.w&&p.l)){toast('Inserisci almeno una piastra con larghezza e lunghezza.');return}await pdfSave(abPdf(j,s),'Abaco_piastre_'+sl+'.pdf',true);return}
+  if((!s.views||!s.views.length)&&!(s.rows||[]).some(r=>r.inc)){toast('Aggiungi almeno una posizione alla distinta di taglio prima di generare il PDF.');return}
   const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4',orientation:'landscape'});
   shDraw(doc,j,s);
-  await pdfSave(doc,'Scheda_lavorazione_'+String(j.code).replace(/[^\w-]+/g,'-')+'.pdf',true);
+  await pdfSave(doc,'Scheda_lavorazione_'+sl+'.pdf',true);
 }
 function shDraw(doc,j,s){
   const PW=297,PHH=210,M=10,rows=s.rows.filter(r=>r.inc),hasV=!!s.views[0],V0=s.views[0]||{w:1,h:1,ents:[]},W=V0.w,H=V0.h,N=+s.qty||1,multi=s.views.length>1;
@@ -2871,7 +3699,7 @@ function shDraw(doc,j,s){
     BOX(M,8,PW-2*M,22,.8);T('SCHEDA DI LAVORAZIONE',M+4,18,17,1);
     {const lg=coInfo().logo;if(lg){const hh=17,ww=Math.min(hh*lg.w/lg.h,40),h2=Math.min(hh,ww*lg.h/lg.w);try{doc.addImage(lg.d,'PNG',146-ww,9.5+(hh-h2)/2,ww,h2)}catch(e){}}}
     T(fit('Commessa '+j.code+' - '+j.desc,lgW()>0?92:138,9),M+4,25,9,0);
-    const F=[['Commessa',j.code,0,0],['Cliente',cn(j.client),1,0],['Data',today(),0,1],['Pezzi da produrre',String(N),1,1]];
+    const F=[['Commessa',j.code,0,0],['Cliente',shCli(j),1,0],['Data',today(),0,1],['Pezzi da produrre',String(N),1,1]];
     F.forEach(([l,v,c,r])=>{const x=150+c*68,y=15+r*8.5;T(l,x,y-3.2,7,0);T(fit(v,64,10,1),x,y+.8,10,1);LN(x,y+2,x+64,y+2,.3)});
   }
   const clip=(x1,y1,x2,y2,xa,xb)=>{
@@ -2952,7 +3780,8 @@ function shDraw(doc,j,s){
     list.forEach((r,k)=>{
       cx=x;const pos=String(start+k+1);
       T(pos,cx+cols[0]/2,yy+RH/2+1.3,10,1,'center');cx+=cols[0];
-      T(fit(r.desc||'-',cols[1],9,1),cx+1.4,yy+6,9,1);T(fit(r.type||'',cols[1],7.5),cx+1.4,yy+11.2,7.5,0);cx+=cols[1];
+      {const cd=r.code||'',lk=lkOk(r);let cw3=0;if(cd){cw3=tw(cd,8,1)+2;T(cd,cx+cols[1]-1.4,yy+6,8,1,'right')}
+       T(fit(r.desc||'-',cols[1]-cw3,9,1),cx+1.4,yy+6,9,1);T(fit(r.type||'',cols[1],7.5),cx+1.4,yy+10.4,7.5,0);if(lk.length)T(fit('Collegato a: '+lk.join(', '),cols[1],6.8,1),cx+1.4,yy+14.2,6.8,1)}cx+=cols[1];
       T(fit(r.mat||'da definire',cols[2],8.5),cx+1.4,yy+6,8.5,0);T(fit(r.sec||'',cols[2],7.5),cx+1.4,yy+11.2,7.5,0);cx+=cols[2];
       T(r.qty,cx+cols[3]/2,yy+RH/2+1.3,9,0,'center');cx+=cols[3];T((+r.qty||0)*N,cx+cols[4]/2,yy+RH/2+1.3,9,1,'center');cx+=cols[4];
       sketch(cx,yy,cols[5],RH,r);cx+=cols[5];
