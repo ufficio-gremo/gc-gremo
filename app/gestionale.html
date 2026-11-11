@@ -124,7 +124,7 @@ dialog.full{width:98vw;max-width:98vw}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;try{t.hidePopover()}catch(e){}try{t.showPopover()}catch(e){}clearTimeout(t._t);t._t=setTimeout(()=>{try{t.hidePopover()}catch(e){}},7000)}
 window.alert=toast;
 function askConfirm(msg,yes){const d=document.getElementById('cfm');document.getElementById('cfmm').textContent=msg;document.getElementById('cfmy').onclick=()=>{d.close();yes()};d.showModal()}
-const KEY='carp_proto_v2', TODAY=new Date().toISOString().slice(0,10);
+const APP_VER='1.1.1', KEY='carp_proto_v2', TODAY=new Date().toISOString().slice(0,10);
 const OLDPH=['Taglio','Saldatura','Assemblaggio','Verniciatura/zincatura','Collaudo','Montaggio'], PHMAP=[0,0,0,1,0,2];
 const V28=['In produzione','Verniciatura/zincatura','Montaggio'];
 const PH=['Produzione','Zincatura/Verniciatura','Montaggio'];
@@ -1304,6 +1304,8 @@ function settingsView(){
   const tsel=(i,v)=>`<select onchange="sdSet('ops',${i},'t',this.value)"><option value="C" ${v=='C'?'selected':''}>Operaio comune</option><option value="S" ${v=='S'?'selected':''}>Operaio specializzato</option></select>`;
   return `<div class="tools" style="position:sticky;top:0;z-index:5;background:var(--card);border:1px solid var(--line);padding:10px 12px;border-radius:4px"><b id="sdstat" style="flex:1;align-self:center">${sdDirty()?'Modifiche non salvate':'Nessuna modifica'}</b><button class="b" onclick="sdCancel()">Annulla modifiche</button><button class="b pri" onclick="sdSave()">Salva impostazioni</button></div>`+
   (m&&m.ok?`<div class="rsn pos" style="margin:10px 0"><b>${m.ok}</b></div>`:'')+
+  (()=>{const dk=!!(window.desktop&&window.desktop.versione);if(dk)setTimeout(()=>window.desktop.versione().then(v=>{const e=$('#verd');if(e)e.textContent=v}).catch(()=>{}),0);
+    return `<div class="tw" style="padding:12px 16px;margin:10px 0 0;display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b>Versione del programma</b><div class="mut" style="margin-top:2px">${dk?'Programma installato sul computer':'Programma aperto nel browser'}</div></div><div style="font:700 24px 'Barlow Condensed',sans-serif">${dk?'<span id="verd">…</span>':esc(APP_VER)}</div>${dk?'<button class="b" onclick="window.desktop.cercaAggiornamenti()">Cerca aggiornamenti</button>':''}</div>`})()+
   (m&&m.err?`<div class="rsn neg" style="margin:10px 0"><b>Non è stato salvato nulla. Correggi questi punti:</b><ul style="margin:6px 0 0 18px">${m.err.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`:'')+
   `<div style="height:12px"></div>`+
   card('Dati aziendali','Compaiono nell’intestazione del programma e in tutti i documenti PDF (commesse, schede di lavorazione, riepiloghi, ordini). Lascia vuoto ciò che non serve.',
