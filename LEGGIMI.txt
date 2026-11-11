@@ -1,0 +1,39 @@
+GC - GRE.MO  -  VERSIONE DESKTOP PER WINDOWS
+============================================
+
+COSA SERVE (una volta sola, su UN computer)
+- Node.js versione LTS: https://nodejs.org  (installazione normale, "Avanti" fino alla fine)
+- Connessione a internet durante la creazione dell'installer
+
+CREARE L'INSTALLER
+1. Estrai questa cartella sul computer (per esempio in Documenti).
+2. Doppio clic su  CREA-INSTALLER.bat  e aspetta (alcuni minuti la prima volta).
+3. Al termine trovi nella cartella "dist" il file  "GC - GRE.MO Setup 1.0.0.exe".
+4. Copia quel file sugli altri computer dell'ufficio e installalo con doppio clic:
+   crea l'icona sul desktop e nel menu Start. Su quei computer NON serve Node.js.
+
+SOLO PER PROVARE SENZA INSTALLARE
+- Doppio clic su  PROVA-PROGRAMMA.bat
+
+DATI E COPIE DI SICUREZZA
+- I dati restano nel computer, dentro il profilo del programma (non nel browser).
+- Ogni giorno il programma salva da solo una copia in:
+      Documenti\GC-GRE.MO\Backup\backup-AAAA-MM-GG.json
+  (ultime 60 copie). Copia ogni tanto quella cartella su una chiavetta o un disco esterno.
+- Ogni computer ha i SUOI dati: due computer non condividono ancora gli stessi dati.
+  Per lavorare in piu' postazioni sulla stessa base dati serve la versione online
+  (server), che e' il passo successivo.
+- I file archiviati nelle schede di lavorazione e i PDF dei disegni stanno nel profilo
+  del programma e NON sono ancora inclusi nel backup giornaliero.
+
+AGGIORNARE IL PROGRAMMA
+- Quando ti consegno una nuova versione, sostituisci il file  app\gestionale.html
+  con quello nuovo, poi rifai  CREA-INSTALLER.bat  e reinstalla sopra la vecchia:
+  i dati NON si perdono.
+
+ICONA
+- Se vuoi un'icona tua, metti un file  icon.ico  (256x256) in questa cartella prima di
+  creare l'installer. Senza icona viene usata quella standard.
+
+ASSISTENZA
+- F12 apre gli strumenti per sviluppatori: utile per vedere eventuali errori.

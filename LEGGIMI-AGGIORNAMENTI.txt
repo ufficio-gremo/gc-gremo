@@ -1,0 +1,25 @@
+AGGIORNAMENTI AUTOMATICI  -  GC - GRE.MO desktop
+================================================
+
+COME FUNZIONA
+- Ogni volta che apri il programma (e ogni 4 ore) controlla se su GitHub c'e' una versione piu' nuova.
+- Se c'e', compare "Aggiornamento disponibile": scegli "Scarica e installa" oppure "Piu' tardi".
+- Finito il download puoi riavviare subito oppure installare alla chiusura.
+- I dati NON si toccano. In fondo alla pagina c'e' anche "Cerca aggiornamenti" per il controllo a mano.
+
+PREPARAZIONE (una volta sola)
+1. Crea un account gratuito su github.com.
+2. Crea un nuovo repository PUBBLICO, per esempio con nome  gc-gre-mo.
+   (Deve essere pubblico: il programma installato non ha password per leggere un repository privato.
+   Nel repository ci sono solo il programma e gli installer, nessun dato di clienti o commesse.)
+3. Dimmi il nome utente GitHub e il nome del repository: lo inserisco nel progetto.
+4. Il progetto va caricato nel repository (lo faccio io se mi colleghi il repository, oppure lo carichi tu
+   con "Add file > Upload files" trascinando il contenuto della cartella).
+5. UNA VOLTA reinstalla il programma con l'installer nuovo (versione 1.1.0 o successive) creato con
+   CREA-INSTALLER.bat: la 1.0.0 che hai ora non sa ancora aggiornarsi. Dopo questa, ci pensa da solo.
+
+PUBBLICARE UNA NUOVA VERSIONE
+- Metodo consigliato (automatico): quando ti consegno una modifica, la carico nel repository e creo
+  il tag di versione (es. v1.2.0). GitHub costruisce l'installer da solo (circa 5-10 minuti) e lo pubblica.
+  Tu non devi fare nulla: i computer con il programma vedranno l'avviso.
+- Metodo manuale: aggiorna app\gestionale.html, poi doppio clic su PUBBLICA-VERSIONE.bat.

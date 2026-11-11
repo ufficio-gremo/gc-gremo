@@ -1,0 +1,21 @@
+# Crea l'installer Windows e lo pubblica come "Release": i programmi installati lo trovano da soli.
+# Si avvia quando viene creato un tag di versione (es. v1.2.0).
+name: Pubblica versione
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - name: Costruisce e pubblica l'installer
+        run: npm run pubblica
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,49 @@
+{
+  "name": "gc-gre-mo",
+  "productName": "GC - GRE.MO",
+  "version": "1.1.0",
+  "description": "Gestionale commesse per carpenteria metallica",
+  "main": "main.js",
+  "author": "GRE.MO",
+  "scripts": {
+    "prepara": "node scripts/prepara.js",
+    "start": "node scripts/prepara.js && electron .",
+    "build": "node scripts/prepara.js && electron-builder --win nsis",
+    "pubblica": "node scripts/prepara.js && electron-builder --win nsis --publish always"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "it.gremo.gestionale",
+    "productName": "GC - GRE.MO",
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/index.html",
+      "app/vendor/**/*",
+      "icon.ico"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "GC - GRE.MO"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "ufficio-gremo",
+      "repo": "gc-gremo",
+      "releaseType": "release"
+    }
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  }
+}
