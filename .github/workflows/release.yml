@@ -1,9 +1,11 @@
 # Crea l'installer Windows e lo pubblica come "Release": i programmi installati lo trovano da soli.
-# Si avvia quando viene creato un tag di versione (es. v1.2.0).
+# Si avvia quando viene aggiornato il ramo "release" (oppure a mano dalla scheda Actions).
+# La versione pubblicata è quella scritta in package.json.
 name: Pubblica versione
 on:
   push:
-    tags: ['v*']
+    branches: [release]
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
