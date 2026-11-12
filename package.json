@@ -1,7 +1,7 @@
 {
   "name": "gc-gre-mo",
   "productName": "GC - GRE.MO",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Gestionale commesse per carpenteria metallica",
   "main": "main.js",
   "author": "GRE.MO",
@@ -21,6 +21,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "backup-lib.js",
       "app/index.html",
       "app/vendor/**/*",
       "icon.ico"

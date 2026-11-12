@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, Menu, shell, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const bk = require('./backup-lib');
 
 // una sola istanza del programma
 if (!app.requestSingleInstanceLock()) { app.quit(); }
@@ -47,6 +48,30 @@ ipcMain.handle('cartella-backup', () => {
   shell.openPath(dir);
   return dir;
 });
+
+
+// ---- copia di sicurezza completa (dati + allegati) in una cartella, di norma dentro Dropbox
+const bkInfo = () => bk.cartella(app.getPath('userData'), app.getPath('documents'));
+ipcMain.handle('bk-info', () => { const i = bkInfo(); return Object.assign(i, { copie: bk.lista(i.dir) }); });
+ipcMain.handle('bk-scegli', async () => {
+  const r = await dialog.showOpenDialog(win, { title: 'Scegli la cartella delle copie di sicurezza (meglio dentro Dropbox)', properties: ['openDirectory', 'createDirectory'] });
+  if (r.canceled || !r.filePaths[0]) return null;
+  const c = bk.cfgLeggi(app.getPath('userData')); c.dir = r.filePaths[0];
+  bk.cfgScrivi(app.getPath('userData'), c);
+  const i = bkInfo(); return Object.assign(i, { copie: bk.lista(i.dir) });
+});
+ipcMain.handle('bk-opzioni', (_e, o) => {
+  const c = bk.cfgLeggi(app.getPath('userData'));
+  if (o && typeof o.auto === 'boolean') c.auto = o.auto;
+  if (o && [30, 60, 90, 180].includes(o.keep)) c.keep = o.keep;
+  bk.cfgScrivi(app.getPath('userData'), c); return true;
+});
+ipcMain.handle('bk-mancanti', (_e, fids) => { const i = bkInfo(); bk.prepara(i.dir); return bk.mancanti(i.dir, fids || []); });
+ipcMain.handle('bk-allegato', (_e, fid, nome, buf) => { bk.scriviAllegato(bkInfo().dir, fid, nome, buf); return true; });
+ipcMain.handle('bk-dati', (_e, json, tag) => { const i = bkInfo(); return bk.scriviDati(i.dir, json, tag, i.keep); });
+ipcMain.handle('bk-leggi', (_e, nome) => bk.leggiDati(bkInfo().dir, nome));
+ipcMain.handle('bk-leggi-allegato', (_e, fid) => { const b = bk.leggiAllegato(bkInfo().dir, fid); return b ? new Uint8Array(b) : null; });
+ipcMain.handle('bk-apri', () => { const i = bkInfo(); bk.prepara(i.dir); shell.openPath(i.dir); return i.dir; });
 
 // ---- aggiornamenti automatici (da GitHub Releases): avvisa e chiede conferma
 let autoUpdater = null, manuale = false;

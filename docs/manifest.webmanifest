@@ -1,0 +1,21 @@
+{
+ "name": "GC - GRE.MO",
+ "short_name": "GRE.MO",
+ "start_url": "./",
+ "display": "standalone",
+ "background_color": "#0b1426",
+ "theme_color": "#0b1426",
+ "lang": "it",
+ "icons": [
+  {
+   "src": "icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  }
+ ]
+}
