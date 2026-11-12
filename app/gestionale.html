@@ -191,7 +191,7 @@ body.lock #sb,body.lock #rb{display:none}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;try{t.hidePopover()}catch(e){}try{t.showPopover()}catch(e){}clearTimeout(t._t);t._t=setTimeout(()=>{try{t.hidePopover()}catch(e){}},7000)}
 window.alert=toast;
 function askConfirm(msg,yes){const d=document.getElementById('cfm');document.getElementById('cfmm').textContent=msg;document.getElementById('cfmy').onclick=()=>{d.close();yes()};d.showModal()}
-const APP_VER='1.3.0', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
+const APP_VER='1.3.1', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
 const OLDPH=['Taglio','Saldatura','Assemblaggio','Verniciatura/zincatura','Collaudo','Montaggio'], PHMAP=[0,0,0,1,0,2];
 const V28=['In produzione','Verniciatura/zincatura','Montaggio'];
 const PH=['Produzione','Zincatura/Verniciatura','Montaggio'];
@@ -4486,13 +4486,55 @@ function showLoginCloud(){
   $('#lg').innerHTML=`<div class="lgc"><div style="display:flex;gap:12px;align-items:center">${typeof brandHtml=='function'?brandHtml(1):''}</div><p class="mut">Accedi con il tuo nome utente (o la tua email) e la tua password.</p>
   <label>Utente o email<input id="lgu" autocomplete="username" autocapitalize="off"></label>
   <label>Password<input id="lgp" type="password" autocomplete="current-password"></label>
+  <label style="display:flex;gap:8px;align-items:center;font-size:13px;flex-direction:row"><input type="checkbox" id="lgs" style="width:auto" onchange="$('#lgp').type=this.checked?'text':'password'"> Mostra password</label>
   <div id="lge" class="neg" style="min-height:20px"></div>
   <button class="b pri" id="lgb" style="width:100%;padding:10px">Accedi</button>
+  <button class="b" id="lgr" style="width:100%;padding:8px" type="button">Password dimenticata?</button>
   <div class="mut" style="font-size:12px;text-align:center">Dati condivisi sul server · versione ${esc(APP_VER)}</div></div>`;
-  $('#lgb').onclick=cDoLogin;$('#lg').onkeydown=e=>{if(e.key=='Enter')cDoLogin()};
+  $('#lgb').onclick=cDoLogin;$('#lgr').onclick=()=>showRecover($('#lgu').value);$('#lg').onkeydown=e=>{if(e.key=='Enter')cDoLogin()};
   pill('', 'ok');stat();
   const lu=(()=>{try{return localStorage.getItem('carp_lastuser')||''}catch(e){return ''}})();if(lu)$('#lgu').value=lu;
   setTimeout(()=>{const f=$(lu?'#lgp':'#lgu');if(f)f.focus()},50);
+}
+
+/* ---------- recupero password con codice via email ---------- */
+function showRecover(em,step,msg){
+  const shw=`<label style="display:flex;gap:8px;align-items:center;font-size:13px;flex-direction:row"><input type="checkbox" style="width:auto" onchange="['rc_p1','rc_p2'].forEach(i=>{const e=document.getElementById(i);if(e)e.type=this.checked?'text':'password'})"> Mostra password</label>`;
+  const hd=`<div style="display:flex;gap:12px;align-items:center">${typeof brandHtml=='function'?brandHtml(1):''}</div>`;
+  em=String(em||'').trim();
+  if(!step){
+    $('#lg').innerHTML=`<div class="lgc">${hd}<p class="mut">Inserisci la tua email: ti invieremo un codice per scegliere una nuova password.</p>
+    <label>Email<input id="rc_e" type="email" autocomplete="email" autocapitalize="off" value="${esc(em)}"></label>
+    <div id="rc_m" class="neg" style="min-height:20px">${esc(msg||'')}</div>
+    <button class="b pri" id="rc_go" style="width:100%;padding:10px">Invia il codice</button>
+    <button class="b" id="rc_back" style="width:100%;padding:8px">Torna all’accesso</button></div>`;
+    $('#rc_back').onclick=showLoginCloud;
+    $('#rc_go').onclick=async()=>{const e=$('#rc_e').value.trim().toLowerCase(),m=t=>{$('#rc_m').textContent=t};
+      if(!/^\S+@\S+\.\S+$/.test(e))return m('Scrivi un indirizzo email valido.');
+      $('#rc_go').disabled=true;m('');
+      try{await http('/auth/v1/recover',{method:'POST',auth:false,json:{email:e}});showRecover(e,2)}
+      catch(x){$('#rc_go').disabled=false;m(x.status===0?x.message:x.status==429?'Troppe richieste: aspetta qualche minuto e riprova.':(x.message||'Invio non riuscito.'))}};
+    setTimeout(()=>{const f=$('#rc_e');if(f)f.focus()},50);return}
+  $('#lg').innerHTML=`<div class="lgc">${hd}<p class="mut">Se l’email <b>${esc(em)}</b> è registrata, ti è arrivato un codice (controlla anche la posta indesiderata). Scrivilo qui e scegli la nuova password.</p>
+  <label>Codice ricevuto<input id="rc_c" inputmode="numeric" autocomplete="one-time-code" maxlength="10"></label>
+  <label>Nuova password (min. 6 caratteri)<input id="rc_p1" type="password" autocomplete="new-password"></label>
+  <label>Ripeti la nuova password<input id="rc_p2" type="password" autocomplete="new-password"></label>${shw}
+  <div id="rc_m" class="neg" style="min-height:20px"></div>
+  <button class="b pri" id="rc_go" style="width:100%;padding:10px">Cambia password ed entra</button>
+  <button class="b" id="rc_back" style="width:100%;padding:8px">Annulla</button></div>`;
+  $('#rc_back').onclick=showLoginCloud;
+  $('#rc_go').onclick=async()=>{const m=t=>{$('#rc_m').textContent=t},c=$('#rc_c').value.replace(/\s+/g,''),p=$('#rc_p1').value;
+    if(!c)return m('Scrivi il codice ricevuto per email.');
+    if(p.length<6)return m('La password deve avere almeno 6 caratteri.');
+    if(p!==$('#rc_p2').value)return m('Le due password non coincidono.');
+    $('#rc_go').disabled=true;m('');
+    try{
+      const j=await http('/auth/v1/verify',{method:'POST',auth:false,json:{type:'recovery',email:em,token:c}});
+      setSes(j);
+      await http('/auth/v1/user',{method:'PUT',json:{password:p}});
+      await enterCloud();
+    }catch(x){SES=null;saveSes();$('#rc_go').disabled=false;m(x.status===0?x.message:(x.status==400||x.status==401||x.status==403||x.status==422)?'Codice non valido o scaduto: richiedine uno nuovo.':(x.message||'Operazione non riuscita.'))}};
+  setTimeout(()=>{const f=$('#rc_c');if(f)f.focus()},50);
 }
 showLogin=showLoginCloud;
 const _lo=logout;
@@ -4529,7 +4571,8 @@ pwdOpen=function(forced){
   d.innerHTML=`<div class="dh"><h2>Cambia password</h2></div><div class="db">
   <label class="full">Password attuale<input id="pw0" type="password" autocomplete="current-password"></label>
   <label>Nuova password<input id="pw1" type="password" autocomplete="new-password"></label>
-  <label>Ripeti nuova password<input id="pw2" type="password" autocomplete="new-password"></label><div class="full neg" id="pwe"></div></div>
+  <label>Ripeti nuova password<input id="pw2" type="password" autocomplete="new-password"></label>
+  <label class="full" style="flex-direction:row;gap:8px;align-items:center"><input type="checkbox" style="width:auto" onchange="['pw0','pw1','pw2'].forEach(i=>document.getElementById(i).type=this.checked?'text':'password')"> Mostra password</label><div class="full neg" id="pwe"></div></div>
   <div class="df"><button class="b" onclick="$('#dlg').close()">Annulla</button><button class="b pri" onclick="pwdSave()">Salva password</button></div>`;
   d.showModal();$('#pw0').focus()};
 pwdSave=async function(){
