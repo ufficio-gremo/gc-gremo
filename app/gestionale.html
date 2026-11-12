@@ -43,6 +43,7 @@ button.dng{color:var(--bad)}button.b:disabled{opacity:.5;cursor:not-allowed}
 table{border-collapse:collapse;width:100%;min-width:720px}
 th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
 th{font-weight:600;color:var(--mut);font-size:13px;background:var(--soft)}
+tr.grp td{background:var(--soft);font-weight:700;border-top:2px solid var(--line);padding:8px 10px}tr.grp small{font-weight:500;color:var(--mut);margin-left:6px}.cchips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}.cchips button{border:1px solid var(--line);background:var(--bg,#fff);border-radius:14px;padding:3px 11px;font-size:13px;cursor:pointer}.cchips button.on{background:var(--pri,#1f3a5f);color:#fff;border-color:transparent}
 tr.row{cursor:pointer}tr.row:hover td{background:var(--soft)}
 .tag{display:inline-block;padding:2px 8px;border-radius:3px;font-size:12px;font-weight:600;background:var(--soft);border:1px solid var(--line)}
 .tag.late{color:var(--bad);border-color:var(--bad)}.tag.ce{color:var(--ok);border-color:var(--ok)}.p1{color:var(--bad);font-weight:600}
@@ -54,6 +55,7 @@ tr.row{cursor:pointer}tr.row:hover td{background:var(--soft)}
 .fase{display:flex;align-items:center;gap:10px;margin:6px 0}.fase span:first-child{width:150px}.fase .bar{flex:1}
 dialog{border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);padding:0;width:min(780px,94vw);max-height:92vh}
 dialog::backdrop{background:rgba(10,15,20,.55)}
+.xclose{position:sticky;top:6px;float:right;z-index:6;width:34px;height:34px;margin:6px 8px -40px 0;border:0;border-radius:6px;background:transparent;color:var(--mut,#566079);font-size:26px;line-height:1;cursor:pointer}.xclose:hover{background:var(--soft);color:var(--ink)}dialog .dh{padding-right:52px}
 .dh{padding:14px 20px;border-bottom:1px solid var(--line)}.dh h2{font-size:22px}
 .db{padding:16px 20px;overflow:auto;max-height:68vh;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
 .db label{display:flex;flex-direction:column;font-size:13px;color:var(--mut);gap:4px}.db label input,.db label select,.db label textarea{width:100%;box-sizing:border-box;resize:vertical}
@@ -191,7 +193,7 @@ body.lock #sb,body.lock #rb{display:none}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;try{t.hidePopover()}catch(e){}try{t.showPopover()}catch(e){}clearTimeout(t._t);t._t=setTimeout(()=>{try{t.hidePopover()}catch(e){}},7000)}
 window.alert=toast;
 function askConfirm(msg,yes){const d=document.getElementById('cfm');document.getElementById('cfmm').textContent=msg;document.getElementById('cfmy').onclick=()=>{d.close();yes()};d.showModal()}
-const APP_VER='1.3.1', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
+const APP_VER='1.3.2', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
 const OLDPH=['Taglio','Saldatura','Assemblaggio','Verniciatura/zincatura','Collaudo','Montaggio'], PHMAP=[0,0,0,1,0,2];
 const V28=['In produzione','Verniciatura/zincatura','Montaggio'];
 const PH=['Produzione','Zincatura/Verniciatura','Montaggio'];
@@ -208,7 +210,7 @@ function applyCfg(c){
 }
 // EMPTY_START = true: il programma parte senza dati (solo impostazioni di base); false: parte con dati di esempio
 const EMPTY_START=true;
-const emptyData=()=>({rates:{c:32,s:42,cc:22,cs:30},cl:[],sup:[],items:[],jobs:[],quotes:[],orders:[],moves:[],hours:[],rcv:[]});
+const emptyData=()=>({rates:{c:32,s:42,cc:22,cs:30},sl:[],cl:[],sup:[],items:[],jobs:[],quotes:[],orders:[],moves:[],hours:[],rcv:[]});
 const seed=()=>{
  if(EMPTY_START)return emptyData();
  const H=(job,op,ph,h,date)=>({job,op,phase:PH[PHMAP[ph]],h,date}), M=(job,item,qty,date)=>({job,item,qty,date});
@@ -243,7 +245,7 @@ let D; try{D=JSON.parse(localStorage.getItem(KEY))}catch(e){} if(!D||!D.jobs)D=s
 // adatta i dati salvati con una versione precedente
 let AUTH_READY=false;
 const migrate=()=>{
-  D.xsheets=D.xsheets||[];
+  D.xsheets=D.xsheets||[];D.sl=D.sl||[];
   [...D.jobs,...D.xsheets].forEach(j=>{if(j.sheet){if(!j.docs||!j.docs.length)j.docs=[{...j.sheet,id:1,type:'dist',title:'Distinta di taglio'}];delete j.sheet}});
 if(AUTH_READY)authInit();
 D.rates=D.rates||{c:32,s:42};if(D.rates.cc===undefined)D.rates.cc=D.rates.c;if(D.rates.cs===undefined)D.rates.cs=D.rates.s; // fino a quando non imposti il costo aziendale vale la tariffa precedente
@@ -282,10 +284,10 @@ migrate();
 let ME=null;
 // versione desktop: copia di sicurezza automatica (una al giorno) nella cartella Documenti
 let _bkT=null;const bkSoon=()=>{clearTimeout(_bkT);_bkT=setTimeout(()=>{try{window.desktop.backup(localStorage.getItem(KEY))}catch(e){}},20000)};
-let saveRaw=()=>{try{localStorage.setItem(KEY,JSON.stringify(D));if(window.desktop)bkSoon()}catch(e){}};
+let saveRaw=()=>{try{slDiff()}catch(e){console.error(e)}try{localStorage.setItem(KEY,JSON.stringify(D));if(window.desktop)bkSoon()}catch(e){}};
 let save=()=>{
   if(ME&&lv(view)<2){ // nessun permesso di modifica: annulla la modifica e ricarica i dati salvati
-    try{D=JSON.parse(localStorage.getItem(KEY))}catch(e){} migrate();toast('Non hai i permessi per modificare questa sezione: modifica non salvata.');setTimeout(render,0);return}
+    try{D=JSON.parse(localStorage.getItem(KEY))}catch(e){} migrate();SLS=null;toast('Non hai i permessi per modificare questa sezione: modifica non salvata.');setTimeout(render,0);return}
   saveRaw()};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
@@ -357,14 +359,14 @@ items:{c:'items',nw:'Nuovo articolo',h:['Codice','Descrizione','Giacenza','Scort
  r:x=>[`<b>${x.code}</b>`,x.desc,`${fN(x.stock)} ${x.um}`+(x.stock<x.min?' <span class="tag late">sotto scorta</span>':'')+(incoming(x).length?` <span class="tag" style="background:#ffd43b;color:#000;border-color:#e0a800">in arrivo +${fN(r4(incoming(x).reduce((a,o)=>a+o.qty,0)))} ${esc(x.um)} · ${dt(incoming(x).map(o=>o.due).sort()[0])}</span>`:''),`${fN(x.min)} ${x.um}`,`${eur2(x.cost)}/${x.um}`,nm('sup',x.sup)],
  use:x=>D.moves.some(m=>m.item==x.id)||D.orders.some(o=>o.item==x.id)||D.jobs.some(j=>j.bom.some(l=>l.item==x.id)||j.xBom.some(l=>l.item==x.id))||D.rcv.some(r=>r.lines.some(l=>l.item==x.id))},
 prod:{c:'items',nw:'Nuovo prodotto',h:['Codice','Descrizione','Categoria','Materiale / qualità','Dimensioni','Peso','Unità acquisto / vendita','Finitura','Costo acquisto → vendita','Fornitore'],req:'code',
- f:[{k:'code',l:'Codice prodotto'},{k:'cat',l:'Categoria (es. Profilati, Lamiere)'},{k:'desc',l:'Descrizione',full:1},{k:'mat',l:'Materiale / qualità (es. S275JR)'},{k:'dim',l:'Dimensioni / sezione'},{k:'um',l:'Unità di misura principale (VENDITA / scarico su commessa)',t:'sel',o:()=>['m','kg','pz','m²']},{k:'kg',l:'Peso (kg per 1 unità principale) - facoltativo',t:'number'},{k:'uc',l:'Unità di misura di ACQUISTO (carico da bolla), es. kg'},{k:'pc',l:'Quante unità di acquisto in 1 unità principale (es. 78,5 kg in 1 m²)',t:'number'},{k:'fc',l:'Oppure: 1 unità di acquisto = quante unità principali (es. 1 barra = 6 m)',t:'number'},{k:'fin',l:'Finitura (es. grezzo, zincato)'},{k:'ca',l:'Costo unitario di ACQUISTO (€ per unità di acquisto; senza unità di acquisto, per unità principale)',t:'number',full:1},{k:'sup',l:'Fornitore abituale',t:'sel',id:1,o:supOpt},{k:'pnote',l:'Note e caratteristiche aggiuntive',full:1}],
+ f:[{k:'code',l:'Codice prodotto'},{k:'cat',l:'Categoria (scegli dall’elenco o scrivine una nuova)'},{k:'desc',l:'Descrizione',full:1},{k:'mat',l:'Materiale / qualità (es. S275JR)'},{k:'dim',l:'Dimensioni / sezione'},{k:'um',l:'Unità di misura principale (VENDITA / scarico su commessa)',t:'sel',o:()=>['m','kg','pz','m²']},{k:'kg',l:'Peso (kg per 1 unità principale) - facoltativo',t:'number'},{k:'uc',l:'Unità di misura di ACQUISTO (carico da bolla), es. kg'},{k:'pc',l:'Quante unità di acquisto in 1 unità principale (es. 78,5 kg in 1 m²)',t:'number'},{k:'fc',l:'Oppure: 1 unità di acquisto = quante unità principali (es. 1 barra = 6 m)',t:'number'},{k:'fin',l:'Finitura (es. grezzo, zincato)'},{k:'ca',l:'Costo unitario di ACQUISTO (€ per unità di acquisto; senza unità di acquisto, per unità principale)',t:'number',full:1},{k:'sup',l:'Fornitore abituale',t:'sel',id:1,o:supOpt},{k:'pnote',l:'Note e caratteristiche aggiuntive',full:1}],
  ap:(r,s)=>{if(s==1){r.stock=+r.stock||0;r.min=+r.min||0;r.cost=+r.cost||0}},
- r:x=>[`<b>${esc(x.code)}</b>`,esc(x.desc),esc(x.cat||'')||'<span class="mut">-</span>',esc(x.mat||'')||'<span class="mut">-</span>',esc(x.dim||'')||'<span class="mut">-</span>',(x.kg&&nu(x.um)!='kg')?`${fN(x.kg)} kg/${esc(x.um)}`:'<span class="mut">-</span>',`${esc(x.uc||x.um)} / ${esc(x.um)}`,esc(x.fin||'')||'<span class="mut">-</span>',(x.uc&&+x.fc>0?`${eur2(x.ca)}/${esc(x.uc)} <small class="mut">→ ${eur2(x.cost)}/${esc(x.um)}</small>`:`${eur2(x.cost)}/${esc(x.um)}`),nm('sup',x.sup)],
+ r:x=>[`<b>${esc(x.code)}</b>`,esc(x.desc),esc(catName(x.cat))||'<span class="mut">-</span>',esc(x.mat||'')||'<span class="mut">-</span>',esc(x.dim||'')||'<span class="mut">-</span>',(x.kg&&nu(x.um)!='kg')?`${fN(x.kg)} kg/${esc(x.um)}`:'<span class="mut">-</span>',`${esc(x.uc||x.um)} / ${esc(x.um)}`,esc(x.fin||'')||'<span class="mut">-</span>',(x.uc&&+x.fc>0?`${eur2(x.ca)}/${esc(x.uc)} <small class="mut">→ ${eur2(x.cost)}/${esc(x.um)}</small>`:`${eur2(x.cost)}/${esc(x.um)}`),nm('sup',x.sup)],
  use:x=>D.moves.some(m=>m.item==x.id)||D.orders.some(o=>o.item==x.id)||D.jobs.some(j=>j.bom.some(l=>l.item==x.id)||j.xBom.some(l=>l.item==x.id))||D.rcv.some(r=>r.lines.some(l=>l.item==x.id))},
-moves:{c:'moves',nw:'Nuovo scarico',h:['Data','Articolo','Commessa','Quantità','Valore'],ap:(m,s)=>{const i=itm(m.item);if(i.id)i.stock-=m.qty*s},
+moves:{c:'moves',nw:'Nuovo scarico',h:['Data','Articolo','Commessa','Quantità','Valore'],ap:(m,s)=>{const i=itm(m.item);slCtx=s>0?'Scarico su commessa':'Annullo scarico';if(i.id)i.stock-=m.qty*s},
  f:[{k:'date',l:'Data',t:'date'},{k:'item',l:'Codice articolo',t:'item'},{k:'job',l:'Commessa',t:'sel',id:1,o:()=>jobsOpt(0)},{k:'qty',l:'Quantità prelevata',t:'number'}],
  r:x=>[dt(x.date),`<b>${itm(x.item).code}</b> <span class="mut">${itm(x.item).desc}</span>`,jb(x.job)+(x.extra?' <span class="tag">fuori preventivo</span>':''),(x.uIn&&nu(x.uIn)!=nu(itm(x.item).um)?`${fN(x.qIn)} ${esc(x.uIn)} <small class="mut">(${fN(x.qty)} ${itm(x.item).um})</small>`:`${fN(x.qty)} ${itm(x.item).um}`),eur(x.qty*itm(x.item).cost)]},
-orders:{c:'orders',nw:'Nuovo ordine',h:['Articolo','Fornitore','Commessa','Quantità','Totale','Consegna','Stato'],ap:(o,s)=>{const i=itm(o.item);if(i.id&&o.status=='Ricevuto'){i.stock+=o.qty*s;if(s>0)delete i.out}},
+orders:{c:'orders',nw:'Nuovo ordine',h:['Articolo','Fornitore','Commessa','Quantità','Totale','Consegna','Stato'],ap:(o,s)=>{const i=itm(o.item);if(i.id&&o.status=='Ricevuto'){slCtx=s>0?'Ordine ricevuto':'Annullo ricezione ordine';i.stock+=o.qty*s;if(s>0)delete i.out}},
  f:[{k:'item',l:'Codice articolo',t:'item'},{k:'job',l:'Commessa',t:'sel',id:1,o:()=>jobsOpt(1)},{k:'qty',l:'Quantità',t:'number'},{k:'price',l:'Prezzo unitario (€)',t:'number'},{k:'due',l:'Consegna prevista',t:'date'},{k:'status',l:'Stato (con Ricevuto la giacenza aumenta)',t:'sel',o:()=>['Bozza','Ordinato','Ricevuto']}],
  r:x=>[`<b>${esc(ordName(x))}</b>${x.item?'':' <span class="tag">fuori inventario</span>'}${(x.auto||x.src)?' <span class="tag">da commessa</span>':''}`,nm('sup',ordSup(x)),jb(x.job),`${fN(x.qty)} ${ordUm(x)}`,eur(x.qty*x.price),dt(x.due)+(oLate(x)?' <span class="tag late">ritardo</span>':''),x.status]},
 hours:{c:'hours',nw:'Registra ore',h:['Data','Operaio','Commessa','Fase','Ore','Costo','Lavoro svolto'],
@@ -378,7 +380,7 @@ const jobSplit=l=>{if(l.split){const k=Object.keys(l.split),t=k.reduce((a,j)=>a+
 const oLate=o=>o.status=='Ordinato'&&o.due<TODAY;
 const tabs=[['dash','Cruscotto'],{g:'com',l:'Commesse',it:[['jobs','Commesse'],['quotes','Preventivi'],['ordc','Ordini cliente'],['sheets','Schede di lavorazione'],['fatt','Fatturazione']]},{g:'mag',l:'Magazzino',it:[['items','Inventario'],['prod','Prodotti'],['orders','Ordini']]},['hours','Ore'],{g:'ana',l:'Anagrafica',it:[['cl','Clienti'],['sup','Fornitori']]},{g:'set',l:'Impostazioni',it:[['imp','Impostazioni'],['usr','Utenti e permessi']]}];
 const gOf=v=>(v=='rcv'||v=='moves')?'mag':(tabs.find(t=>t.g&&t.it.some(i=>i[0]==v))||{}).g;
-function goView(v){ddClose();if(view=='imp'&&v!='imp')SD=null;view=v;render()}
+function goView(v){ddClose();if(view=='imp'&&v!='imp'){if(SD&&sdDirty())sdSave(true);SD=null}view=v;render()}
 let view='dash', q='', fs='', cur, lsq='';
 const ddClose=()=>document.querySelectorAll('.ddm').forEach(m=>m.hidden=true);
 $('#nav').onclick=e=>{
@@ -395,12 +397,13 @@ function render(){
   lsq='';if(qvw!=view){qvw=view;qfs='';qq=''}
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v==view||b.dataset.g==gOf(view)&&!!b.dataset.g));
   $('#main').innerHTML=view=='dash'?dash():view=='jobs'?jobs():view=='rcv'?rcvList():view=='fatt'?fattView():view=='imp'?settingsView():view=='usr'?usersView():view=='hours'?hoursView():(view=='quotes'||view=='ordc')?quotesView():view=='orders'?ordersView():view=='sheets'?sheetsView():list(view);
+  if(view=='imp'&&typeof buInit=='function')buInit();
   if(view=='rcv'||view=='moves')$('#main').insertAdjacentHTML('afterbegin','<div style="margin-bottom:10px"><button class="b" onclick="goView(\'items\')">← Torna all’inventario</button></div>');
   if(view=='jobs'){$('#q').oninput=e=>{q=e.target.value;$('#jl').innerHTML=jobsLists()};$('#fs').onchange=e=>{fs=e.target.value;$('#jl').innerHTML=jobsLists()}}
   else if(view=='sheets'){$('#hq').oninput=e=>{qq=e.target.value;$('#hl').innerHTML=sheetsRows()};$('#hf').onchange=e=>{qfs=e.target.value;$('#hl').innerHTML=sheetsRows()}}
   else if(view=='orders'){$('#oq').oninput=e=>{oq=e.target.value;$('#ol').innerHTML=ordersBody()}}
   else if(view=='quotes'||view=='ordc'){$('#qq').oninput=e=>{qq=e.target.value;$('#ql').innerHTML=qRows()};$('#qf').onchange=e=>{qfs=e.target.value;$('#ql').innerHTML=qRows()}}
-  else if(E[view]&&$('#lq')){$('#lq').oninput=e=>{const t=lsq=e.target.value.toLowerCase();document.querySelectorAll('#lt tbody tr').forEach(r=>r.style.display=r.textContent.toLowerCase().includes(t)?'':'none')}}
+  else if(E[view]&&$('#lq')){$('#lq').oninput=e=>{const t=lsq=e.target.value.toLowerCase();let gr=null,n=0;const rs=[...document.querySelectorAll('#lt tbody tr')];rs.forEach(r=>{if(r.classList.contains('grp')){if(gr)gr.style.display=n?'':'none';gr=r;n=0;r.style.display='';return}const ok=r.textContent.toLowerCase().includes(t);r.style.display=ok?'':'none';if(ok)n++});if(gr)gr.style.display=n?'':'none'}}
 }
 function dash(){
   const act=D.jobs.filter(open_), lt=act.filter(late), val=act.reduce((a,j)=>a+j.price,0), wp=act.filter(j=>j.price);
@@ -1096,7 +1099,7 @@ function rtSum(){const c=rtCh(),z=c.filter(i=>RT.v[i.id]===0).length;$('#rt_sum'
 function rtApply(){
   const c=rtCh();if(!c.length){toast('Nessuna giacenza modificata.');return}
   const z=c.filter(i=>RT.v[i.id]===0);
-  const go=()=>{c.forEach(i=>{const old=i.stock,nv=r4(RT.v[i.id]);i.stock=nv;if(nv===0)i.out=1;else delete i.out;addLog('Rettifica giacenza '+i.code+': '+fN(old)+' → '+fN(nv)+' '+i.um)});
+  const go=()=>{slCtx='Rettifica giacenze';c.forEach(i=>{const old=i.stock,nv=r4(RT.v[i.id]);i.stock=nv;if(nv===0)i.out=1;else delete i.out;addLog('Rettifica giacenza '+i.code+': '+fN(old)+' → '+fN(nv)+' '+i.um)});
     save();$('#dlg').close();render();toast('Giacenze rettificate: '+c.length+(c.length==1?' articolo':' articoli')+(z.length?' ('+z.length+' rimossi dall’inventario)':'')+'.')};
   if(z.length)askConfirm('Con giacenza 0 '+(z.length==1?'l’articolo «'+z[0].code+'» viene rimosso':z.length+' articoli vengono rimossi')+' dall’inventario (restano in Prodotti). Procedere?',go);else go();
 }
@@ -1344,7 +1347,8 @@ async function pdfQuoteList(){
 let SD=null, SD0='', SDmsg=null;
 const sdNew=()=>({co:JSON.parse(JSON.stringify(D.co||{})),rc:D.rates.c,rs:D.rates.s,rcc:D.rates.cc,rcs:D.rates.cs,vat:D.cfg.vat??22,mk:D.cfg.mk??25,vd:D.cfg.vd??30,st:ST.map(n=>({o:n,n})),prio:PRIO.map(n=>({o:n,n})),ph:PH.map(n=>({o:n,n})),ops:OPS.map(x=>({o:x.n,n:x.n,t:x.t}))});
 const sdDirty=()=>JSON.stringify(SD)!=SD0;
-const sdBar=()=>{const e=$('#sdstat');if(e){e.textContent=sdDirty()?'Modifiche non salvate':'Nessuna modifica';e.style.color=sdDirty()?'var(--acc)':''}};
+let sdT=null;
+const sdBar=()=>{clearTimeout(sdT);if(SD&&sdDirty())sdT=setTimeout(()=>{if(SD&&sdDirty())sdSave(true)},1500);const e=$('#sdstat');if(e){e.textContent=sdDirty()?'Salvataggio automatico…':'Tutto salvato';e.style.color=sdDirty()?'var(--acc)':''}};
 function sdSet(k,i,f,v){SD[k][i][f]=v;sdBar()}
 function sdCo(k,v){SD.co[k]=v;sdBar()}
 function sdLogo(inp){const f=inp.files&&inp.files[0];if(!f)return;
@@ -1361,7 +1365,8 @@ function sdAdd(k){
 function sdMove(k,i,d){const a=SD[k],j=i+d;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];render()}
 function sdDel(k,i){SD[k].splice(i,1);render()}
 function sdCancel(){SD=null;SDmsg=null;render()}
-function sdSave(){
+function sdSave(q){
+  clearTimeout(sdT);
   const err=[], names=k=>SD[k].map(x=>x.n.trim());
   const base=(k,lab)=>{const n=names(k);
     if(!n.length)err.push(lab+': deve restare almeno una voce.');
@@ -1374,7 +1379,7 @@ function sdSave(){
   PRIO.filter(o=>!SD.prio.some(x=>x.o==o)).forEach(o=>{const c=D.jobs.filter(j=>j.prio==o).length;if(c)err.push('Priorità: «'+o+'» è usata da '+c+(c==1?' commessa':' commesse')+'. Cambiala prima in quelle commesse.')});
   OPS.filter(o=>!SD.ops.some(x=>x.o==o.n)).forEach(o=>{const c=D.hours.filter(h=>h.op==o.n).length;if(c)err.push('Personale: '+o.n+' ha '+c+' registrazioni di ore e non può essere eliminato.')});
   if(SD.rc<0||SD.rs<0||SD.rcc<0||SD.rcs<0||SD.vat<0)err.push('Costi orari, prezzi orari e IVA non possono essere negativi.');
-  if(err.length){SDmsg={err};render();window.scrollTo(0,0);return}
+  if(err.length){if(q){const e=$('#sdstat');if(e){e.textContent='Non salvato: '+err[0];e.style.color='var(--bad,#b3392f)'}return}SDmsg={err};render();window.scrollTo(0,0);return}
   const ren=k=>SD[k].filter(x=>x.o!=null&&x.o!=x.n.trim());
   ren('st').forEach(x=>{D.jobs.forEach(j=>{if(j.status==x.o)j.status=x.n.trim()});if(fs==x.o)fs=x.n.trim()});
   ren('prio').forEach(x=>D.jobs.forEach(j=>{if(j.prio==x.o)j.prio=x.n.trim()}));
@@ -1386,7 +1391,9 @@ function sdSave(){
   OPS.splice(0,OPS.length,...SD.ops.map(x=>({n:x.n.trim(),t:x.t})));
   D.rates={c:SD.rc,s:SD.rs,cc:SD.rcc,cs:SD.rcs};D.co=JSON.parse(JSON.stringify(SD.co));['name','addr','cap','city','prov','piva','cf','rea','tel','email','pec','web','sdi','iban'].forEach(k=>{if(D.co[k])D.co[k]=String(D.co[k]).trim()});
   D.cfg={...D.cfg,vat:SD.vat,mk:SD.mk,vd:SD.vd,st:[...ST],prio:[...PRIO],ph:[...PH],ops:OPS.map(o=>({...o}))};
-  save();SD=null;applyBrand();SDmsg={ok:'Impostazioni salvate.'};render();window.scrollTo(0,0);
+  save();applyBrand();
+  if(q){SD=sdNew();SD0=JSON.stringify(SD);const e=$('#sdstat');if(e){e.textContent='Salvato automaticamente';e.style.color=''}return}
+  SD=null;SDmsg={ok:'Impostazioni salvate.'};render();window.scrollTo(0,0);
 }
 // ===== importazione da Excel / CSV (prodotti, clienti, fornitori)
 const IMP_T={prod:'Prodotti (magazzino)',cl:'Clienti',sup:'Fornitori'};
@@ -1528,7 +1535,7 @@ function impRun(){
       const sp=t=='prod'&&r.sup?impSup(r.sup):null;
       if(t=='prod'){
         const set=(o)=>{['code','desc','cat','mat','dim','um','fin','pnote'].forEach(k=>{if(r[k]!==undefined)o[k]=String(r[k])});
-          if(r.kg!==undefined)o.kg=r.kg;if(r.stock!==undefined)o.stock=r.stock;if(r.min!==undefined)o.min=r.min;
+          slCtx='Importazione da file';if(r.kg!==undefined)o.kg=r.kg;if(r.stock!==undefined)o.stock=r.stock;if(r.min!==undefined)o.min=r.min;
           if(r.cost!==undefined){o.cost=r.cost;o.ca=(o.uc&&+o.fc>0)?r4(r.cost*o.fc):r.cost}
           if(sp)o.sup=sp.id};
         if(p.act=='new'){const o={id:nid(),code:'',desc:'',um:'pz',stock:0,min:0,cost:0,ca:0,sup:0,cat:'',mat:'',dim:'',fin:'',uc:'',fc:0,pc:0,pnote:''};set(o);if(!o.desc)o.desc=o.code;D.items.push(o);cn++}
@@ -1596,7 +1603,7 @@ function settingsView(){
     return row(`<input value="${esc(it.n)}" ${lock?'readonly title="Voce usata dal programma: non modificabile"':''} style="flex:1;min-width:160px" oninput="sdSet('${k}',${i},'n',this.value)">${use(k,it)}${btns(k,i,lock)}`)}).join('')+
     row(`<input id="new${k}" placeholder="Nuova voce" style="flex:1;min-width:160px"><button class="b pri" onclick="sdAdd('${k}')">Aggiungi</button>`);
   const tsel=(i,v)=>`<select onchange="sdSet('ops',${i},'t',this.value)"><option value="C" ${v=='C'?'selected':''}>Operaio comune</option><option value="S" ${v=='S'?'selected':''}>Operaio specializzato</option></select>`;
-  return `<div class="tools" style="position:sticky;top:0;z-index:5;background:var(--card);border:1px solid var(--line);padding:10px 12px;border-radius:4px"><b id="sdstat" style="flex:1;align-self:center">${sdDirty()?'Modifiche non salvate':'Nessuna modifica'}</b><button class="b" onclick="sdCancel()">Annulla modifiche</button><button class="b pri" onclick="sdSave()">Salva impostazioni</button></div>`+
+  return `<div class="tools" style="position:sticky;top:0;z-index:5;background:var(--card);border:1px solid var(--line);padding:10px 12px;border-radius:4px"><b id="sdstat" style="flex:1;align-self:center">${sdDirty()?'Salvataggio automatico…':'Tutto salvato'}</b><button class="b" onclick="sdCancel()">Annulla modifiche</button><button class="b pri" onclick="sdSave()">Salva impostazioni</button></div>`+
   (m&&m.ok?`<div class="rsn pos" style="margin:10px 0"><b>${m.ok}</b></div>`:'')+
   (()=>{const dk=!!(window.desktop&&window.desktop.versione);if(dk)setTimeout(()=>window.desktop.versione().then(v=>{const e=$('#verd');if(e)e.textContent=v}).catch(()=>{}),0);
     return `<div class="tw" style="padding:12px 16px;margin:10px 0 0;display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b>Versione del programma</b><div class="mut" style="margin-top:2px">${dk?'Programma installato sul computer':'Programma aperto nel browser'}</div></div><div style="font:700 24px 'Barlow Condensed',sans-serif">${dk?'<span id="verd">…</span>':esc(APP_VER)}</div>${dk?'<button class="b" onclick="window.desktop.cercaAggiornamenti()">Cerca aggiornamenti</button>':''}</div>`})()+
@@ -1617,17 +1624,33 @@ function settingsView(){
   card('Personale','Gli operai selezionabili nella registrazione delle ore. Il tipo decide quale costo orario aziendale si applica. Chi ha ore registrate non si può eliminare.',
     SD.ops.map((o,i)=>row(`<input value="${esc(o.n)}" style="flex:1;min-width:160px" oninput="sdSet('ops',${i},'n',this.value)">${tsel(i,o.t)}${use('ops',o)}${btns('ops',i,false)}`)).join('')+
     row(`<input id="newops" placeholder="Nome nuovo operaio" style="flex:1;min-width:160px"><select id="newopt"><option value="C">Operaio comune</option><option value="S">Operaio specializzato</option></select><button class="b pri" onclick="sdAdd('ops')">Aggiungi</button>`))+
+  card('Categorie e prezzi dei prodotti','Seleziona più prodotti insieme (con la ricerca o il filtro per categoria) e assegna a tutti la stessa categoria oppure cambia il prezzo unitario: impostandolo a un valore o con una variazione in percentuale. Le modifiche si applicano subito e non dipendono dal pulsante «Salva impostazioni».',`<div id="bubox">${buHtml()}</div>`)+
   card('Importazione da Excel o CSV','Carica un file con prodotti, clienti o fornitori: scegli quali colonne corrispondono ai campi del programma, controlla l’anteprima e importa. Le scelte fatte (colonne e opzioni) restano salvate per le prossime importazioni. Funziona con file .xlsx e CSV.',`<div id="impbox">${impHtml()}</div>`)+
   card('Stati della commessa','Completato, Consegnata e Fatturata sono usati dal programma (fatturazione, commesse in corso) e non si possono modificare. Uno stato usato da commesse non si può eliminare.',list('st'))+
   card('Priorità','La prima voce è evidenziata come priorità massima nell’elenco commesse. Una priorità usata da commesse non si può eliminare.',list('prio'))+
   card('Fasi di produzione','Le fasi mostrate nell’avanzamento di ogni commessa e nella registrazione delle ore. Eliminando una fase se ne perde l’avanzamento nelle commesse; le ore già registrate restano.',list('ph'))+
   `<div class="tools"><span style="flex:1"></span><button class="b" onclick="sdCancel()">Annulla modifiche</button><button class="b pri" onclick="sdSave()">Salva impostazioni</button></div>`;
 }
+// ---- categorie di prodotti/inventario: elenco suggerito + quelle già usate; suddivisione dell'elenco per categoria
+const CAT_DEF=['Profilati','Lamiere','Tubolari','Piatti e tondi','Bulloneria','Saldatura e consumabili','Vernici e trattamenti','Ferramenta','Altro'];
+let catF='';
+const catKey=c=>String(c||'').trim().toLowerCase();
+const catName=c=>{const k=catKey(c);if(!k)return '';const d=CAT_DEF.find(x=>catKey(x)==k);if(d)return d;const l=D.items.filter(i=>catKey(i.cat)==k).map(i=>String(i.cat).trim());return l.find(x=>x!==x.toLowerCase())||l[0]||String(c).trim()};
+function catList(){const m=new Map();CAT_DEF.forEach(c=>m.set(catKey(c),c));D.items.forEach(i=>{const k=catKey(i.cat);if(k&&!m.has(k))m.set(k,String(i.cat).trim())});return [...m.values()].sort((a,b)=>a.localeCompare(b,'it'))}
+function catGroups(a){const g=new Map();a.forEach(x=>{const k=catKey(x.cat);if(!g.has(k))g.set(k,{n:k?catName(x.cat):'Senza categoria',a:[]});g.get(k).a.push(x)});
+  return [...g.entries()].sort((p,q)=>(p[0]===''?1:0)-(q[0]===''?1:0)||p[1].n.localeCompare(q[1].n,'it')).map(e=>{e[1].a.sort((x,y)=>String(x.code).localeCompare(String(y.code),'it',{numeric:true}));return e[1]})}
+function catSet(c){catF=catF===c?'':c;render()}
 function list(k){
-  const e=E[k]; let a=[...D[e.c]]; if(k=='items')a=a.filter(x=>!x.out); if(k=='sup')a=a.filter(x=>!x.man);
+  const e=E[k]; let a=[...D[e.c]]; if(k=='items')a=a.filter(invVisible); if(k=='sup')a=a.filter(x=>!x.man);
   if(['moves','hours'].includes(k))a.sort((x,y)=>y.date.localeCompare(x.date)); if(k=='orders')a.sort((x,y)=>x.due.localeCompare(y.due));
-  return `<div class="tools"><input id="lq" placeholder="Cerca" style="flex:1;min-width:200px"><button class="b" onclick="pdfSection('${k}')">Esporta PDF</button>${k=='items'?`${lv('rcv')>0?'<button class="b" onclick="goView(\'rcv\')">Carico merce</button>':''}${lv('moves')>0?'<button class="b" onclick="goView(\'moves\')">Scarico merce</button>':''}<button class="b" onclick="rtOpen()">Rettifica giacenze</button>`:''}${k=='items'?'':`<button class="b pri" onclick="ed('${k}')">${e.nw}</button>`}</div>${k=='items'?'<div class="mut" style="margin:0 0 6px">Le giacenze si modificano solo con «Rettifica giacenze», «Carico merce» e «Scarico merce». Le caratteristiche dei prodotti si cambiano da Magazzino › Prodotti.</div>':''}
-  <div class="tw"><table id="lt"><thead><tr>${e.h.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${a.length?a.map(x=>`<tr ${k=='items'?'':`class="row" onclick="ed('${k}',${x.id})"`} ${k=='items'&&incoming(x).length?'style="background:rgba(255,212,59,.35)" title="Ordinato al fornitore: merce in arrivo"':''}>${e.r(x).map(c=>`<td>${c}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${e.h.length}" class="empty">Ancora nessun dato. Usa il pulsante in alto per aggiungerne.</td></tr>`}</tbody></table></div>`;
+  const grp=(k=='items'||k=='prod');let chips='',gh=null;
+  if(grp){const gs=catGroups(a);if(catF&&!gs.some(g=>g.n==catF))catF='';
+    chips=gs.length>1?`<div class="cchips"><button class="${catF?'':'on'}" onclick="catSet('${catF.replace(/'/g,"\\'")}')">Tutte (${a.length})</button>${gs.map(g=>`<button class="${catF==g.n?'on':''}" onclick="catSet('${g.n.replace(/'/g,"\\'")}')">${esc(g.n)} (${g.a.length})</button>`).join('')}</div>`:'';
+    gh=gs.filter(g=>!catF||g.n==catF)}
+  const rowH=x=>`<tr ${k=='items'?'':`class="row" onclick="${k=='cl'||k=='sup'?'anOpen':'ed'}('${k}',${x.id})"`} ${k=='items'&&incoming(x).length?'style="background:rgba(255,212,59,.35)" title="Ordinato al fornitore: merce in arrivo"':''}>${e.r(x).map(c=>`<td>${c}</td>`).join('')}</tr>`;
+  const rows=grp&&gh?gh.map(g=>`<tr class="grp"><td colspan="${e.h.length}">${esc(g.n)}<small>${g.a.length} ${g.a.length==1?'articolo':'articoli'}</small></td></tr>`+g.a.map(rowH).join('')).join(''):a.map(rowH).join('');
+  return `${chips}<div class="tools"><input id="lq" placeholder="Cerca" style="flex:1;min-width:200px"><button class="b" onclick="pdfSection('${k}')">Esporta PDF</button>${k=='items'?`${lv('rcv')>0?'<button class="b" onclick="goView(\'rcv\')">Carico merce</button>':''}${lv('moves')>0?'<button class="b" onclick="goView(\'moves\')">Scarico merce</button>':''}<button class="b" onclick="rtOpen()">Rettifica giacenze</button><button class="b" onclick="invOpen()">Inventario a una data</button><button class="b" onclick="slOpen()">Storico movimenti</button><label style="display:inline-flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" ${invZ?'checked':''} onchange="invZ=this.checked;render()"> Mostra anche esauriti</label>`:''}${k=='items'?'':`<button class="b pri" onclick="ed('${k}')">${e.nw}</button>`}</div>${k=='items'?'<div class="mut" style="margin:0 0 6px">Sono mostrati solo gli articoli con giacenza di almeno 1. Le giacenze si modificano solo con «Rettifica giacenze», «Carico merce» e «Scarico merce». Le caratteristiche dei prodotti si cambiano da Magazzino › Prodotti.</div>':''}
+  <div class="tw"><table id="lt"><thead><tr>${e.h.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${a.length?rows:`<tr><td colspan="${e.h.length}" class="empty">Ancora nessun dato. Usa il pulsante in alto per aggiungerne.</td></tr>`}</tbody></table></div>`;
 }
 const F=(id,l,v,t='text',x='')=>`<label ${x}>${l}<input id="${id}" type="${t}" value="${esc(v)}" ${t=='number'?'min="0" step="any"':''}></label>`;
 // ricerca articolo per codice: prima il codice esatto, poi una corrispondenza parziale unica su codice e descrizione
@@ -1643,7 +1666,7 @@ function ed(k,id){
   if(k=='prod'&&rec.ca===undefined)rec.ca=(rec.uc&&+rec.fc>0)?r4((+rec.cost||0)*rec.fc):(+rec.cost||0);
   const blocked=old&&e.use&&e.use(old);
   $('#dlg').oninput=null;
-  $('#dlg').innerHTML=`<div class="dh"><h2>${old?'Modifica':e.nw}</h2></div><div class="db">${e.f.map(f=>f.t=='sel'?S(f.k,f.l,f.o(),rec[f.k]):f.t=='item'?IC(f.k,f.l,rec[f.k]):F(f.k,f.l,rec[f.k],f.t||'text',f.full?'class="full"':'')).join('')}<datalist id="artlist">${D.items.map(i=>`<option value="${esc(i.code)}">${esc(i.desc)}</option>`).join('')}</datalist></div>
+  $('#dlg').innerHTML=`<div class="dh"><h2>${old?'Modifica':e.nw}</h2></div><div class="db">${e.f.map(f=>f.t=='sel'?S(f.k,f.l,f.o(),rec[f.k]):f.t=='item'?IC(f.k,f.l,rec[f.k]):(k=='prod'&&f.k=='cat'?F(f.k,f.l,rec[f.k],'text','').replace('<input ','<input list="catdl" autocomplete="off" '):F(f.k,f.l,rec[f.k],f.t||'text',f.full?'class="full"':''))).join('')}<datalist id="catdl">${catList().map(c=>`<option value="${esc(c)}">`).join('')}</datalist><datalist id="artlist">${D.items.map(i=>`<option value="${esc(i.code)}">${esc(i.desc)}</option>`).join('')}</datalist></div>
   <div class="df">${old?(blocked?'<span class="mut l">Già usato in altri dati: non eliminabile.</span>':`<button class="b dng l" onclick="del('${k}',${id})">Elimina</button>`):''}<button class="b" onclick="$('#dlg').close()">Annulla</button><button class="b pri" onclick="sv('${k}',${id||0})">Salva</button></div>`;
   $('#dlg').showModal();
   if(k=='prod'){const cp=()=>{const g=i=>$('#'+i).value,ca=+g('ca')||0,uc=g('uc').trim(),pc=+g('pc')||0,fc=pc>0?1/pc:(+g('fc')||0),um=g('um');const el=$('#costprev');if(el)el.textContent=(uc&&fc>0&&nu(uc)!=nu(um))?'Costo in inventario (per '+um+'): '+eur2(ca/fc):''};
@@ -2362,7 +2385,7 @@ const PS={
   cl:{t:'Clienti',num:[4]},
   sup:{t:'Fornitori',num:[]}};
 function listData(k){
-  let a=[...D[E[k].c]]; if(k=='items')a=a.filter(x=>!x.out); if(k=='sup')a=a.filter(x=>!x.man);
+  let a=[...D[E[k].c]]; if(k=='items')a=a.filter(x=>!x.out&&(+x.stock||0)>=SL_MIN); if(k=='sup')a=a.filter(x=>!x.man);
   if(['moves','hours'].includes(k))a.sort((x,y)=>y.date.localeCompare(x.date));
   if(k=='orders')a.sort((x,y)=>x.due.localeCompare(y.due));
   return a;
@@ -2374,7 +2397,9 @@ async function pdfSection(k){
   if(!pdfReady())return;
   const doc=pdfDoc(s.t,a.length+(a.length==1?' voce':' voci')+(lsq?'   |   Ricerca: '+lsq:'')+'   |   Generato il '+today(),!!s.land);
   const bold=(t,o={})=>({content:t,styles:{fontStyle:'bold'},...o});
-  const body=a.map(x=>e.r(x).map(txt));
+  let body;
+  if(k=='items'||k=='prod'){body=[];catGroups(a).forEach(g=>{body.push([{content:g.n+'  ('+g.a.length+')',colSpan:e.h.length,styles:{fontStyle:'bold',fillColor:[225,229,236]}}]);g.a.forEach(x=>body.push(e.r(x).map(txt)))})}
+  else body=a.map(x=>e.r(x).map(txt));
   if(k=='moves'){const v=a.reduce((t,x)=>t+x.qty*(itm(x.item).cost||0),0);body.push([bold('Totale valore prelevato',{colSpan:4}),pB(pe0(v))])}
   if(k=='orders'){const v=a.reduce((t,x)=>t+x.qty*x.price,0);body.push([bold('Totale ordini',{colSpan:4}),pB(pe0(v)),{content:'',colSpan:2}])}
   if(k=='hours'){const h=a.reduce((t,x)=>t+x.h,0),c=a.reduce((t,x)=>t+x.h*rate(x.op),0);body.push([bold('Totale',{colSpan:4}),pB(pn(h)+' h'),pB(pe0(c)),''])}
@@ -2676,7 +2701,7 @@ function rcvConfirm(force){
     const f=(!isNew&&l.um&&nu(l.um)!=nu(it.um)&&bpu(it,l.um))||1, qB=r4((+l.qty||0)*f), pB=r4((+l.price||0)/f);
     const parts=(R.jmode=='line'&&l.alloc&&l.alloc.length>1)?(()=>{const t=l.alloc.reduce((a,x)=>a+x.q,0)||1;let rem=+l.qty;return l.alloc.map((x,ix)=>{const q=ix==l.alloc.length-1?r4(rem):r4(l.qty*x.q/t);rem=r4(rem-q);return{job:x.job,q}})})():[{job:R.jmode=='doc'?R.job:(R.jmode=='line'?(+l.job||0):0),q:+l.qty}];
     const qStock=r4(parts.filter(pt=>!pt.job).reduce((a,pt)=>a+pt.q,0)*f); // solo la parte senza commessa entra in giacenza
-    it.stock=r4(it.stock+qStock);delete it.out; if(R.upd&&l.price>0){it.cost=pB;it.ca=(it.uc&&+it.fc>0)?r4(pB*it.fc):pB}
+    slCtx='Carico merce';it.stock=r4(it.stock+qStock);delete it.out; if(R.upd&&l.price>0){it.cost=pB;it.ca=(it.uc&&+it.fc>0)?r4(pB*it.fc):pB}
     parts.forEach((pt,ix)=>rec.lines.push({item:it.id,code:it.code,desc:l.desc||it.desc,qty:parts.length>1?r4(pt.q*f):qB,um:f!=1?it.um:(l.um||it.um),price:pB,qIn:pt.q,uIn:l.um||it.um,pIn:+l.price||0,created:isNew&&ix==0,job:pt.job}));
   });
   R.orders.forEach(id=>{const o=D.orders.find(x=>x.id==id); if(o)o.status='Ricevuto'}); // la giacenza è già stata aumentata dalle righe della bolla
@@ -2737,7 +2762,7 @@ function rcvEdit(id){
 function rcvUndo(id){
   const r=D.rcv.find(x=>x.id==id); if(!r)return;
   askConfirm('Annullare questo carico? Le quantità caricate vengono tolte dalla giacenza. Gli articoli creati dalla bolla restano in anagrafica. L’operazione non si può annullare.',()=>{
-  r.lines.forEach(l=>{const it=itm(l.item);if(it.id&&(!r.jx||!l.job))it.stock=r4(it.stock-l.qty)});
+  r.lines.forEach(l=>{const it=itm(l.item);if(it.id&&(!r.jx||!l.job))slCtx='Annullo carico merce';it.stock=r4(it.stock-l.qty)});
   (r.orders||(r.order?[r.order]:[])).forEach(id=>{const o=D.orders.find(x=>x.id==id);if(o&&o.status=='Ricevuto')o.status='Ordinato'});
   D.rcv=D.rcv.filter(x=>x.id!=id); save(); $('#dlg').close(); render();  });
 }
@@ -4060,7 +4085,7 @@ new MutationObserver(()=>{applyRO($('#main'));applyRO($('#dlg'))}).observe(docum
 
 // ---------- cambio password personale
 function pwdOpen(forced){
-  const d=$('#dlg');d.oninput=null;d.classList.remove('wide');d.oncancel=forced?e=>e.preventDefault():null;
+  const d=$('#dlg');d.oninput=null;d.classList.remove('wide');d.oncancel=forced?e=>e.preventDefault():null;d.dataset.nox=forced?'1':'';
   d.innerHTML=`<div class="dh"><h2>Cambia password</h2>${forced?'<div class="mut">L’amministratore richiede di scegliere una nuova password prima di continuare.</div>':''}</div><div class="db">
   <label class="full">Password attuale<input id="pw0" type="password" autocomplete="current-password"></label>
   <label>Nuova password<input id="pw1" type="password" autocomplete="new-password"></label>
@@ -4270,6 +4295,204 @@ function bkHtml(){
 function bkDraw(){const e=document.getElementById('bkbox');if(e)e.innerHTML=bkHtml()}
 setTimeout(()=>{bkWarn();bkAuto()},40000);setInterval(()=>{bkWarn();bkAuto()},15*60*1000);
 
+// ---------- registro dei movimenti di magazzino (storico giacenze) e inventario a una data
+// Ogni variazione di giacenza (carico, scarico, rettifica, importazione...) viene registrata in D.sl con data e utente:
+// la giacenza a una data qualsiasi è la somma delle variazioni fino a quel giorno. Il registro parte dal primo salvataggio dopo l'attivazione.
+const SL_MIN=1; let slCtx='',SLS=null,invZ=false;
+const slDay=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())};
+const slNid=()=>Date.now()*1000+Math.floor(Math.random()*1000);
+const slStart=()=>(D.sl||[]).find(x=>x.id==='start');
+function slStocks(){const m={};(D.sl||[]).forEach(e=>{if(e.id!=='start')m[e.item]=r4((m[e.item]||0)+(+e.q||0))});return m}
+function slSeen(it){if(SLS&&it)SLS[it.id]=r4(+it.stock||0)}
+function slDiff(){
+  if(!D||!Array.isArray(D.items))return;
+  if(!Array.isArray(D.sl))D.sl=[];
+  const now=new Date().toISOString(),day=slDay(),who=(typeof ME!=='undefined'&&ME)?ME.user:'';
+  if(!slStart()){
+    if(window.GC_CLOUD&&!(typeof isAdm=='function'&&isAdm()))return;   // col server l'avvio del registro lo fa l'amministratore
+    D.sl.push({id:'start',t:now,d:day,why:'Avvio del registro movimenti'});
+    D.items.forEach(i=>{const s=r4(+i.stock||0);if(s)D.sl.push({id:slNid(),t:now,d:day,item:i.id,code:i.code,um:i.um,q:s,s,c:+i.cost||0,why:'Giacenza iniziale',u:who})});
+    SLS={};D.items.forEach(i=>SLS[i.id]=r4(+i.stock||0));slCtx='';return}
+  if(!SLS)SLS=slStocks();
+  const seen=new Set();
+  D.items.forEach(i=>{seen.add(String(i.id));const cur=r4(+i.stock||0),prev=SLS[i.id]||0,q=r4(cur-prev);
+    if(Math.abs(q)>1e-9){D.sl.push({id:slNid(),t:now,d:day,item:i.id,code:i.code,um:i.um,q,s:cur,c:+i.cost||0,why:slCtx||(q>0?'Carico':'Scarico'),u:who});SLS[i.id]=cur}});
+  Object.keys(SLS).forEach(k=>{if(!seen.has(k)){const prev=SLS[k];if(Math.abs(prev)>1e-9){const old=[...D.sl].reverse().find(e=>String(e.item)==k)||{};D.sl.push({id:slNid(),t:now,d:day,item:+k,code:old.code,um:old.um,q:-prev,s:0,c:old.c||0,why:'Articolo eliminato',u:who})}delete SLS[k]}});
+  slCtx='';
+}
+// giacenza di ogni articolo alla fine del giorno indicato
+function slAt(date){const m={},c={};(D.sl||[]).forEach(e=>{if(e.id==='start'||e.d>date)return;m[e.item]=r4((m[e.item]||0)+(+e.q||0));c[e.item]=e});return{m,c}}
+const invVisible=x=>!x.out&&(invZ||(+x.stock||0)>=SL_MIN);
+// ---- finestra: inventario alla data
+function invOpen(){
+  const st=slStart(),d=$('#dlg');d.oninput=null;d.classList.remove('wide');d.oncancel=null;
+  d.innerHTML=`<div class="dh"><h2>Stampa inventario a una data</h2></div><div class="db">
+  <label>Giacenze alla data (fine giornata)<input id="iv_d" type="date" value="${slDay()}" max="${slDay()}"></label>
+  <label style="flex-direction:row;gap:8px;align-items:center"><input type="checkbox" id="iv_c" checked style="width:auto"> Raggruppa per categoria</label>
+  <label style="flex-direction:row;gap:8px;align-items:center"><input type="checkbox" id="iv_v" checked style="width:auto"> Mostra costi e valore</label>
+  <div class="full mut">Sono inclusi solo gli articoli con giacenza di almeno ${SL_MIN}. ${st?'Il registro dei movimenti è attivo dal <b>'+dt(st.d)+'</b>: per date precedenti le giacenze non sono disponibili.':'Il registro dei movimenti partirà al prossimo salvataggio: finché non c’è storico si può stampare solo la situazione di oggi.'} I costi sono quelli registrati al momento dell’ultimo movimento dell’articolo.</div><div class="full neg" id="iv_e"></div></div>
+  <div class="df"><button class="b" onclick="$('#dlg').close()">Annulla</button><button class="b pri" onclick="invPdf()">Crea PDF</button></div>`;
+  d.showModal();
+}
+async function invPdf(){
+  const date=$('#iv_d').value,e=m=>{$('#iv_e').textContent=m};
+  if(!date)return e('Scegli una data.');
+  if(date>slDay())return e('La data non può essere nel futuro.');
+  const st=slStart();
+  if(st&&date<st.d)return e('Il registro dei movimenti parte dal '+dt(st.d)+': per '+dt(date)+' non ci sono dati. Scegli una data successiva.');
+  if(!st&&date!==slDay())return e('Non esiste ancora uno storico: puoi stampare solo l’inventario di oggi.');
+  if(!pdfReady())return;
+  const byCat=$('#iv_c').checked,val=$('#iv_v').checked;
+  let rows;
+  if(st){const {m,c}=slAt(date);rows=Object.keys(m).map(k=>{const it=D.items.find(x=>String(x.id)==k),en=c[k];return{code:it?it.code:(en.code||'?'),desc:it?it.desc:'(articolo eliminato)',um:it?it.um:(en.um||''),cat:it?it.cat:'',s:m[k],cost:en&&en.c!=null?en.c:(it?+it.cost||0:0)}})}
+  else rows=D.items.filter(x=>!x.out).map(it=>({code:it.code,desc:it.desc,um:it.um,cat:it.cat,s:+it.stock||0,cost:+it.cost||0}));
+  rows=rows.filter(r=>r.s>=SL_MIN);
+  if(!rows.length)return e('Alla data scelta non risultano articoli con giacenza.');
+  $('#dlg').close();
+  const doc=pdfDoc('Inventario al '+dt(date),rows.length+(rows.length==1?' articolo':' articoli')+'   |   Generato il '+today(),false);
+  const head=['Codice','Descrizione','UM','Giacenza'].concat(val?['Costo unit.','Valore']:[]),n=head.length;
+  const body=[];let tot=0;
+  const line=r=>{const v=r.s*r.cost;tot+=v;return [String(r.code),String(r.desc||''),String(r.um||''),fN(r.s)].concat(val?[eur2(r.cost),eur2(v)]:[])};
+  const srt=a=>a.sort((x,y)=>String(x.code).localeCompare(String(y.code),'it',{numeric:true}));
+  if(byCat)catGroups(rows).forEach(g=>{const sub=g.a.reduce((t,r)=>t+r.s*r.cost,0);body.push([{content:g.n+'  ('+g.a.length+')'+(val?'   -   valore '+eur2(sub):''),colSpan:n,styles:{fontStyle:'bold',fillColor:[225,229,236]}}]);g.a.forEach(r=>body.push(line(r)))});
+  else srt(rows).forEach(r=>body.push(line(r)));
+  if(val)body.push([{content:'Valore totale delle giacenze',colSpan:n-1,styles:{fontStyle:'bold',halign:'right'}},{content:eur2(tot),styles:{fontStyle:'bold',halign:'right'}}]);
+  const cs={3:{halign:'right'}};if(val){cs[4]={halign:'right'};cs[5]={halign:'right'}}
+  pdfTbl(doc,head,body,{columnStyles:cs});
+  await pdfSave(doc,'Inventario_al_'+date+'.pdf');
+}
+// ---- finestra: storico dei movimenti
+let SLQ={a:'',b:'',q:''};
+function slOpen(){SLQ={a:'',b:'',q:''};const d=$('#dlg');d.oninput=null;d.classList.add('wide');d.oncancel=null;
+  d.innerHTML=`<div class="dh"><h2>Storico movimenti di magazzino</h2></div><div class="db" style="display:block">
+  <div class="tools"><label style="flex-direction:row;gap:6px;align-items:center">Dal <input type="date" id="sl_a"></label><label style="flex-direction:row;gap:6px;align-items:center">al <input type="date" id="sl_b"></label><input id="sl_q" placeholder="Cerca articolo o causale" style="flex:1;min-width:180px"></div>
+  <div id="sl_t"></div></div><div class="df"><button class="b" onclick="slPdf()">Esporta PDF</button><button class="b pri" onclick="$('#dlg').close()">Chiudi</button></div>`;
+  ['a','b','q'].forEach(k=>$('#sl_'+k).oninput=e=>{SLQ[k]=e.target.value;slDraw()});
+  d.showModal();slDraw()}
+function slRows(){const q=SLQ.q.toLowerCase();return(D.sl||[]).filter(e=>e.id!=='start'&&(!SLQ.a||e.d>=SLQ.a)&&(!SLQ.b||e.d<=SLQ.b)&&(!q||((e.code||'')+' '+(e.why||'')+' '+(itm(e.item).desc||'')).toLowerCase().includes(q))).sort((x,y)=>String(y.t).localeCompare(String(x.t)))}
+function slDraw(){const a=slRows(),st=slStart();
+  $('#sl_t').innerHTML=(st?'':'<div class="mut" style="margin:8px 0">Il registro parte al prossimo salvataggio.</div>')+`<div class="tw"><table style="min-width:640px"><thead><tr><th>Data</th><th>Articolo</th><th>Causale</th><th style="text-align:right">Variazione</th><th style="text-align:right">Giacenza dopo</th><th>Utente</th></tr></thead><tbody>${a.slice(0,300).map(e=>`<tr><td>${esc(nowIt?nowIt(e.t):e.d)}</td><td><b>${esc(e.code||'?')}</b> <span class="mut">${esc(itm(e.item).desc||'')}</span></td><td>${esc(e.why||'')}</td><td style="text-align:right" class="${e.q<0?'neg':'pos'}">${e.q>0?'+':''}${fN(e.q)} ${esc(e.um||'')}</td><td style="text-align:right">${fN(e.s)}</td><td>${esc(e.u||'')}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">Nessun movimento.</td></tr>'}</tbody></table></div>${a.length>300?`<div class="mut">Mostrati i 300 più recenti su ${a.length}: restringi le date o esporta il PDF per averli tutti.</div>`:''}`}
+async function slPdf(){const a=slRows();if(!a.length)return alert('Nessun movimento da esportare.');if(!pdfReady())return;
+  const doc=pdfDoc('Movimenti di magazzino',a.length+' movimenti'+(SLQ.a||SLQ.b?'   |   Periodo: '+(SLQ.a?dt(SLQ.a):'...')+' - '+(SLQ.b?dt(SLQ.b):'...'):'')+'   |   Generato il '+today(),true);
+  pdfTbl(doc,['Data','Articolo','Causale','Variazione','Giacenza dopo','Utente'],a.map(e=>[nowIt?nowIt(e.t):e.d,(e.code||'?')+' '+(itm(e.item).desc||''),e.why||'',(e.q>0?'+':'')+fN(e.q)+' '+(e.um||''),fN(e.s),e.u||'']),{columnStyles:{3:{halign:'right'},4:{halign:'right'}}});
+  await pdfSave(doc,'Movimenti_magazzino_'+slDay()+'.pdf')}
+
+// ---------- Impostazioni: assegnazione rapida di categorie e prezzi a più prodotti
+let BU={q:'',f:'*',sel:new Set(),mode:'set',val:'',cat:''};
+const buSrt=a=>a.sort((x,y)=>String(x.code).localeCompare(String(y.code),'it',{numeric:true}));
+function buRows(){const q=BU.q.toLowerCase();return buSrt(D.items.filter(i=>(BU.f=='*'||(BU.f===''?!catKey(i.cat):catKey(i.cat)==catKey(BU.f)))&&(!q||(i.code+' '+i.desc+' '+(i.cat||'')).toLowerCase().includes(q))))}
+function buHtml(){
+  const cs=catList(),has0=D.items.some(i=>!catKey(i.cat));
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end;margin-bottom:10px">
+  <label>Cerca<input id="bu_q" value="${esc(BU.q)}" placeholder="Codice, descrizione o categoria" oninput="buQ(this.value)"></label>
+  <label>Mostra categoria<select onchange="buF(this.value)"><option value="*" ${BU.f=='*'?'selected':''}>Tutte</option>${has0?`<option value="" ${BU.f===''?'selected':''}>Senza categoria</option>`:''}${cs.filter(c=>D.items.some(i=>catKey(i.cat)==catKey(c))).map(c=>`<option ${catKey(BU.f)==catKey(c)&&BU.f!==''&&BU.f!='*'?'selected':''}>${esc(c)}</option>`).join('')}</select></label></div>
+  <div id="bu_t"></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:12px">
+   <div class="tw" style="padding:12px 14px"><b>Assegna una categoria ai selezionati</b>
+    <div class="tools" style="margin-top:8px"><input id="bu_c" list="catdl" autocomplete="off" placeholder="Scegli o scrivi una categoria" value="${esc(BU.cat)}" oninput="BU.cat=this.value" style="flex:1;min-width:160px"><button class="b pri" onclick="buCat()">Assegna</button><button class="b" onclick="buCat(1)">Togli categoria</button></div></div>
+   <div class="tw" style="padding:12px 14px"><b>Cambia il prezzo unitario dei selezionati</b>
+    <div class="tools" style="margin-top:8px"><select id="bu_m" onchange="BU.mode=this.value;buPh()"><option value="set" ${BU.mode=='set'?'selected':''}>Imposta il prezzo a (€)</option><option value="pct" ${BU.mode=='pct'?'selected':''}>Aumenta o diminuisci del (%)</option></select><input id="bu_v" type="number" step="any" value="${esc(BU.val)}" oninput="BU.val=this.value" style="width:130px"><button class="b pri" onclick="buPrice()">Applica</button></div>
+    <div class="mut" id="bu_h" style="margin-top:6px"></div></div></div>
+  <datalist id="catdl">${cs.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>`;
+}
+function buPh(){const e=$('#bu_h');if(e)e.textContent=BU.mode=='pct'?'Esempio: 5 aumenta del 5%, -10 diminuisce del 10%. Si applica al costo unitario di ogni articolo selezionato.':'Il prezzo è per unità di misura dell’articolo (€/m, €/kg, €/pz...) e diventa lo stesso per tutti i selezionati.'}
+function buDraw(){
+  const a=buRows(),n=BU.sel.size,all=a.length&&a.every(i=>BU.sel.has(i.id));
+  const e=$('#bu_t');if(!e)return;
+  e.innerHTML=`<div class="tools" style="margin-bottom:6px"><b>${n}</b> ${n==1?'selezionato':'selezionati'} · ${a.length} ${a.length==1?'prodotto mostrato':'prodotti mostrati'}<span style="flex:1"></span><button class="b" onclick="buClr()" ${n?'':'disabled'}>Deseleziona tutto</button></div>
+  <div class="tw" style="max-height:340px;overflow:auto"><table style="min-width:560px"><thead><tr><th style="width:34px"><input type="checkbox" ${all?'checked':''} onchange="buAll(this.checked)" title="Seleziona tutti i mostrati"></th><th>Codice</th><th>Descrizione</th><th>Categoria</th><th style="text-align:right">Prezzo unitario</th></tr></thead><tbody>${a.slice(0,500).map(i=>`<tr><td><input type="checkbox" ${BU.sel.has(i.id)?'checked':''} onchange="buTog(${i.id},this.checked)"></td><td><b>${esc(i.code)}</b></td><td>${esc(i.desc)}</td><td>${esc(catName(i.cat))||'<span class="mut">-</span>'}</td><td style="text-align:right">${eur2(i.cost)}/${esc(i.um)}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nessun prodotto.</td></tr>'}</tbody></table></div>${a.length>500?`<div class="mut">Mostrati i primi 500: usa la ricerca o il filtro per restringere.</div>`:''}`;
+}
+function buInit(){buDraw();buPh()}
+function buQ(v){BU.q=v;buDraw()}
+function buF(v){BU.f=v;buDraw()}
+function buTog(id,on){on?BU.sel.add(id):BU.sel.delete(id);buDraw()}
+function buAll(on){buRows().forEach(i=>on?BU.sel.add(i.id):BU.sel.delete(i.id));buDraw()}
+function buClr(){BU.sel.clear();buDraw()}
+function buBox(){const e=$('#bubox');if(e){e.innerHTML=buHtml();buInit()}}
+const buSelItems=()=>D.items.filter(i=>BU.sel.has(i.id));
+function buCat(clear){
+  const a=buSelItems();if(!a.length)return toast('Seleziona almeno un prodotto.');
+  const c=clear?'':catName(BU.cat)||String(BU.cat||'').trim();
+  if(!clear&&!c)return toast('Scrivi o scegli la categoria da assegnare.');
+  askConfirm(clear?'Togliere la categoria a '+a.length+(a.length==1?' prodotto?':' prodotti?'):'Assegnare la categoria «'+c+'» a '+a.length+(a.length==1?' prodotto?':' prodotti?'),()=>{
+    a.forEach(i=>{if(c)i.cat=c;else delete i.cat});addLog((clear?'Categoria tolta a ':'Categoria «'+c+'» assegnata a ')+a.length+' prodotti');save();BU.sel.clear();BU.cat='';buBox();toast('Fatto: '+a.length+(a.length==1?' prodotto aggiornato.':' prodotti aggiornati.'))})}
+function buPrice(){
+  const a=buSelItems();if(!a.length)return toast('Seleziona almeno un prodotto.');
+  const v=parseFloat(String(BU.val).replace(',','.'));
+  if(!isFinite(v)||BU.val==='')return toast('Scrivi il valore da applicare.');
+  if(BU.mode=='set'&&v<0)return toast('Il prezzo non può essere negativo.');
+  if(BU.mode=='pct'&&v<=-100)return toast('Una diminuzione del 100% o più azzera i prezzi: scegli un valore maggiore di -100.');
+  const np=i=>Math.round((BU.mode=='set'?v:(+i.cost||0)*(1+v/100))*1e4)/1e4;
+  const ex=a[0];
+  askConfirm((BU.mode=='set'?'Impostare a '+eur2(v)+' il prezzo unitario di ':'Cambiare del '+(v>0?'+':'')+String(v).replace('.',',')+'% il prezzo unitario di ')+a.length+(a.length==1?' prodotto':' prodotti')+'? Esempio: '+ex.code+' passa da '+eur2(ex.cost)+' a '+eur2(np(ex))+'/'+ex.um+'.',()=>{
+    a.forEach(i=>{const p=np(i);i.cost=p;i.ca=(i.uc&&+i.fc>0)?r4(p*i.fc):p});
+    addLog('Prezzo unitario '+(BU.mode=='set'?'impostato a '+eur2(v):'variato del '+v+'%')+' su '+a.length+' prodotti');save();BU.sel.clear();BU.val='';buBox();toast('Prezzi aggiornati su '+a.length+(a.length==1?' prodotto.':' prodotti.'))})}
+
+// ---------- Anagrafica: scheda di cliente / fornitore con tutto ciò che li riguarda
+let AN={k:'cl',id:0,tab:''};
+function anData(){
+  const id=AN.id;
+  if(AN.k=='cl'){
+    const jobs=D.jobs.filter(j=>j.client==id).sort((a,b)=>String(b.due||'').localeCompare(String(a.due||''))),
+      qs=D.quotes.filter(q=>q.client==id&&(q.kind||'Q')=='Q').sort((a,b)=>String(b.date).localeCompare(String(a.date))),
+      oc=D.quotes.filter(q=>q.client==id&&q.kind=='O').sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+    return{jobs,qs,oc}}
+  const ords=D.orders.filter(o=>ordSup(o)==id).sort((a,b)=>String(b.due||'').localeCompare(String(a.due||''))),
+    rc=D.rcv.filter(r=>r.sup==id).sort((a,b)=>String(b.date).localeCompare(String(a.date))||b.id-a.id),
+    prods=D.items.filter(i=>i.sup==id).sort((a,b)=>String(a.code).localeCompare(String(b.code),'it',{numeric:true}));
+  return{ords,rc,prods}}
+function anOpen(k,id,tab){
+  AN={k,id,tab:tab||''};const r=D[k].find(x=>x.id==id);if(!r)return;
+  const d=$('#dlg');d.oninput=null;d.classList.add('wide');d.oncancel=null;
+  d.innerHTML=`<div class="dh"><h2>${esc(r.n)}</h2></div><div class="db" style="display:block" id="an_b"></div>
+  <div class="df"><button class="b" onclick="$('#dlg').close()">Chiudi</button>${lv(k)>=2?`<button class="b pri" onclick="ed('${k}',${id})">Modifica anagrafica</button>`:''}</div>`;
+  anDraw();d.showModal()}
+function anDraw(){
+  const {k,id}=AN,r=D[k].find(x=>x.id==id),e=$('#an_b');if(!r||!e)return;const x=anData();
+  const info=[['P. IVA',r.iva],['Referente',r.ref],['Telefono',r.tel],...(k=='sup'?[['Categoria',r.cat]]:[])].filter(a=>a[1]);
+  let tabs,stats;
+  if(k=='cl'){
+    const openJ=x.jobs.filter(j=>!['Consegnata','Fatturata'].includes(j.status)),totJ=x.jobs.reduce((a,j)=>a+(+j.price||0),0),openQ=x.qs.filter(q=>QK.Q.open.includes(q.status));
+    stats=[[x.jobs.length,'commesse'+(openJ.length?' ('+openJ.length+' aperte)':'')],[eur(totJ),'valore commesse'],[openQ.length,'preventivi aperti'+(openQ.length?' · '+eur(openQ.reduce((a,q)=>a+(+q.price||0),0)):'')]];
+    tabs=[['jobs','Commesse',x.jobs.length],['qs','Preventivi',x.qs.length],['oc','Ordini cliente',x.oc.length]]}
+  else{
+    const openO=x.ords.filter(o=>o.status!='Ricevuto'),rec=x.ords.filter(o=>o.status=='Ricevuto');
+    stats=[[openO.length,'ordini aperti'+(openO.length?' · '+eur(openO.reduce((a,o)=>a+o.qty*o.price,0)):'')],[x.rc.length,'arrivi merce'],[eur(rec.reduce((a,o)=>a+o.qty*o.price,0)),'ordinato e ricevuto']];
+    tabs=[['ords','Ordini materiale',x.ords.length],['rc','Arrivi merce',x.rc.length],['prods','Prodotti',x.prods.length]]}
+  if(!AN.tab||!tabs.some(t=>t[0]==AN.tab))AN.tab=tabs[0][0];
+  const T=(h,rows,empty)=>`<div class="tw"><table style="min-width:560px"><thead><tr>${h.map(c=>`<th${c[0]=='>'?' class="n"':''}>${c.replace(/^>/,'')}</th>`).join('')}</tr></thead><tbody>${rows.join('')||`<tr><td colspan="${h.length}" class="empty">${empty}</td></tr>`}</tbody></table></div>`;
+  let body='';
+  if(AN.tab=='jobs')body=T(['Commessa','Descrizione','Consegna','Stato','>Importo'],x.jobs.map(j=>`<tr class="row" onclick="editJob(${j.id})"><td><b>${esc(j.code)}</b></td><td>${esc(j.desc||'')}</td><td>${j.due?dt(j.due):'-'}</td><td>${esc(j.status||'')}</td><td class="n">${eur(j.price)}</td></tr>`),'Nessuna commessa per questo cliente.');
+  if(AN.tab=='qs'||AN.tab=='oc'){const l=AN.tab=='qs'?x.qs:x.oc;body=T(['Numero','Oggetto','Data','Stato','>Imponibile'],l.map(q=>`<tr class="row" onclick="editQuote(${q.id})"><td><b>${esc(q.num)}</b></td><td>${esc(q.desc||'')}</td><td>${dt(q.date)}</td><td>${esc(q.status)}${q.job?' · '+esc(jcode(q.job)):''}</td><td class="n">${eur(q.price)}</td></tr>`),AN.tab=='qs'?'Nessun preventivo.':'Nessun ordine cliente.')}
+  if(AN.tab=='ords')body=T(['Ordine','Articolo','Commessa','Consegna','Stato','>Totale'],x.ords.map(o=>`<tr class="row" onclick="ed('orders',${o.id})"><td>${esc(o.poNum||'-')}</td><td>${esc(ordName(o))} <span class="mut">${fN(o.qty)} ${esc(ordUm(o))}</span></td><td>${esc(jb(o.job))}</td><td>${o.due?dt(o.due):'-'}</td><td>${esc(o.status)}</td><td class="n">${eur2(o.qty*o.price)}</td></tr>`),'Nessun ordine a questo fornitore.');
+  if(AN.tab=='rc')body=T(['Data','N. documento','Articoli','Commessa'],x.rc.map(r2=>`<tr class="row" onclick="rcvOpen(${r2.id})"><td>${dt(r2.date)}</td><td>${esc(r2.doc||'-')}</td><td>${(r2.lines||[]).length}</td><td>${r2.job?esc(jcode(r2.job)):'<span class="mut">Scorta</span>'}</td></tr>`),'Nessun arrivo di merce da questo fornitore.');
+  if(AN.tab=='prods')body=T(['Codice','Descrizione','Categoria','>Giacenza','>Costo unitario'],x.prods.map(i=>`<tr class="row" onclick="ed('prod',${i.id})"><td><b>${esc(i.code)}</b></td><td>${esc(i.desc)}</td><td>${esc(catName(i.cat))||'<span class="mut">-</span>'}</td><td class="n">${fN(i.stock)} ${esc(i.um)}</td><td class="n">${eur2(i.cost)}/${esc(i.um)}</td></tr>`),'Nessun prodotto abbinato a questo fornitore.');
+  e.innerHTML=`${info.length?`<div class="mut" style="margin-bottom:10px">${info.map(a=>a[0]+': <b>'+esc(a[1])+'</b>').join(' &nbsp;·&nbsp; ')}</div>`:''}
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-bottom:12px">${stats.map(s=>`<div class="tw" style="padding:8px 12px"><div style="font-size:20px;font-weight:700">${typeof s[0]=='number'?s[0]:s[0]}</div><div class="mut" style="font-size:12px">${esc(s[1])}</div></div>`).join('')}</div>
+  <div class="cchips">${tabs.map(t=>`<button class="${AN.tab==t[0]?'on':''}" onclick="AN.tab='${t[0]}';anDraw()">${t[1]} (${t[2]})</button>`).join('')}</div>${body}`;
+}
+
+// ---------- finestre: pulsante X in alto e salvataggio automatico alla chiusura
+// Chiudendo con la X o con Esc una finestra di modifica in cui si è cambiato qualcosa, i dati vengono salvati da soli.
+// «Annulla» resta il modo per chiudere scartando le modifiche. Se i dati non sono validi la finestra resta aperta e un avviso spiega cosa manca.
+const AUTO_SAVE=/^(sv\(|saveJob\(|qSave\([^,]*\)$|oSave\(|hSave\(|jhSave\()/;
+function dlgPrimary(d){return [...d.querySelectorAll('.df button.pri')].find(b=>AUTO_SAVE.test((b.getAttribute('onclick')||'').trim()))}
+function dlgClose(d){
+  const p=d._dirty?dlgPrimary(d):null;
+  if(p){const a=window.alert;window.alert=m=>{toast(String(m).slice(0,200))};try{p.click()}finally{window.alert=a}return}
+  const ev=new Event('cancel',{cancelable:true});d.dispatchEvent(ev);if(!ev.defaultPrevented&&d.open)d.close()}
+function dlgX(d){
+  if(d.dataset.nox||d.querySelector(':scope > .xclose'))return;
+  const b=document.createElement('button');b.type='button';b.className='xclose';b.setAttribute('aria-label','Chiudi');b.title='Chiudi (le modifiche vengono salvate)';b.textContent='×';b.onclick=()=>dlgClose(d);d.prepend(b)}
+(function(){
+  const sm=HTMLDialogElement.prototype.showModal;
+  HTMLDialogElement.prototype.showModal=function(){sm.apply(this,arguments);this._dirty=false;dlgX(this)};
+  document.querySelectorAll('dialog').forEach(d=>{
+    ['input','change'].forEach(ev=>d.addEventListener(ev,e=>{if(e.target&&e.target.closest&&!e.target.closest('.xclose'))d._dirty=true},true));
+    d.addEventListener('cancel',e=>{if(d._dirty&&dlgPrimary(d)){e.preventDefault();dlgClose(d)}});
+  });
+})();
+
 // ---------- avvio
 (function(){AUTH_READY=true;authInit();let sid=null;try{sid=+sessionStorage.getItem('carp_sess')}catch(e){}
   const u=D.users.find(x=>x.id==sid&&x.on);
@@ -4280,7 +4503,7 @@ setTimeout(()=>{bkWarn();bkAuto()},40000);setInterval(()=>{bkWarn();bkAuto()},15
 (function(){
 const C=window.GC_CLOUD;if(!C)return;
 const API=C.url.replace(/\/+$/,''),PK=C.key,SK='gc_cloud_session',DOM='@gc-gremo.app';
-const COLL=['cl','sup','items','jobs','quotes','orders','moves','hours','rcv','xsheets'];
+const COLL=['cl','sup','items','jobs','quotes','orders','moves','hours','rcv','xsheets','sl'];
 const NOCONF=new Set([...COLL,'users','roles','log']);
 let SES=null,SYNC={},CONFV=null,WM='',PEND=[],pushing=0,again=0,pushT=null,pollT=null,authT=null,online=true,errCnt=0,LOADED=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -4341,6 +4564,7 @@ async function loadAll(){
   migrate();
   // la base di confronto si prende DOPO la migrazione: gli adattamenti automatici non vengono rimandati al server
   COLL.forEach(c=>D[c].forEach(it=>{const s=SYNC[c][keyOf(it)];if(s)s.json=jstr(it)}));
+  try{SLS={};D.items.forEach(i=>SLS[i.id]=r4(+i.stock||0))}catch(e){}
   if(CONFV)CONFV.json=jstr(confObj());
   WM=WM?new Date(new Date(WM).getTime()-2000).toISOString():'1970-01-01T00:00:00.000Z';
 }
@@ -4403,7 +4627,7 @@ async function loadConfOnly(){const cur=await rest('record?coll=eq.conf&id=eq.ma
 async function takeServer(c,id,quiet){
   const cur=await rest('record?coll=eq.'+c+'&id=eq.'+encodeURIComponent(id)+'&select=versione,dati,eliminato');
   const a=D[c],i=a.findIndex(x=>keyOf(x)==id);
-  if(cur&&cur.length&&!cur[0].eliminato){if(i>=0)a[i]=cur[0].dati;else a.push(cur[0].dati);SYNC[c][id]={v:cur[0].versione,json:jstr(cur[0].dati)}}
+  if(cur&&cur.length&&!cur[0].eliminato){if(i>=0)a[i]=cur[0].dati;else a.push(cur[0].dati);if(c=='items'&&typeof slSeen=='function')slSeen(cur[0].dati);SYNC[c][id]={v:cur[0].versione,json:jstr(cur[0].dati)}}
   else{if(i>=0)a.splice(i,1);SYNC[c][id]={v:cur&&cur.length?cur[0].versione:1,json:'',del:1}}
 }
 async function renumber(c,it){
@@ -4437,7 +4661,7 @@ function applyPend(){
     if(i>=0&&!s&&!r.eliminato){a[i].id=Math.max(0,...a.map(x=>+x.id||0),+r.id||0)+1;i=-1;toast('Un altro utente ha creato nello stesso momento un elemento con lo stesso numero: il tuo è stato rinumerato.')}
     if(i>=0&&s&&s.json!==jstr(a[i]))continue;       // modifiche locali non ancora inviate: deciderà il controllo di versione
     if(r.eliminato){if(i>=0)a.splice(i,1);m[r.id]={v:r.versione,json:'',del:1}}
-    else{if(i>=0)a[i]=r.dati;else a.push(r.dati);m[r.id]={v:r.versione,json:jstr(r.dati)}}
+    else{if(i>=0)a[i]=r.dati;else a.push(r.dati);m[r.id]={v:r.versione,json:jstr(r.dati)};if(r.coll=='items'&&typeof slSeen=='function')slSeen(r.dati)}
     ch++;
   }
   if(ch){try{render()}catch(e){}}
@@ -4543,7 +4767,7 @@ logout=function(why){if(ME){try{addLog(why||'Uscita')}catch(e){}}SES=null;saveSe
 addLog=function(ev,u){try{D.log.unshift({t:new Date().toISOString(),u:u||(ME?ME.user:'-'),ev});D.log.length=Math.min(D.log.length,50)}catch(e){}
   if(SES&&ME){rest('log_attivita',{method:'POST',json:{evento:String(ev).slice(0,300)}}).catch(()=>{})}};
 /* ---------- salvataggio da parte dell'app ---------- */
-saveRaw=function(){if(LOADED)schedule()};
+saveRaw=function(){try{if(LOADED&&typeof slDiff=='function')slDiff()}catch(e){console.error(e)}if(LOADED)schedule()};
 save=function(){
   if(ME&&lv(view)<2){toast('Non hai i permessi per modificare questa sezione: modifica non salvata.');LOADED&&loadAll().then(()=>render()).catch(()=>{});return}
   saveRaw()};
@@ -4651,7 +4875,7 @@ window.cloudRestore=async function(o,getBlob,desc){
   toast('Operazione in corso: non chiudere il programma…');
   try{
     for(const f of (o.allegati||[])){let b=null;try{b=await getBlob(f)}catch(e){}if(b){await fPut(f.fid,b);ok++}else no++}
-    COLL.forEach(c=>{D[c]=JSON.parse(jstr(d[c]||[]));ensureIds(c)});
+    COLL.forEach(c=>{if(c=='sl'&&!Array.isArray(d.sl))return;D[c]=JSON.parse(jstr(d[c]||[]));ensureIds(c)});
     for(const k of Object.keys(d))if(!NOCONF.has(k))D[k]=JSON.parse(jstr(d[k]));
     try{migrate()}catch(e){}
     schedule();const fin=await waitSync();
