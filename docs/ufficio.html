@@ -104,6 +104,11 @@ table.dt tbody tr:nth-child(even){background:#f6f8f9}table.dt tr.sel{background:
 .pn{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;border:2px solid #000;border-radius:50%;font-weight:700;font-size:16px;background:#fff}
 dialog.full{width:98vw;max-width:98vw}
 .pi{display:flex;gap:6px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:4px;margin-bottom:6px;cursor:pointer;background:#fff}.pi.sel{background:#fdf0c4;border-color:var(--acc)}.pi .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pi .b{padding:4px 8px;font-size:12px}
+th.bsc,td.bsc{width:38px;min-width:38px;max-width:38px;padding-left:10px!important;padding-right:4px!important;text-align:center}
+.bsc input{width:18px;height:18px;cursor:pointer;accent-color:var(--acc,#e8772e)}
+tr.bss,tr.bss td{background:rgba(232,119,46,.16)!important}
+#bsbar{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:40;display:flex;gap:10px;align-items:center;background:#1f2a44;color:#fff;border-radius:14px;padding:10px 14px;box-shadow:0 8px 28px rgba(0,0,0,.35)}
+#bsbar[hidden]{display:none}#bsbar .b{white-space:nowrap}
 </style>
 <style id="variante">
 /* ===== VARIANTE UFFICIO · stile applicazione Windows ===== */
@@ -193,7 +198,7 @@ body.lock #sb,body.lock #rb{display:none}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;try{t.hidePopover()}catch(e){}try{t.showPopover()}catch(e){}clearTimeout(t._t);t._t=setTimeout(()=>{try{t.hidePopover()}catch(e){}},7000)}
 window.alert=toast;
 function askConfirm(msg,yes){const d=document.getElementById('cfm');document.getElementById('cfmm').textContent=msg;document.getElementById('cfmy').onclick=()=>{d.close();yes()};d.showModal()}
-const APP_VER='1.3.2', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
+const APP_VER='1.3.3', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
 const OLDPH=['Taglio','Saldatura','Assemblaggio','Verniciatura/zincatura','Collaudo','Montaggio'], PHMAP=[0,0,0,1,0,2];
 const V28=['In produzione','Verniciatura/zincatura','Montaggio'];
 const PH=['Produzione','Zincatura/Verniciatura','Montaggio'];
@@ -245,7 +250,7 @@ let D; try{D=JSON.parse(localStorage.getItem(KEY))}catch(e){} if(!D||!D.jobs)D=s
 // adatta i dati salvati con una versione precedente
 let AUTH_READY=false;
 const migrate=()=>{
-  D.xsheets=D.xsheets||[];D.sl=D.sl||[];
+  D.xsheets=D.xsheets||[];D.sl=D.sl||[];D.nt=D.nt||[];
   [...D.jobs,...D.xsheets].forEach(j=>{if(j.sheet){if(!j.docs||!j.docs.length)j.docs=[{...j.sheet,id:1,type:'dist',title:'Distinta di taglio'}];delete j.sheet}});
 if(AUTH_READY)authInit();
 D.rates=D.rates||{c:32,s:42};if(D.rates.cc===undefined)D.rates.cc=D.rates.c;if(D.rates.cs===undefined)D.rates.cs=D.rates.s; // fino a quando non imposti il costo aziendale vale la tariffa precedente
@@ -1479,9 +1484,9 @@ function impLoad(){
 async function impFile(ev){
   const f=ev.target.files[0];if(!f)return;
   const t=IMP?IMP.t:'prod';
-  try{const sheets=await impRead(f);IMP={t,sheets,sh:0,name:f.name,map:{},plan:null,res:null,err:''};
+  try{const sheets=await impRead(f);IMP={t,fixed:IMP&&IMP.fixed,sheets,sh:0,name:f.name,map:{},plan:null,res:null,err:''};
     const best=sheets.findIndex(s=>s.rows.length>0);IMP.sh=best<0?0:best;impLoad()}
-  catch(e){IMP={t,sheets:null,err:e.message||'Impossibile leggere il file.',res:null}}
+  catch(e){IMP={t,fixed:IMP&&IMP.fixed,sheets:null,err:e.message||'Impossibile leggere il file.',res:null}}
   impDraw();
 }
 function impType(t){IMP=Object.assign(IMP||{},{t,plan:null,res:null});if(IMP.sheets)impLoad();impDraw()}
@@ -1558,13 +1563,22 @@ function impTemplate(){
   const csv='﻿'+[h,ex].map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\r\n')+'\r\n';
   const u=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));sfSaveAs(u,'Modello_'+t+'.csv');setTimeout(()=>URL.revokeObjectURL(u),60000);
 }
-// --- interfaccia (scheda in Impostazioni)
+// --- finestra di importazione (aperta dal pulsante «Importa da Excel» di Prodotti, Clienti e Fornitori)
+function impOpen(t){
+  const lvk=t=='prod'?'items':t;if(!ME||lv(lvk)<2){toast('Non hai il permesso di modificare questi dati.');return}
+  IMP={t,fixed:1,sheets:null,res:null,err:'',plan:null};
+  const d=$('#dlg');d.oninput=null;d.classList.add('wide');d.oncancel=null;
+  d.innerHTML=`<div class="dh"><h2>Importa da Excel o CSV · ${IMP_T[t].toLowerCase()}</h2><div class="mut">Scegli il file, controlla a quali campi corrispondono le colonne e guarda l’anteprima prima di importare. Le scelte restano salvate per le prossime volte. Funziona con file .xlsx e CSV.</div></div><div class="db"><div class="full" id="impbox">${impHtml()}</div></div><div class="df"><button class="b pri" onclick="$('#dlg').close()">Chiudi</button></div>`;
+  d.addEventListener('close',()=>{IMP=null;if(ME)render()},{once:true});
+  d.showModal();
+}
+// --- interfaccia
 function impDraw(){const e=document.getElementById('impbox');if(e)e.innerHTML=impHtml()}
 function impHtml(){
   if(!IMP)IMP={t:'prod',sheets:null,res:null,err:''};
   const t=IMP.t,c=impCfg(t),F=IMP_F[t],lab='display:flex;flex-direction:column;font-size:13px;gap:4px',ok=ME&&lv(t=='prod'?'items':t)>=2;
   let h=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;align-items:end">
-   <label style="${lab}">Che cosa vuoi importare<select onchange="impType(this.value)">${Object.entries(IMP_T).map(([k,v])=>`<option value="${k}" ${k==t?'selected':''}>${v}</option>`).join('')}</select></label>
+   ${IMP.fixed?`<div><b style="font-size:16px">${IMP_T[t]}</b></div>`:`<label style="${lab}">Che cosa vuoi importare<select onchange="impType(this.value)">${Object.entries(IMP_T).map(([k,v])=>`<option value="${k}" ${k==t?'selected':''}>${v}</option>`).join('')}</select></label>`}
    <label style="${lab}">File Excel (.xlsx) o CSV<input type="file" accept=".xlsx,.xlsm,.csv,.txt,.tsv" onchange="impFile(event)"></label>
    <div class="tools" style="margin:0"><button class="b" onclick="impTemplate()" title="Un file CSV con le colonne giuste, da compilare">Scarica modello CSV</button>${IMP_UNDO?'<button class="b dng" onclick="impUndo()">Annulla ultima importazione</button>':''}</div></div>`;
   if(IMP.err)h+=`<div class="rsn neg" style="margin-top:10px">${esc(IMP.err)}</div>`;
@@ -1624,8 +1638,7 @@ function settingsView(){
   card('Personale','Gli operai selezionabili nella registrazione delle ore. Il tipo decide quale costo orario aziendale si applica. Chi ha ore registrate non si può eliminare.',
     SD.ops.map((o,i)=>row(`<input value="${esc(o.n)}" style="flex:1;min-width:160px" oninput="sdSet('ops',${i},'n',this.value)">${tsel(i,o.t)}${use('ops',o)}${btns('ops',i,false)}`)).join('')+
     row(`<input id="newops" placeholder="Nome nuovo operaio" style="flex:1;min-width:160px"><select id="newopt"><option value="C">Operaio comune</option><option value="S">Operaio specializzato</option></select><button class="b pri" onclick="sdAdd('ops')">Aggiungi</button>`))+
-  card('Categorie e prezzi dei prodotti','Seleziona più prodotti insieme (con la ricerca o il filtro per categoria) e assegna a tutti la stessa categoria oppure cambia il prezzo unitario: impostandolo a un valore o con una variazione in percentuale. Le modifiche si applicano subito e non dipendono dal pulsante «Salva impostazioni».',`<div id="bubox">${buHtml()}</div>`)+
-  card('Importazione da Excel o CSV','Carica un file con prodotti, clienti o fornitori: scegli quali colonne corrispondono ai campi del programma, controlla l’anteprima e importa. Le scelte fatte (colonne e opzioni) restano salvate per le prossime importazioni. Funziona con file .xlsx e CSV.',`<div id="impbox">${impHtml()}</div>`)+
+  card('Categorie dei prodotti','Le categorie suddividono l’elenco dei prodotti e dell’inventario. Qui puoi aggiungerne di nuove, rinominarle (scrivi il nuovo nome e premi Invio) o eliminarle. Le modifiche valgono subito e non dipendono dal pulsante «Salva impostazioni».',`<div id="catbox">${catHtml()}</div>`)+
   card('Stati della commessa','Completato, Consegnata e Fatturata sono usati dal programma (fatturazione, commesse in corso) e non si possono modificare. Uno stato usato da commesse non si può eliminare.',list('st'))+
   card('Priorità','La prima voce è evidenziata come priorità massima nell’elenco commesse. Una priorità usata da commesse non si può eliminare.',list('prio'))+
   card('Fasi di produzione','Le fasi mostrate nell’avanzamento di ogni commessa e nella registrazione delle ore. Eliminando una fase se ne perde l’avanzamento nelle commesse; le ore già registrate restano.',list('ph'))+
@@ -1635,10 +1648,40 @@ function settingsView(){
 const CAT_DEF=['Profilati','Lamiere','Tubolari','Piatti e tondi','Bulloneria','Saldatura e consumabili','Vernici e trattamenti','Ferramenta','Altro'];
 let catF='';
 const catKey=c=>String(c||'').trim().toLowerCase();
-const catName=c=>{const k=catKey(c);if(!k)return '';const d=CAT_DEF.find(x=>catKey(x)==k);if(d)return d;const l=D.items.filter(i=>catKey(i.cat)==k).map(i=>String(i.cat).trim());return l.find(x=>x!==x.toLowerCase())||l[0]||String(c).trim()};
-function catList(){const m=new Map();CAT_DEF.forEach(c=>m.set(catKey(c),c));D.items.forEach(i=>{const k=catKey(i.cat);if(k&&!m.has(k))m.set(k,String(i.cat).trim())});return [...m.values()].sort((a,b)=>a.localeCompare(b,'it'))}
+const catBase=()=>D.cats||CAT_DEF;
+const catName=c=>{const k=catKey(c);if(!k)return '';const d=catBase().find(x=>catKey(x)==k);if(d)return d;const l=D.items.filter(i=>catKey(i.cat)==k).map(i=>String(i.cat).trim());return l.find(x=>x!==x.toLowerCase())||l[0]||String(c).trim()};
+function catList(){const m=new Map();catBase().forEach(c=>m.set(catKey(c),c));D.items.forEach(i=>{const k=catKey(i.cat);if(k&&!m.has(k))m.set(k,String(i.cat).trim())});return [...m.values()].sort((a,b)=>a.localeCompare(b,'it'))}
 function catGroups(a){const g=new Map();a.forEach(x=>{const k=catKey(x.cat);if(!g.has(k))g.set(k,{n:k?catName(x.cat):'Senza categoria',a:[]});g.get(k).a.push(x)});
   return [...g.entries()].sort((p,q)=>(p[0]===''?1:0)-(q[0]===''?1:0)||p[1].n.localeCompare(q[1].n,'it')).map(e=>{e[1].a.sort((x,y)=>String(x.code).localeCompare(String(y.code),'it',{numeric:true}));return e[1]})}
+// ---- gestione delle categorie (Impostazioni): si aggiungono, rinominano ed eliminano subito, senza «Salva impostazioni»
+const catCount=k=>D.items.filter(i=>catKey(i.cat)==k).length;
+function catHtml(){
+  const l=catList();
+  return `<div class="tw" style="max-width:640px"><table style="min-width:0"><thead><tr><th>Categoria</th><th class="n">Prodotti</th><th></th></tr></thead><tbody>${l.length?l.map(c=>`<tr><td><input value="${esc(c)}" data-n="${esc(c)}" style="width:100%;min-width:200px" onchange="catRen(this)" title="Modifica il nome e premi Invio"></td><td class="n">${catCount(catKey(c))}</td><td style="white-space:nowrap"><button class="b dng" data-n="${esc(c)}" onclick="catDel(this.dataset.n)">Elimina</button></td></tr>`).join(''):'<tr><td colspan="3" class="empty">Nessuna categoria. Aggiungine una qui sotto.</td></tr>'}</tbody></table></div>
+  <div class="tools" style="margin-top:10px"><input id="catnew" placeholder="Nome della nuova categoria" style="flex:1;min-width:200px;max-width:380px" onkeydown="if(event.key=='Enter')catAdd()"><button class="b pri" onclick="catAdd()">Aggiungi categoria</button></div>`;
+}
+const catBox=()=>{const e=document.getElementById('catbox');if(e)e.innerHTML=catHtml()};
+function catAdd(){
+  const e=document.getElementById('catnew'),v=(e.value||'').trim();if(!v)return toast('Scrivi il nome della nuova categoria.');
+  if(catList().some(c=>catKey(c)==catKey(v)))return toast('Questa categoria esiste già.');
+  D.cats=[...catBase(),v];addLog('Categoria creata: '+v);save();catBox();toast('Categoria «'+v+'» aggiunta.');
+}
+function catRen(el){
+  const old=el.dataset.n,nv=el.value.trim(),ok=catKey(old);
+  if(!nv){el.value=old;return toast('Il nome non può essere vuoto.')}
+  if(nv===old)return;
+  const dup=catList().some(c=>catKey(c)==catKey(nv)&&catKey(c)!=ok);
+  const go=()=>{const seen=new Set();D.cats=catBase().map(c=>catKey(c)==ok?nv:c).filter(c=>{const k=catKey(c);if(seen.has(k))return false;seen.add(k);return true});
+    if(!D.cats.some(c=>catKey(c)==catKey(nv)))D.cats.push(nv);
+    D.items.forEach(i=>{if(catKey(i.cat)==ok)i.cat=nv});addLog('Categoria «'+old+'» rinominata in «'+nv+'»');save();catBox();toast('Categoria rinominata.')};
+  if(dup)askConfirm('Esiste già la categoria «'+catName(nv)+'»: le due categorie verranno unite. Continuare?',go);else go();
+  if(dup)catBox();
+}
+function catDel(n){
+  const k=catKey(n),c=catCount(k);
+  askConfirm('Eliminare la categoria «'+n+'»?'+(c?' I '+c+(c==1?' prodotto resta':' prodotti restano')+' senza categoria.':''),()=>{
+    D.cats=catBase().filter(x=>catKey(x)!=k);D.items.forEach(i=>{if(catKey(i.cat)==k)delete i.cat});addLog('Categoria eliminata: '+n);save();catBox();toast('Categoria eliminata.')});
+}
 function catSet(c){catF=catF===c?'':c;render()}
 function list(k){
   const e=E[k]; let a=[...D[e.c]]; if(k=='items')a=a.filter(invVisible); if(k=='sup')a=a.filter(x=>!x.man);
@@ -1647,9 +1690,9 @@ function list(k){
   if(grp){const gs=catGroups(a);if(catF&&!gs.some(g=>g.n==catF))catF='';
     chips=gs.length>1?`<div class="cchips"><button class="${catF?'':'on'}" onclick="catSet('${catF.replace(/'/g,"\\'")}')">Tutte (${a.length})</button>${gs.map(g=>`<button class="${catF==g.n?'on':''}" onclick="catSet('${g.n.replace(/'/g,"\\'")}')">${esc(g.n)} (${g.a.length})</button>`).join('')}</div>`:'';
     gh=gs.filter(g=>!catF||g.n==catF)}
-  const rowH=x=>`<tr ${k=='items'?'':`class="row" onclick="${k=='cl'||k=='sup'?'anOpen':'ed'}('${k}',${x.id})"`} ${k=='items'&&incoming(x).length?'style="background:rgba(255,212,59,.35)" title="Ordinato al fornitore: merce in arrivo"':''}>${e.r(x).map(c=>`<td>${c}</td>`).join('')}</tr>`;
+  const rowH=x=>`<tr data-id="${x.id}" ${k=='items'?'':`class="row" onclick="${k=='cl'||k=='sup'?'anOpen':'ed'}('${k}',${x.id})"`} ${k=='items'&&incoming(x).length?'style="background:rgba(255,212,59,.35)" title="Ordinato al fornitore: merce in arrivo"':''}>${e.r(x).map(c=>`<td>${c}</td>`).join('')}</tr>`;
   const rows=grp&&gh?gh.map(g=>`<tr class="grp"><td colspan="${e.h.length}">${esc(g.n)}<small>${g.a.length} ${g.a.length==1?'articolo':'articoli'}</small></td></tr>`+g.a.map(rowH).join('')).join(''):a.map(rowH).join('');
-  return `${chips}<div class="tools"><input id="lq" placeholder="Cerca" style="flex:1;min-width:200px"><button class="b" onclick="pdfSection('${k}')">Esporta PDF</button>${k=='items'?`${lv('rcv')>0?'<button class="b" onclick="goView(\'rcv\')">Carico merce</button>':''}${lv('moves')>0?'<button class="b" onclick="goView(\'moves\')">Scarico merce</button>':''}<button class="b" onclick="rtOpen()">Rettifica giacenze</button><button class="b" onclick="invOpen()">Inventario a una data</button><button class="b" onclick="slOpen()">Storico movimenti</button><label style="display:inline-flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" ${invZ?'checked':''} onchange="invZ=this.checked;render()"> Mostra anche esauriti</label>`:''}${k=='items'?'':`<button class="b pri" onclick="ed('${k}')">${e.nw}</button>`}</div>${k=='items'?'<div class="mut" style="margin:0 0 6px">Sono mostrati solo gli articoli con giacenza di almeno 1. Le giacenze si modificano solo con «Rettifica giacenze», «Carico merce» e «Scarico merce». Le caratteristiche dei prodotti si cambiano da Magazzino › Prodotti.</div>':''}
+  return `${chips}<div class="tools"><input id="lq" placeholder="Cerca" style="flex:1;min-width:200px"><button class="b" onclick="pdfSection('${k}')">Esporta PDF</button>${['prod','cl','sup'].includes(k)&&lv(k=='prod'?'items':k)>=2?`<button class="b" onclick="impOpen('${k}')">Importa da Excel</button>`:''}${k=='prod'&&lv('items')>=2?`<button class="b" onclick="buOpen()">Categorie e prezzi</button>`:''}${k=='items'?`${lv('rcv')>0?'<button class="b" onclick="goView(\'rcv\')">Carico merce</button>':''}${lv('moves')>0?'<button class="b" onclick="goView(\'moves\')">Scarico merce</button>':''}<button class="b" onclick="rtOpen()">Rettifica giacenze</button><button class="b" onclick="invOpen()">Inventario a una data</button><button class="b" onclick="slOpen()">Storico movimenti</button><label style="display:inline-flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" ${invZ?'checked':''} onchange="invZ=this.checked;render()"> Mostra anche esauriti</label>`:''}${k=='items'?'':`<button class="b pri" onclick="ed('${k}')">${e.nw}</button>`}</div>${k=='items'?'<div class="mut" style="margin:0 0 6px">Sono mostrati solo gli articoli con giacenza di almeno 1. Le giacenze si modificano solo con «Rettifica giacenze», «Carico merce» e «Scarico merce». Le caratteristiche dei prodotti si cambiano da Magazzino › Prodotti.</div>':''}
   <div class="tw"><table id="lt"><thead><tr>${e.h.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${a.length?rows:`<tr><td colspan="${e.h.length}" class="empty">Ancora nessun dato. Usa il pulsante in alto per aggiungerne.</td></tr>`}</tbody></table></div>`;
 }
 const F=(id,l,v,t='text',x='')=>`<label ${x}>${l}<input id="${id}" type="${t}" value="${esc(v)}" ${t=='number'?'min="0" step="any"':''}></label>`;
@@ -1669,8 +1712,32 @@ function ed(k,id){
   $('#dlg').innerHTML=`<div class="dh"><h2>${old?'Modifica':e.nw}</h2></div><div class="db">${e.f.map(f=>f.t=='sel'?S(f.k,f.l,f.o(),rec[f.k]):f.t=='item'?IC(f.k,f.l,rec[f.k]):(k=='prod'&&f.k=='cat'?F(f.k,f.l,rec[f.k],'text','').replace('<input ','<input list="catdl" autocomplete="off" '):F(f.k,f.l,rec[f.k],f.t||'text',f.full?'class="full"':''))).join('')}<datalist id="catdl">${catList().map(c=>`<option value="${esc(c)}">`).join('')}</datalist><datalist id="artlist">${D.items.map(i=>`<option value="${esc(i.code)}">${esc(i.desc)}</option>`).join('')}</datalist></div>
   <div class="df">${old?(blocked?'<span class="mut l">Già usato in altri dati: non eliminabile.</span>':`<button class="b dng l" onclick="del('${k}',${id})">Elimina</button>`):''}<button class="b" onclick="$('#dlg').close()">Annulla</button><button class="b pri" onclick="sv('${k}',${id||0})">Salva</button></div>`;
   $('#dlg').showModal();
-  if(k=='prod'){const cp=()=>{const g=i=>$('#'+i).value,ca=+g('ca')||0,uc=g('uc').trim(),pc=+g('pc')||0,fc=pc>0?1/pc:(+g('fc')||0),um=g('um');const el=$('#costprev');if(el)el.textContent=(uc&&fc>0&&nu(uc)!=nu(um))?'Costo in inventario (per '+um+'): '+eur2(ca/fc):''};
-    $('#ca').insertAdjacentHTML('afterend','<small class="mut" id="costprev"></small>');$('#dlg').oninput=cp;cp();
+  if(k=='prod'){
+    // unità e prezzo guidati: la logica (unità di acquisto, conversione, costo) è la stessa, cambia solo come si inserisce
+    const g=x=>$('#'+x),lab=x=>g(x).closest('label'),setL=(x,t)=>{const l=lab(x);if(l&&l.firstChild)l.firstChild.nodeValue=t},num=v=>{v=+String(v).replace(',','.');return isFinite(v)?v:0};
+    lab('pc').style.display=lab('fc').style.display='none';
+    const on0=!!String(rec.uc||'').trim(),dir0=(+rec.pc>0)?'pc':(+rec.fc>0?'fc':(nu(rec.uc||'')=='kg'?'pc':'fc')),n0=dir0=='pc'?(+rec.pc||''):(+rec.fc||'');
+    lab('uc').insertAdjacentHTML('beforebegin',`<label class="full" style="flex-direction:row;display:flex;gap:8px;align-items:center;color:var(--ink);font-size:15px"><input type="checkbox" id="cv_on" style="width:auto" ${on0?'checked':''}> Lo acquisto in un’unità diversa da quella con cui lo vendo (es. compro a kg, vendo a metro)</label>`);
+    lab('uc').insertAdjacentHTML('afterend',`<div class="full" id="cv_row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px"><label>Come si converte<select id="cv_d"><option value="fc" ${dir0=='fc'?'selected':''}></option><option value="pc" ${dir0=='pc'?'selected':''}></option></select></label><label>Valore<input id="cv_n" type="number" min="0" step="any" value="${n0}"></label></div>`);
+    $('#ca').insertAdjacentHTML('afterend','<small class="mut" id="costprev"></small>');
+    g('cv_row').after(lab('ca'));lab('ca').after(lab('kg'));lab('ca').style.gridColumn='span 1';
+    let ucBak=rec.uc||'';
+    const cp=()=>{
+      if(!document.getElementById('cv_on'))return;
+      const on=g('cv_on').checked,um=g('um').value,uc=g('uc').value.trim();
+      lab('uc').style.display=g('cv_row').style.display=on?'':'none';
+      if(!on){if(uc)ucBak=uc;g('uc').value='';g('pc').value=0;g('fc').value=0}
+      else{if(!uc&&ucBak)g('uc').value=ucBak;const d=g('cv_d').value,n=num(g('cv_n').value);g('pc').value=d=='pc'?n:0;g('fc').value=d=='fc'?n:0}
+      const u2=on?g('uc').value.trim():'',ua=u2||'unità di acquisto',pc=num(g('pc').value),fc=pc>0?1/pc:num(g('fc').value),ca=num(g('ca').value);
+      g('cv_d').options[0].text='Quante '+um+' sono 1 '+ua;g('cv_d').options[1].text='Quanti '+ua+' ci sono in 1 '+um;
+      setL('uc','Unità in cui lo acquisto (es. kg, barra, lastra)');setL('kg','Peso di 1 '+um+' in kg (facoltativo)');
+      setL('ca','Prezzo di acquisto (€ per '+(u2||um)+')');setL('um','Unità in cui lo vendo e lo scarico sulle commesse');
+      const el=g('costprev'),kgOk=!(pc>0||num(g('fc').value)>0)&&nu(u2)=='kg'&&num(g('kg').value)>0;
+      el.textContent=(on&&u2&&nu(u2)!=nu(um))?((fc>0||kgOk)?'Costo in magazzino: '+eur2(kgOk?ca*num(g('kg').value):ca/fc)+' per '+um:'Indica la conversione per vedere il costo per '+um+'.'):'';
+    };
+    $('#dlg').oninput=cp;$('#dlg').onchange=cp;cp();
+    if(!old)g('cat').addEventListener('change',()=>{const ru=(D.catRules||{})[catKey(g('cat').value)];if(!ru||g('cv_on').checked)return;
+      if(ru.um)g('um').value=ru.um;g('cv_on').checked=true;g('uc').value=ru.uc;g('cv_d').value=ru.dir=='pc'?'pc':'fc';g('cv_n').value=ru.dir=='peso'?'':ru.n;cp()});
     PRID=id||0;CODE_AUTO=old?'\u0000':'';const c=$('#code'),d=$('#desc');
     c.insertAdjacentHTML('afterend','<small class="mut">Il codice si compila in automatico dalla descrizione (es. Trave HEA 200 → HEA-200). Puoi modificarlo.</small>');
     d.addEventListener('input',()=>codeAuto(false));
@@ -4392,19 +4459,75 @@ function buHtml(){
     <div class="tools" style="margin-top:8px"><input id="bu_c" list="catdl" autocomplete="off" placeholder="Scegli o scrivi una categoria" value="${esc(BU.cat)}" oninput="BU.cat=this.value" style="flex:1;min-width:160px"><button class="b pri" onclick="buCat()">Assegna</button><button class="b" onclick="buCat(1)">Togli categoria</button></div></div>
    <div class="tw" style="padding:12px 14px"><b>Cambia il prezzo unitario dei selezionati</b>
     <div class="tools" style="margin-top:8px"><select id="bu_m" onchange="BU.mode=this.value;buPh()"><option value="set" ${BU.mode=='set'?'selected':''}>Imposta il prezzo a (€)</option><option value="pct" ${BU.mode=='pct'?'selected':''}>Aumenta o diminuisci del (%)</option></select><input id="bu_v" type="number" step="any" value="${esc(BU.val)}" oninput="BU.val=this.value" style="width:130px"><button class="b pri" onclick="buPrice()">Applica</button></div>
-    <div class="mut" id="bu_h" style="margin-top:6px"></div></div></div>
+    <div class="mut" id="bu_h" style="margin-top:6px"></div></div>
+   <div id="bu_cvb" style="display:contents">${buCvHtml()}</div></div>
   <datalist id="catdl">${cs.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>`;
 }
+// ---- conversione acquisto/vendita su più prodotti o su un'intera categoria
+BU.cv={um:'',uc:'kg',dir:'peso',n:''};
+function buCvHtml(){
+  const c=BU.cv,um=c.um||'unità di vendita',ua=c.uc.trim()||'unità di acquisto',catSel=BU.f!=='*'&&BU.f!=='',n=D.items.filter(i=>catKey(i.cat)==catKey(BU.f)).length;
+  return `<div class="tw" style="padding:12px 14px;grid-column:1/-1"><b>Acquisto e vendita in unità diverse (es. lamiere: compro a kg, vendo al m)</b>
+   <div class="mut" style="margin:4px 0 8px">Imposta una volta sola l’unità di acquisto e la conversione: vale per i prodotti selezionati oppure per tutta la categoria scelta nel filtro «Mostra categoria». Il costo per unità di vendita già inserito non cambia: il programma ricalcola il prezzo per unità di acquisto.</div>
+   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end">
+    <label>Unità in cui li vendo<select onchange="BU.cv.um=this.value;buCvBox()"><option value="" ${c.um?'':'selected'}>Come ora (non cambiare)</option>${['m','kg','pz','m²'].map(u=>`<option ${c.um==u?'selected':''}>${u}</option>`).join('')}</select></label>
+    <label>Unità in cui li acquisto<input value="${esc(c.uc)}" list="bu_ul" oninput="BU.cv.uc=this.value;buCvHint()" onchange="buCvBox()"><datalist id="bu_ul"><option value="kg"><option value="m"><option value="pz"><option value="m²"><option value="barra"><option value="lastra"><option value="conf"></datalist></label>
+    <label>Come si converte<select onchange="BU.cv.dir=this.value;buCvBox()"><option value="peso" ${c.dir=='peso'?'selected':''}>Usa il peso indicato su ogni prodotto (kg per 1 ${esc(um)})</option><option value="fc" ${c.dir=='fc'?'selected':''}>Quante ${esc(um)} sono 1 ${esc(ua)} (stesso valore per tutti)</option><option value="pc" ${c.dir=='pc'?'selected':''}>Quanti ${esc(ua)} ci sono in 1 ${esc(um)} (stesso valore per tutti)</option></select></label>
+    ${c.dir=='peso'?'':`<label>Valore<input type="number" min="0" step="any" value="${esc(c.n)}" oninput="BU.cv.n=this.value;buCvHint()"></label>`}</div>
+   <div class="tools" style="margin-top:10px"><button class="b pri" onclick="buCv(0)">Applica ai selezionati</button>${catSel?`<button class="b pri" onclick="buCv(1)">Applica a tutta la categoria «${esc(catName(BU.f))}» (${n})</button>`:''}<button class="b" onclick="buCvClear()">Togli la conversione ai selezionati</button></div>
+   <div class="mut" id="bu_cvh" style="margin-top:6px"></div></div>`;
+}
+function buCvBox(){const e=$('#bu_cvb');if(e){e.innerHTML=buCvHtml();buCvHint()}}
+function buCvHint(){const e=$('#bu_cvh');if(!e)return;const c=BU.cv;e.textContent=c.dir=='peso'?(nu(c.uc)=='kg'?'I prodotti senza peso indicato vengono saltati: il peso si scrive nella scheda del prodotto.':'Il peso si può usare solo se l’unità di acquisto è il kg.'):''}
+const buCvItems=all=>all?D.items.filter(i=>catKey(i.cat)==catKey(BU.f)):buSelItems();
+function buCv(all){
+  const a=buCvItems(all),c=BU.cv,uc=c.uc.trim();
+  if(!a.length)return toast(all?'Nessun prodotto in questa categoria.':'Seleziona almeno un prodotto.');
+  if(!uc)return toast('Scrivi l’unità in cui acquisti i prodotti.');
+  const n=parseFloat(String(c.n).replace(',','.'));
+  if(c.dir=='peso'&&nu(uc)!='kg')return toast('Il peso si può usare solo se l’unità di acquisto è il kg: scegli un’altra conversione.');
+  if(c.dir!='peso'&&!(n>0))return toast('Scrivi il valore della conversione.');
+  const plan=[];let skipW=0,same=0,umCh=0;
+  a.forEach(i=>{const um=c.um||i.um;if(um!=i.um)umCh++;
+    if(nu(uc)==nu(um)){plan.push({i,um,clear:1});same++;return}
+    let pc=0,fc=0;
+    if(c.dir=='peso'){if(!(+i.kg>0)){skipW++;return}pc=+i.kg;fc=1/pc}else if(c.dir=='pc'){pc=n;fc=1/n}else{fc=n}
+    plan.push({i,um,pc,fc})});
+  if(!plan.length)return toast('Nessun prodotto aggiornabile: '+skipW+' senza peso indicato.');
+  const ex=plan.find(p=>!p.clear)||plan[0],e1=ex.i;
+  askConfirm('Impostare l’acquisto in '+uc+(c.um?' e la vendita in '+c.um:'')+' su '+plan.length+(plan.length==1?' prodotto':' prodotti')+'? '+(ex.clear?'':'Esempio: '+e1.code+' costa '+eur2(e1.cost)+'/'+ex.um+', cioè '+eur2(r4((+e1.cost||0)*ex.fc))+'/'+uc+'. ')+(umCh?'ATTENZIONE: cambia l’unità di vendita di '+umCh+' prodotti, ma giacenze e costi restano com’erano: controllali. ':'')+(skipW?skipW+' prodotti senza peso verranno saltati. ':'')+(same?same+' hanno l’unità di acquisto uguale a quella di vendita: nessuna conversione. ':''),()=>{
+    plan.forEach(p=>{const i=p.i;i.um=p.um;
+      if(p.clear){i.uc='';i.pc=0;i.fc=0;i.ca=+i.cost||0}
+      else{i.uc=uc;i.pc=p.pc;i.fc=p.fc;i.ca=r4((+i.cost||0)*p.fc)}});
+    if(all){D.catRules=D.catRules||{};D.catRules[catKey(BU.f)]={um:c.um,uc,dir:c.dir,n:c.dir=='peso'?'':n}}
+    addLog('Unità di acquisto «'+uc+'» impostata su '+plan.length+' prodotti'+(all?' (categoria '+catName(BU.f)+')':''));save();BU.sel.clear();buBox();toast('Fatto: '+plan.length+(plan.length==1?' prodotto aggiornato.':' prodotti aggiornati.')+(skipW?' '+skipW+' saltati (senza peso).':''))})
+}
+function buCvClear(){
+  const a=buSelItems().filter(i=>i.uc);if(!a.length)return toast('Seleziona almeno un prodotto con unità di acquisto diversa.');
+  askConfirm('Togliere la conversione a '+a.length+(a.length==1?' prodotto':' prodotti')+'? Acquisto e vendita useranno la stessa unità.',()=>{a.forEach(i=>{i.uc='';i.pc=0;i.fc=0;i.ca=+i.cost||0});save();BU.sel.clear();buBox();toast('Conversione tolta.')});
+}
+
 function buPh(){const e=$('#bu_h');if(e)e.textContent=BU.mode=='pct'?'Esempio: 5 aumenta del 5%, -10 diminuisce del 10%. Si applica al costo unitario di ogni articolo selezionato.':'Il prezzo è per unità di misura dell’articolo (€/m, €/kg, €/pz...) e diventa lo stesso per tutti i selezionati.'}
 function buDraw(){
   const a=buRows(),n=BU.sel.size,all=a.length&&a.every(i=>BU.sel.has(i.id));
   const e=$('#bu_t');if(!e)return;
+  const sc0=(e.querySelector('.tw')||{}).scrollTop||0,dl=e.closest('.db'),dsc=dl?dl.scrollTop:0;
   e.innerHTML=`<div class="tools" style="margin-bottom:6px"><b>${n}</b> ${n==1?'selezionato':'selezionati'} · ${a.length} ${a.length==1?'prodotto mostrato':'prodotti mostrati'}<span style="flex:1"></span><button class="b" onclick="buClr()" ${n?'':'disabled'}>Deseleziona tutto</button></div>
   <div class="tw" style="max-height:340px;overflow:auto"><table style="min-width:560px"><thead><tr><th style="width:34px"><input type="checkbox" ${all?'checked':''} onchange="buAll(this.checked)" title="Seleziona tutti i mostrati"></th><th>Codice</th><th>Descrizione</th><th>Categoria</th><th style="text-align:right">Prezzo unitario</th></tr></thead><tbody>${a.slice(0,500).map(i=>`<tr><td><input type="checkbox" ${BU.sel.has(i.id)?'checked':''} onchange="buTog(${i.id},this.checked)"></td><td><b>${esc(i.code)}</b></td><td>${esc(i.desc)}</td><td>${esc(catName(i.cat))||'<span class="mut">-</span>'}</td><td style="text-align:right">${eur2(i.cost)}/${esc(i.um)}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nessun prodotto.</td></tr>'}</tbody></table></div>${a.length>500?`<div class="mut">Mostrati i primi 500: usa la ricerca o il filtro per restringere.</div>`:''}`;
+  const sc=e.querySelector('.tw');if(sc)sc.scrollTop=sc0;if(dl)dl.scrollTop=dsc;
 }
-function buInit(){buDraw();buPh()}
+function buInit(){buDraw();buPh();buCvHint()}
+// finestra «Categorie e prezzi» (aperta dal pulsante in Magazzino › Prodotti)
+function buOpen(){
+  if(!ME||lv('items')<2){toast('Non hai il permesso di modificare i prodotti.');return}
+  BU.sel.clear();BU.q='';BU.f='*';BU.val='';BU.cat='';
+  const d=$('#dlg');d.oninput=null;d.classList.add('wide');d.oncancel=null;
+  d.innerHTML=`<div class="dh"><h2>Categorie, prezzi e unità dei prodotti</h2><div class="mut">Seleziona più prodotti insieme (con la ricerca o il filtro per categoria) e assegna a tutti la stessa categoria oppure cambia il prezzo unitario: impostandolo a un valore o con una variazione in percentuale. In fondo trovi la conversione acquisto/vendita (es. lamiere: compro a kg, vendo al m), da applicare ai selezionati o a un’intera categoria. Le modifiche si applicano subito.</div></div><div class="db"><div class="full" id="bubox">${buHtml()}</div></div><div class="df"><button class="b pri" onclick="$('#dlg').close()">Chiudi</button></div>`;
+  d.addEventListener('close',()=>{BU.sel.clear();if(ME)render()},{once:true});
+  d.showModal();buInit();
+}
 function buQ(v){BU.q=v;buDraw()}
-function buF(v){BU.f=v;buDraw()}
+function buF(v){BU.f=v;buDraw();buCvBox()}
 function buTog(id,on){on?BU.sel.add(id):BU.sel.delete(id);buDraw()}
 function buAll(on){buRows().forEach(i=>on?BU.sel.add(i.id):BU.sel.delete(i.id));buDraw()}
 function buClr(){BU.sel.clear();buDraw()}
@@ -4493,6 +4616,127 @@ function dlgX(d){
   });
 })();
 
+// ---------- collegamento con il programma mobile (produzione): note, ordini da approvare, dipendente collegato all'utente
+D.nt=D.nt||[];
+const ntNew=()=>(D.nt||[]).filter(n=>!n.read).length;
+function ntBadge(){const m=document.getElementById('me');if(!m||!ME)return;let b=document.getElementById('ntb');
+  if(!(lv('jobs')>0)){if(b)b.remove();return}
+  if(!b){b=document.createElement('button');b.id='ntb';b.className='b';b.onclick=ntOpen;m.insertBefore(b,m.firstChild)}
+  const n=ntNew();b.innerHTML='Note produzione'+(n?` <span class="tag late" style="margin-left:4px">${n}</span>`:'')}
+function ntOpen(){
+  const l=[...(D.nt||[])].sort((a,b)=>b.t.localeCompare(a.t)),d=$('#dlg');d.oninput=null;d.classList.add('wide');
+  d.innerHTML=`<div class="dh"><h2>Note dalla produzione</h2><div class="mut">Note scritte da smartphone sulle schede di lavorazione. Segnale come lette o eliminale quando non servono più.</div></div><div class="db"><div class="full tw"><table><thead><tr><th>Quando</th><th>Da</th><th>Scheda</th><th>Nota</th><th></th></tr></thead><tbody>${l.length?l.map(n=>`<tr ${n.read?'style="opacity:.6"':''}><td>${esc(new Date(n.t).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))}</td><td>${esc(n.op||n.name||'-')}</td><td>${n.sheet?`<a href="#" onclick="event.preventDefault();$('#dlg').close();sheetOpen(${n.sheet})"><b>${esc(n.code||'')}</b></a>`:'-'}</td><td style="white-space:pre-wrap">${esc(n.text)}</td><td style="white-space:nowrap">${n.read?'':`<button class="b" onclick="ntRead(${n.id})">Letta</button> `}<button class="b dng" onclick="ntDel(${n.id})">Elimina</button></td></tr>`).join(''):'<tr><td colspan="5" class="empty">Nessuna nota.</td></tr>'}</tbody></table></div></div><div class="df">${ntNew()?'<button class="b" onclick="ntReadAll()">Segna tutte come lette</button>':''}<button class="b pri" onclick="$(\'#dlg\').close()">Chiudi</button></div>`;
+  if(!d.open)d.showModal();
+}
+function ntRead(id){const n=D.nt.find(x=>x.id==id);if(n){n.read=1;save()}ntOpen();ntBadge()}
+function ntReadAll(){D.nt.forEach(n=>n.read=1);save();ntOpen();ntBadge()}
+function ntDel(id){D.nt=D.nt.filter(x=>x.id!=id);save();ntOpen();ntBadge()}
+const _bn0=buildNav;buildNav=function(){_bn0.apply(this,arguments);ntBadge()};
+setInterval(()=>{if(ME)ntBadge()},5000);
+// ordini creati dalla produzione: devono essere approvati dall'ufficio
+const ordPend=()=>D.orders.filter(o=>o.status=='Da approvare');
+function ordApprove(sp){const g=ordPend().filter(o=>ordSup(o)==sp);g.forEach(o=>{o.status='Bozza'});save();render();toast('Ordine approvato: è in Bozza, ora puoi confermarlo al fornitore.')}
+function ordReject(sp){askConfirm('Rifiutare e cancellare le voci richieste dalla produzione?',()=>{const ids=new Set(ordPend().filter(o=>ordSup(o)==sp).map(o=>o.id));D.orders=D.orders.filter(o=>!ids.has(o.id));save();render()})}
+const _ob0=ordersBody;ordersBody=function(){
+  let h=_ob0.apply(this,arguments);const p=ordPend();if(!p.length)return h;
+  const sups=[...new Set(p.map(ordSup))];
+  const blk=`<h3 style="margin:22px 0 2px">Da approvare <span class="mut" style="font:600 14px 'IBM Plex Sans',sans-serif">· richieste dalla produzione</span></h3><div class="mut" style="margin-bottom:8px">Ordini creati da smartphone: approvali per portarli in Bozza (poi li confermi al fornitore) oppure rifiutali.</div>`+
+  sups.map(sp=>{const g=p.filter(o=>ordSup(o)==sp);return `<div class="tw" style="margin-bottom:12px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--line)"><b style="flex:1">${sp?esc(nm('sup',sp)):'Fornitore da definire'}</b><button class="b pri" onclick="ordApprove(${sp})">Approva</button><button class="b dng" onclick="ordReject(${sp})">Rifiuta</button></div><table><thead><tr><th>Articolo</th><th class="n">Quantità</th><th>Commessa</th><th>Richiesto da</th></tr></thead><tbody>${g.map(o=>`<tr><td>${esc(ordName(o))}</td><td class="n">${fN(o.qty)} ${esc(ordUm(o))}</td><td>${esc(jb(o.job))}</td><td>${esc(o.by||'-')}</td></tr>`).join('')}</tbody></table></div>`}).join('');
+  return blk+h};
+// utenti locali: dipendente collegato
+const _uo0=userEdit;userEdit=function(id){_uo0.apply(this,arguments);const u=id?D.users.find(x=>x.id==id):null,e=document.getElementById('ur');if(!e)return;
+  e.closest('label').insertAdjacentHTML('afterend',`<label>Dipendente collegato (per il programma mobile)<select id="uop"><option value="">— nessuno —</option>${OPS.map(o=>`<option ${u&&u.op==o.n?'selected':''}>${esc(o.n)}</option>`).join('')}</select></label>`)};
+const _us0=userSave;userSave=async function(id){const op=(document.getElementById('uop')||{}).value||'';const r=await _us0.apply(this,arguments);
+  const us=((document.getElementById('uu')||{}).value||'').trim().toLowerCase();const u=D.users.find(x=>x.user==us);if(u&&u.op!==op){u.op=op;save()}return r};
+
+// ---------- selezione multipla negli elenchi ed eliminazione di più righe
+const BSV={
+  jobs:{re:/^editJob\((-?\d+)\)/,n:['commessa','commesse'],warn:'Verranno eliminati anche le ore e i prelievi di magazzino collegati (la merce torna in giacenza). Le aggiunte collegate diventano commesse autonome.'},
+  quotes:{re:/^editQuote\((\d+)\)/,n:['preventivo','preventivi'],warn:'I documenti già convertiti in commessa non vengono eliminati.'},
+  ordc:{re:/^editQuote\((\d+)\)/,n:['ordine cliente','ordini cliente'],warn:'I documenti già convertiti in commessa non vengono eliminati.'},
+  sheets:{re:/^sheetOpen\((-?\d+)\)/,n:['scheda','schede'],warn:'Vengono eliminati tutti i documenti e i file archiviati nelle schede selezionate (le schede delle commesse restano, ma vuote).'},
+  items:{data:1,n:['articolo','articoli'],warn:'Gli articoli già usati in altri dati non vengono eliminati.'},
+  prod:{data:1,n:['prodotto','prodotti'],warn:'I prodotti già usati in altri dati non vengono eliminati.'},
+  cl:{data:1,n:['cliente','clienti'],warn:'I clienti con commesse non vengono eliminati.'},
+  sup:{data:1,n:['fornitore','fornitori'],warn:'I fornitori già usati in altri dati non vengono eliminati.'},
+  moves:{data:1,n:['movimento','movimenti'],warn:'La quantità degli scarichi torna in magazzino.'},
+  orders:{re:/^ordOpenG\('([^']+)'\)/,n:['ordine','ordini'],warn:'Vengono eliminate tutte le voci degli ordini selezionati. Per gli ordini già ricevuti la giacenza viene riportata com’era.'},
+  rcv:{re:/^rcvOpen\((\d+)\)/,n:['carico','carichi'],warn:'Ogni carico viene annullato: le quantità caricate vengono tolte dalla giacenza e gli ordini collegati tornano «Ordinato».'}
+};
+const BS={v:'',ids:new Set()};
+const bsOk=()=>!!ME&&canDel()&&lv(view)>=2&&!!BSV[view];
+function bsId(r){
+  const c=BSV[view];if(!c)return null;
+  if(c.data)return r.dataset&&r.dataset.id?r.dataset.id:null;
+  if(!r.classList.contains('row'))return null;
+  const m=c.re.exec((r.getAttribute('onclick')||'').trim());return m?m[1]:null;
+}
+function bsInject(){
+  if(!bsOk()){if(BS.ids.size){BS.ids=new Set()}bsBar();return}
+  if(BS.v!=view){BS.v=view;BS.ids=new Set()}
+  const main=document.getElementById('main');if(!main)return;
+  main.querySelectorAll('table').forEach(t=>{
+    const rows=[...t.querySelectorAll('tbody tr')],ids=rows.map(bsId);if(!ids.some(x=>x!=null))return;
+    const hr=t.querySelector('thead tr');
+    if(hr&&!hr.querySelector('.bsc')){const th=document.createElement('th');th.className='bsc';th.innerHTML='<input type="checkbox" class="bsa" title="Seleziona tutte le righe" aria-label="Seleziona tutte le righe" onchange="bsAll(this)">';hr.insertBefore(th,hr.firstChild)}
+    rows.forEach((r,i)=>{
+      if(r.firstElementChild&&r.firstElementChild.classList.contains('bsc'))return;
+      const id=ids[i];
+      if(id==null&&r.cells.length==1&&r.cells[0].colSpan>1){r.cells[0].colSpan++;return}
+      const td=document.createElement('td');td.className='bsc';td.onclick=e=>e.stopPropagation();
+      if(id!=null)td.innerHTML=`<input type="checkbox" class="bsk" data-k="${esc(id)}" aria-label="Seleziona riga" onchange="bsTog(this)">`;
+      r.insertBefore(td,r.firstChild);
+    });
+  });
+  main.querySelectorAll('.bsk').forEach(c=>{const on=BS.ids.has(c.dataset.k);if(c.checked!=on)c.checked=on;c.closest('tr').classList.toggle('bss',on)});
+  main.querySelectorAll('table').forEach(t=>{const a=t.querySelector('.bsa');if(!a)return;const ks=[...t.querySelectorAll('.bsk')],n=ks.filter(k=>k.checked).length;a.checked=!!ks.length&&n==ks.length;a.indeterminate=n>0&&n<ks.length});
+  bsBar();
+}
+function bsTog(c){c.checked?BS.ids.add(c.dataset.k):BS.ids.delete(c.dataset.k);bsInject()}
+function bsAll(a){
+  const t=a.closest('table');t.querySelectorAll('.bsk').forEach(k=>{if(k.closest('tr').style.display=='none')return;a.checked?BS.ids.add(k.dataset.k):BS.ids.delete(k.dataset.k)});bsInject();
+}
+function bsNone(){BS.ids=new Set();bsInject()}
+function bsBar(){
+  let b=document.getElementById('bsbar');const n=BS.ids.size;
+  if(!n||!bsOk()){if(b)b.hidden=true;return}
+  if(!b){b=document.createElement('div');b.id='bsbar';document.body.appendChild(b)}
+  const c=BSV[view];b.hidden=false;
+  b.innerHTML=`<b>${n} ${n==1?c.n[0]+' selezionato':c.n[1]+' selezionati'}</b><button class="b" onclick="bsNone()">Deseleziona</button><button class="b dng" onclick="bsDel()">Elimina selezionati</button>`;
+}
+async function bsDelOne(id){
+  switch(view){
+    case 'jobs':{const j=D.jobs.find(x=>x.id==id);if(!j)return 0;
+      D.moves.filter(m=>m.job==j.id).forEach(m=>E.moves.ap(m,-1));
+      D.jobs.forEach(c=>{if(c.parent==j.id)c.parent=0});D.jobs=D.jobs.filter(x=>x.id!=j.id);['moves','hours'].forEach(c=>D[c]=D[c].filter(x=>x.job!=j.id));
+      D.quotes.forEach(q=>{if(q.job==j.id){q.job=0;q.status=(q.kind=='O')?'Confermato':'Accettato'}});
+      D.orders=D.orders.filter(o=>!(o.job==j.id&&o.auto&&o.status=='Bozza'&&!(D.orders.some(x=>x.po==o.po&&x.job!=j.id))));D.orders.forEach(o=>{if(o.job==j.id)o.job=0});
+      D.rcv.forEach(r=>{if(r.job==j.id)r.job=0;r.lines.forEach(l=>{if(l.job==j.id)l.job=0})});return 1}
+    case 'quotes':case 'ordc':{const q=D.quotes.find(x=>x.id==id);if(!q||q.job)return 0;D.quotes=D.quotes.filter(x=>x.id!=id);return 1}
+    case 'sheets':{const s=shJob(id);if(!s)return 0;
+      for(const d of (s.docs||[]))for(const f of [...(d.pdfs||[]),...(d.files||[])]){try{await fDel(f.fid)}catch(e){}}
+      if(id<0)D.xsheets=D.xsheets.filter(x=>x.id!=id);else s.docs=[];return 1}
+    case 'items':case 'prod':case 'cl':case 'sup':{const e=E[view],o=D[e.c].find(x=>x.id==id);if(!o)return 0;if(e.use&&e.use(o))return 0;e.ap&&e.ap(o,-1);D[e.c]=D[e.c].filter(x=>x.id!=id);return 1}
+    case 'moves':{const o=D.moves.find(x=>x.id==id);if(!o)return 0;E.moves.ap(o,-1);D.moves=D.moves.filter(x=>x.id!=id);return 1}
+    case 'orders':{const ids=OGM[id]||[];let n=0;ids.forEach(i=>{const o=D.orders.find(x=>x.id==i);if(!o)return;E.orders.ap(o,-1);D.orders=D.orders.filter(x=>x.id!=i);n++});return n?1:0}
+    case 'rcv':{const r=D.rcv.find(x=>x.id==id);if(!r)return 0;
+      r.lines.forEach(l=>{const it=itm(l.item);if(it.id&&(!r.jx||!l.job)){slCtx='Annullo carico merce';it.stock=r4(it.stock-l.qty)}});
+      (r.orders||(r.order?[r.order]:[])).forEach(i=>{const o=D.orders.find(x=>x.id==i);if(o&&o.status=='Ricevuto')o.status='Ordinato'});
+      D.rcv=D.rcv.filter(x=>x.id!=id);return 1}
+  }
+  return 0;
+}
+function bsDel(){
+  const ids=[...BS.ids],c=BSV[view],n=ids.length;if(!n)return;
+  askConfirm(`Eliminare ${n} ${n==1?c.n[0]:c.n[1]}? ${c.warn} L’operazione non si può annullare.`,async()=>{
+    let ok=0;for(const id of ids){try{ok+=await bsDelOne(id)}catch(e){console.error(e)}}
+    BS.ids=new Set();save();render();
+    toast(ok==n?(ok==1?'Elemento eliminato.':ok+' elementi eliminati.'):ok+' eliminati su '+n+': gli altri sono in uso o già convertiti e restano al loro posto.');
+  });
+}
+new MutationObserver(()=>{if(bsInject.t)return;bsInject.t=requestAnimationFrame(()=>{bsInject.t=0;try{bsInject()}catch(e){console.error(e)}})}).observe(document.getElementById('main'),{childList:true,subtree:true});
+document.addEventListener('keydown',e=>{if(e.key=='Escape'&&BS.ids.size&&!document.querySelector('dialog[open]'))bsNone()});
+
 // ---------- avvio
 (function(){AUTH_READY=true;authInit();let sid=null;try{sid=+sessionStorage.getItem('carp_sess')}catch(e){}
   const u=D.users.find(x=>x.id==sid&&x.on);
@@ -4504,7 +4748,7 @@ function dlgX(d){
 (function(){
 const C=window.GC_CLOUD;if(!C)return;
 const API=C.url.replace(/\/+$/,''),PK=C.key,SK='gc_cloud_session',DOM='@gc-gremo.app';
-const COLL=['cl','sup','items','jobs','quotes','orders','moves','hours','rcv','xsheets','sl'];
+const COLL=['cl','sup','items','jobs','quotes','orders','moves','hours','rcv','xsheets','sl','nt'];
 const NOCONF=new Set([...COLL,'users','roles','log']);
 let SES=null,SYNC={},CONFV=null,WM='',PEND=[],pushing=0,again=0,pushT=null,pollT=null,authT=null,online=true,errCnt=0,LOADED=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -4678,7 +4922,7 @@ async function loadProfile(){
 async function enterCloud(){
   const p=await loadProfile();
   await loadAll();
-  ME={id:p.id,user:p.username,name:p.nome,role:p.ruolo,on:true,must:0};
+  ME={id:p.id,user:p.username,name:p.nome,role:p.ruolo,op:p.operatore||'',on:true,must:0};
   if(p.ruolo!='admin'&&!roleOf(p.ruolo))throw new HErr(403,'Ruolo non valido: contatta l’amministratore.');
   LOADED=true;lastAct=Date.now();lockUI(false);buildNav();view=firstView();render();stat();
   clearInterval(pollT);pollT=setInterval(()=>{poll();applyPend()},6000);
@@ -4833,8 +5077,9 @@ function usrHtml(){
   const card=(t,note,body)=>`<div class="tw" style="padding:14px 16px;margin-bottom:16px"><h3 style="margin:0 0 4px">${t}</h3><div class="mut" style="margin-bottom:10px">${note}</div>${body}</div>`;
   return (UM.err?`<div class="rsn neg" style="margin-bottom:10px">${esc(UM.err)}</div>`:'')+(UM.msg?`<div class="rsn pos" style="margin-bottom:10px">${esc(UM.msg)}</div>`:'')+
   card('Utenti','Ogni persona ha il suo nome utente e la sua password. Il ruolo decide cosa può vedere e modificare. Un utente disattivato non può più entrare.',
-   `<div class="tw"><table style="min-width:640px"><thead><tr><th>Nome</th><th>Utente</th><th>Ruolo</th><th>Attivo</th><th></th></tr></thead><tbody>${UM.list.map(u=>`<tr><td><b>${esc(u.nome)}</b>${u.id==ME.id?' <span class="tag">tu</span>':''}</td><td>${esc(u.username)}</td>
+   `<div class="tw"><table style="min-width:640px"><thead><tr><th>Nome</th><th>Utente</th><th>Ruolo</th><th>Dipendente (mobile)</th><th>Attivo</th><th></th></tr></thead><tbody>${UM.list.map(u=>`<tr><td><b>${esc(u.nome)}</b>${u.id==ME.id?' <span class="tag">tu</span>':''}</td><td>${esc(u.username)}</td>
    <td><select onchange="cuRole('${u.id}',this.value)" ${u.id==ME.id?'disabled':''}>${ropt(u.ruolo)}</select></td>
+   <td><select onchange="cuOp('${u.id}',this.value)"><option value="">—</option>${OPS.map(o=>`<option ${u.operatore==o.n?'selected':''}>${esc(o.n)}</option>`).join('')}</select></td>
    <td><input type="checkbox" ${u.attivo?'checked':''} ${u.id==ME.id?'disabled':''} onchange="cuOn('${u.id}',this.checked)"></td>
    <td style="white-space:nowrap"><button class="b" onclick="cuPwd('${u.id}')">Nuova password</button> ${u.id==ME.id?'':`<button class="b dng" onclick="cuDel('${u.id}')">Elimina</button>`}</td></tr>`).join('')}</tbody></table></div>
    <h3 style="margin:16px 0 6px">Nuovo utente</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;align-items:end">
@@ -4853,6 +5098,7 @@ function usrHtml(){
 usersView=()=>{setTimeout(usrLoad,0);return `<div id="usrbox">${usrHtml()}</div>`};
 const upd=async(tab,filt,body)=>{try{const r=await rest(tab+'?'+filt,{method:'PATCH',json:body,headers:{Prefer:'return=representation'}});if(!r||!r.length)throw new Error('Modifica non consentita.');UM.err='';UM.msg='Salvato.';await usrLoad()}catch(e){usrErr(e)}};
 cuRole=(id,v)=>upd('profili','id=eq.'+id,{ruolo:v});
+cuOp=(id,v)=>upd('profili','id=eq.'+id,{operatore:v});
 cuOn=(id,v)=>upd('profili','id=eq.'+id,{attivo:v});
 cuNew=async()=>{const b={nome:$('#nu_n').value.trim(),username:$('#nu_u').value.trim().toLowerCase(),ruolo:$('#nu_r').value,password:$('#nu_p').value};
   try{await fnc('crea',b);UM.err='';UM.msg='Utente «'+b.username+'» creato. Comunicagli nome utente e password.';await usrLoad()}catch(e){usrErr(e)}};

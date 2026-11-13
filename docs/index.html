@@ -104,83 +104,81 @@ table.dt tbody tr:nth-child(even){background:#f6f8f9}table.dt tr.sel{background:
 .pn{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;border:2px solid #000;border-radius:50%;font-weight:700;font-size:16px;background:#fff}
 dialog.full{width:98vw;max-width:98vw}
 .pi{display:flex;gap:6px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:4px;margin-bottom:6px;cursor:pointer;background:#fff}.pi.sel{background:#fdf0c4;border-color:var(--acc)}.pi .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pi .b{padding:4px 8px;font-size:12px}
+th.bsc,td.bsc{width:38px;min-width:38px;max-width:38px;padding-left:10px!important;padding-right:4px!important;text-align:center}
+.bsc input{width:18px;height:18px;cursor:pointer;accent-color:var(--acc,#e8772e)}
+tr.bss,tr.bss td{background:rgba(232,119,46,.16)!important}
+#bsbar{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:40;display:flex;gap:10px;align-items:center;background:#1f2a44;color:#fff;border-radius:14px;padding:10px 14px;box-shadow:0 8px 28px rgba(0,0,0,.35)}
+#bsbar[hidden]{display:none}#bsbar .b{white-space:nowrap}
 </style>
 <style id="variante">
-/* ===== VARIANTE OFFICINA · tablet e smartphone ===== */
-:root:root:root:root{--bg:#0f1a30;--card:#1a2a4a;--ink:#f2f5fb;--mut:#b8c3da;--line:#33466e;--soft:#223559;--steel:#0b1426;--steel-ink:#fff;--acc:#e8772e;--ok:#4fcf8e;--bad:#ff8a7e;--warn:#f2c14e;color-scheme:dark}
+/* ===== PROGRAMMA MOBILE ===== */
+:root:root:root:root{--bg:#0f1a30;--card:#1a2a4a;--ink:#f2f5fb;--mut:#b8c3da;--line:#33466e;--soft:#223559;--acc:#e8772e;--ok:#4fcf8e;--bad:#ff8a7e;--warn:#f2c14e;color-scheme:dark}
 html{-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
-body{font-size:17px;padding-bottom:calc(84px + env(safe-area-inset-bottom,0px));overscroll-behavior-y:none}
-header{padding:10px 16px 8px;border-bottom:3px solid var(--acc)}
-header h1{font-size:22px}header p{display:none}
-#brand{max-width:calc(100% - 20px)!important;margin-bottom:6px!important}
-#me{position:static;margin:2px 0 4px;justify-content:flex-start;font-size:15px}
-button,select,input,textarea{touch-action:manipulation}
-button.b,select,input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea{min-height:48px;font-size:16px;border-radius:12px;padding:10px 14px}
-input[type=checkbox],input[type=radio]{width:26px;height:26px}
-button.b{font-weight:700}button.pri{background:var(--acc);border-color:var(--acc);color:#0b1426}
-.dng{color:var(--bad)}
-input,select,textarea{background:#0f1a30;border:1px solid #4a6190}
-main{max-width:none;padding:14px 16px}
-.panel,.kpi,.tw{border-radius:16px}.panel{padding:18px}
-.kpi b{font-size:38px}
-.tools{gap:10px}
-th,td{padding:14px 12px;font-size:16px}
-tr.row td{padding:16px 12px}
-.tag{font-size:14px;padding:3px 10px;border-radius:8px}
-.bar{height:12px;border-radius:6px}
-.fase span:first-child{width:120px}
-table.dt td,table.dt th{padding:6px}
-table.dt input:not([type=checkbox]){height:48px;background:#0f1a30;color:var(--ink);border-color:#4a6190}
-table.dt tbody tr:nth-child(even){background:rgba(255,255,255,.04)}
-table.dt tr.sel{background:#3a2c14!important}
-.pi{background:var(--card);padding:14px}.pi.sel{background:#3a2c14}
-.pn{background:#fff;color:#000}
-.rvp{background:#fff}
-dialog{border-radius:20px;width:min(860px,96vw)}
-.dh h2{font-size:24px}
-.db label,.rvh label,.bl label{font-size:15px}
-.df{gap:10px;position:sticky;bottom:0;background:var(--card)}
-.df button.b{min-width:120px}
-#toast{font-size:16px}
-footer{max-width:none;padding:0 16px 24px}
-/* navigazione: menu a scomparsa + barra in basso */
-nav{display:none}
-body.menu nav{display:flex;flex-direction:column;position:fixed;inset:0 0 calc(76px + env(safe-area-inset-bottom,0px)) 0;z-index:40;background:#0b1426;padding:16px;overflow:auto;gap:4px}
-body.menu .dd{position:static}
-body.menu nav>button,body.menu nav .ddm button{display:block;width:100%;text-align:left;font-size:20px;padding:16px 14px;border-radius:12px;color:#fff;margin:0;border:0;background:#1a2a4a}
-body.menu nav .dd>button{background:none;color:var(--acc);font-size:15px;text-transform:uppercase;letter-spacing:.06em;padding:14px 6px 6px;pointer-events:none}
-body.menu .ddm,body.menu .ddm[hidden]{position:static!important;display:flex!important;flex-direction:column;gap:4px;border:0;background:none;box-shadow:none;padding:0}
-#bb{position:fixed;left:0;right:0;bottom:0;z-index:45;display:flex;background:#0b1426;border-top:2px solid var(--acc);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));gap:4px}
-#bb button{flex:1;min-width:0;min-height:62px;border:0;border-radius:14px;background:transparent;color:#c4cce0;font:600 12px "IBM Plex Sans",sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;padding:0 2px}
-#bb button.on{background:#223559;color:#fff}
-#bb svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-body.lock #bb{display:none}
-/* schermata Home */
-.hm h2{font-size:30px;margin:0}.hm .sub{color:var(--mut);font-size:17px;margin:2px 0 18px}
-.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
-.tile{min-height:150px;border:0;border-radius:22px;padding:22px;text-align:left;font:inherit;color:#fff;display:flex;flex-direction:column;justify-content:space-between;gap:10px;cursor:pointer}
-.tile svg{width:44px;height:44px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.tile b{display:block;font:700 26px "Barlow Condensed",sans-serif;letter-spacing:.01em}.tile span{font-size:16px;opacity:.9}
-.tile:active{transform:scale(.98)}
-.hm .panel{margin-top:18px}
-.hm .nx{display:flex;gap:12px;align-items:center;padding:14px 0;border-top:1px solid var(--line);cursor:pointer}
-.hm .nx b{font-size:18px}
-@media(max-width:700px){
- body{font-size:16px}
- .tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.tile{min-height:132px;padding:16px;border-radius:18px}.tile b{font-size:22px}.tile span{font-size:14px}
- dialog{width:100vw;max-width:100vw;max-height:100dvh;height:100dvh;border-radius:0;margin:0}
- .db{max-height:none;grid-template-columns:1fr}
- table:not(.dt):not(.rs){min-width:0}
- table:not(.dt):not(.rs) thead{display:none}
- table:not(.dt):not(.rs) tr{display:block;border-bottom:8px solid var(--bg)}
- table:not(.dt):not(.rs) td{display:flex;justify-content:space-between;gap:12px;border:0;padding:8px 14px;text-align:right}
- table:not(.dt):not(.rs) td::before{content:attr(data-l);color:var(--mut);font-size:13px;text-align:left;flex:none}
- table:not(.dt):not(.rs) td:empty{display:none}
- .grid2{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi b{font-size:30px}
- .cd{min-height:54px}
-}
-#me button.b{min-height:40px;padding:6px 14px;font-size:15px}
-@media(max-width:700px){header{padding:8px 12px 6px}#brand p,#brand small,#brand .sub{display:none}#me{flex-wrap:nowrap;gap:6px;font-size:14px}#me .mut2{display:none}}
+body{background:var(--bg);color:var(--ink);font-size:17px;overscroll-behavior-y:none}
+body.mobx header,body.mobx nav,body.mobx main,body.mobx footer,body.mobx #bb{display:none!important}
+button,select,input,textarea{touch-action:manipulation;font-family:inherit}
+#lg .lgc{max-width:420px;margin:0 auto;padding:28px 20px}
+#lg input,#lg select{min-height:50px;font-size:17px;border-radius:12px;padding:10px 14px;width:100%;box-sizing:border-box;background:#0f1a30;border:1px solid #4a6190;color:var(--ink)}
+#lg button.b{min-height:52px;font-size:18px;border-radius:12px;font-weight:700}
+#lg .lgc>*{margin-bottom:12px}#lg label{display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--mut)}
+#lg label.chk{flex-direction:row;align-items:center;gap:10px}#lg label.chk input{width:24px;min-height:24px}
+.mlg-logo{width:64px;height:64px;border-radius:16px;background:var(--acc);color:#0b1426;font:800 28px/64px system-ui;text-align:center}
+#mob{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg);z-index:20}
+#mtop{display:flex;align-items:center;gap:10px;padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top,0px));background:#0b1426;border-bottom:3px solid var(--acc)}
+#mtop .mt{flex:1;font-size:19px}#mtop .mw{color:var(--mut);font-size:14px}
+.mlogo{width:34px;height:34px;border-radius:9px;background:var(--acc);color:#0b1426;font:800 15px/34px system-ui;text-align:center}
+.mb{background:none;border:0;color:var(--ink);width:44px;height:44px;border-radius:12px;display:grid;place-items:center;cursor:pointer}
+.mb svg,#mbar svg,.mtile svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.mb.fl svg{transform:scaleX(-1)}
+#mbody{flex:1;overflow:auto;padding:12px 14px 20px;-webkit-overflow-scrolling:touch}
+#mbar{display:flex;background:#0b1426;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+#mbar button{flex:1;background:none;border:0;color:var(--mut);padding:8px 2px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11.5px;min-height:58px}
+#mbar button.on{color:var(--acc)}
+.mhome h2{margin:6px 0 0;font-size:26px}.mhome p{margin:2px 0 14px;color:var(--mut);text-transform:capitalize}
+.mtiles{display:grid;gap:10px;margin-bottom:6px}
+.mtile{display:flex;gap:14px;align-items:center;background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:16px;padding:16px;text-align:left;font-size:18px;cursor:pointer;min-height:68px}
+.mtile:first-child{background:var(--acc);color:#0b1426;border-color:var(--acc)}
+.mtile small{display:block;font-size:14px;opacity:.85;font-weight:400}
+.mh{display:flex;justify-content:space-between;align-items:baseline;margin:18px 0 8px;font-weight:700;font-size:15px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.mh span{color:var(--ink)}
+.mcard{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:14px;padding:13px 14px;margin-bottom:9px;font-size:16px;cursor:pointer}
+.mcard.st{cursor:default}
+.mcard .r1,.r1{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.mcard b{font-size:18px}.mut,small{color:var(--mut)}small{display:block;font-size:13.5px;margin-top:2px}
+.tg{display:inline-block;padding:2px 10px;border-radius:8px;background:var(--soft);font-size:14px;white-space:nowrap}
+.tg.bad{background:#5a2420;color:#ffd2cc}.tg.ok{background:#17432f;color:#aef0cd}.tg.warn{background:#5a4513;color:#ffe29a}
+.pg{flex:1;height:10px;background:var(--soft);border-radius:6px;overflow:hidden;margin:6px 0}.pg i{display:block;height:100%;background:var(--acc)}
+.mtools{margin-bottom:10px;display:flex;flex-direction:column;gap:8px}
+#mob input,#mob select,#mob textarea,#msheet input,#msheet select,#msheet textarea{background:#0f1a30;border:1px solid #4a6190;color:var(--ink);border-radius:12px;font-size:16px;padding:11px 13px;min-height:48px;width:100%;box-sizing:border-box}
+#mob label,#msheet label{display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--mut)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}.chips button{flex:none;background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:9px 16px;font-size:15px;min-height:44px}
+.chips button.on{background:var(--acc);border-color:var(--acc);color:#0b1426;font-weight:700}
+.mact{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.mact button,.b{flex:1;min-width:120px;min-height:50px;background:var(--card);border:1px solid #4a6190;color:var(--ink);border-radius:12px;font-size:16px;font-weight:600;padding:8px 14px;cursor:pointer}
+.mact button.pri,.b.pri{background:var(--acc);border-color:var(--acc);color:#0b1426}
+.b.dng{color:var(--bad)}.b.sm{min-height:40px;flex:none;min-width:0;margin-top:6px;font-size:14px}
+.mjob h2{margin:4px 0}.mrow{display:flex;gap:10px;align-items:end;margin:10px 0}.mrow label{flex:1}
+.mph{display:grid;gap:8px;margin:8px 0}.mp{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.mp span{flex:1;font-weight:600}.mp button{min-width:120px;min-height:46px;border-radius:10px;border:1px solid #4a6190;background:var(--soft);color:var(--ink);font-size:16px;font-weight:700}
+.mp button.s1{background:#5a4513;border-color:var(--warn);color:#ffe29a}.mp button.s2{background:#17432f;border-color:var(--ok);color:#aef0cd}.mp button:disabled{opacity:.5}
+.mli{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:7px}
+.mli>span{margin-left:auto;font-weight:700}.mli small{flex-basis:100%}.mli.col{flex-direction:column;align-items:stretch}.mli.col>span{margin-left:0}.mli .nt{white-space:pre-wrap}
+.mempty{color:var(--mut);padding:12px 4px;font-size:15px}
+.mwarn{background:#5a4513;color:#ffe29a;border-radius:12px;padding:10px 12px;margin:8px 0;font-size:15px}
+.mfrm{display:flex;flex-direction:column;gap:10px;margin:8px 0}.mfrm .two,.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mbig{font-size:34px;font-weight:800;margin:8px 0}
+.mbox{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.mcal{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px}.chd{display:flex;align-items:center;justify-content:space-between}
+.cg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}.cg span{color:var(--mut);font-size:13px;padding:4px 0}
+.cg button{position:relative;min-height:46px;border-radius:10px;background:var(--soft);border:1px solid transparent;color:var(--ink);font-size:16px;padding:2px}
+.cg button.td{border-color:var(--acc)}.cg button.on{background:var(--acc);color:#0b1426;font-weight:800}
+.cg em{display:block;font-style:normal;font-size:11px;color:var(--mut)}.cg em.me{color:var(--ok);font-weight:700}.cg button.on em{color:#0b1426}
+#msheet{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column}#msheet[hidden]{display:none}
+.sh-h{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top,0px));background:#0b1426;border-bottom:3px solid var(--acc);font-size:19px}
+.sh-b{flex:1;overflow:auto;padding:14px}.sh-f{display:flex;gap:8px;align-items:center;padding:10px 14px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));background:#0b1426;border-top:1px solid var(--line)}
+.srch{margin:10px 0}.sel-list{max-height:34vh;overflow:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.sel-list button{text-align:left;background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:15px}.sel-list button.on{border-color:var(--acc);background:#3a2c14}
+.mrm{display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--line);padding:8px 0}.mrm>div{flex:1}.mrm input{width:110px!important}
+dialog{border-radius:16px}#cst{bottom:calc(70px + env(safe-area-inset-bottom,0px))!important;top:auto!important}
 </style>
 </head>
 <body>
@@ -204,7 +202,7 @@ body.lock #bb{display:none}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;try{t.hidePopover()}catch(e){}try{t.showPopover()}catch(e){}clearTimeout(t._t);t._t=setTimeout(()=>{try{t.hidePopover()}catch(e){}},7000)}
 window.alert=toast;
 function askConfirm(msg,yes){const d=document.getElementById('cfm');document.getElementById('cfmm').textContent=msg;document.getElementById('cfmy').onclick=()=>{d.close();yes()};d.showModal()}
-const APP_VER='1.3.2', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
+const APP_VER='1.3.3', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
 const OLDPH=['Taglio','Saldatura','Assemblaggio','Verniciatura/zincatura','Collaudo','Montaggio'], PHMAP=[0,0,0,1,0,2];
 const V28=['In produzione','Verniciatura/zincatura','Montaggio'];
 const PH=['Produzione','Zincatura/Verniciatura','Montaggio'];
@@ -256,7 +254,7 @@ let D; try{D=JSON.parse(localStorage.getItem(KEY))}catch(e){} if(!D||!D.jobs)D=s
 // adatta i dati salvati con una versione precedente
 let AUTH_READY=false;
 const migrate=()=>{
-  D.xsheets=D.xsheets||[];D.sl=D.sl||[];
+  D.xsheets=D.xsheets||[];D.sl=D.sl||[];D.nt=D.nt||[];
   [...D.jobs,...D.xsheets].forEach(j=>{if(j.sheet){if(!j.docs||!j.docs.length)j.docs=[{...j.sheet,id:1,type:'dist',title:'Distinta di taglio'}];delete j.sheet}});
 if(AUTH_READY)authInit();
 D.rates=D.rates||{c:32,s:42};if(D.rates.cc===undefined)D.rates.cc=D.rates.c;if(D.rates.cs===undefined)D.rates.cs=D.rates.s; // fino a quando non imposti il costo aziendale vale la tariffa precedente
@@ -1490,9 +1488,9 @@ function impLoad(){
 async function impFile(ev){
   const f=ev.target.files[0];if(!f)return;
   const t=IMP?IMP.t:'prod';
-  try{const sheets=await impRead(f);IMP={t,sheets,sh:0,name:f.name,map:{},plan:null,res:null,err:''};
+  try{const sheets=await impRead(f);IMP={t,fixed:IMP&&IMP.fixed,sheets,sh:0,name:f.name,map:{},plan:null,res:null,err:''};
     const best=sheets.findIndex(s=>s.rows.length>0);IMP.sh=best<0?0:best;impLoad()}
-  catch(e){IMP={t,sheets:null,err:e.message||'Impossibile leggere il file.',res:null}}
+  catch(e){IMP={t,fixed:IMP&&IMP.fixed,sheets:null,err:e.message||'Impossibile leggere il file.',res:null}}
   impDraw();
 }
 function impType(t){IMP=Object.assign(IMP||{},{t,plan:null,res:null});if(IMP.sheets)impLoad();impDraw()}
@@ -1569,13 +1567,22 @@ function impTemplate(){
   const csv='﻿'+[h,ex].map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(';')).join('\r\n')+'\r\n';
   const u=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));sfSaveAs(u,'Modello_'+t+'.csv');setTimeout(()=>URL.revokeObjectURL(u),60000);
 }
-// --- interfaccia (scheda in Impostazioni)
+// --- finestra di importazione (aperta dal pulsante «Importa da Excel» di Prodotti, Clienti e Fornitori)
+function impOpen(t){
+  const lvk=t=='prod'?'items':t;if(!ME||lv(lvk)<2){toast('Non hai il permesso di modificare questi dati.');return}
+  IMP={t,fixed:1,sheets:null,res:null,err:'',plan:null};
+  const d=$('#dlg');d.oninput=null;d.classList.add('wide');d.oncancel=null;
+  d.innerHTML=`<div class="dh"><h2>Importa da Excel o CSV · ${IMP_T[t].toLowerCase()}</h2><div class="mut">Scegli il file, controlla a quali campi corrispondono le colonne e guarda l’anteprima prima di importare. Le scelte restano salvate per le prossime volte. Funziona con file .xlsx e CSV.</div></div><div class="db"><div class="full" id="impbox">${impHtml()}</div></div><div class="df"><button class="b pri" onclick="$('#dlg').close()">Chiudi</button></div>`;
+  d.addEventListener('close',()=>{IMP=null;if(ME)render()},{once:true});
+  d.showModal();
+}
+// --- interfaccia
 function impDraw(){const e=document.getElementById('impbox');if(e)e.innerHTML=impHtml()}
 function impHtml(){
   if(!IMP)IMP={t:'prod',sheets:null,res:null,err:''};
   const t=IMP.t,c=impCfg(t),F=IMP_F[t],lab='display:flex;flex-direction:column;font-size:13px;gap:4px',ok=ME&&lv(t=='prod'?'items':t)>=2;
   let h=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;align-items:end">
-   <label style="${lab}">Che cosa vuoi importare<select onchange="impType(this.value)">${Object.entries(IMP_T).map(([k,v])=>`<option value="${k}" ${k==t?'selected':''}>${v}</option>`).join('')}</select></label>
+   ${IMP.fixed?`<div><b style="font-size:16px">${IMP_T[t]}</b></div>`:`<label style="${lab}">Che cosa vuoi importare<select onchange="impType(this.value)">${Object.entries(IMP_T).map(([k,v])=>`<option value="${k}" ${k==t?'selected':''}>${v}</option>`).join('')}</select></label>`}
    <label style="${lab}">File Excel (.xlsx) o CSV<input type="file" accept=".xlsx,.xlsm,.csv,.txt,.tsv" onchange="impFile(event)"></label>
    <div class="tools" style="margin:0"><button class="b" onclick="impTemplate()" title="Un file CSV con le colonne giuste, da compilare">Scarica modello CSV</button>${IMP_UNDO?'<button class="b dng" onclick="impUndo()">Annulla ultima importazione</button>':''}</div></div>`;
   if(IMP.err)h+=`<div class="rsn neg" style="margin-top:10px">${esc(IMP.err)}</div>`;
@@ -1635,8 +1642,7 @@ function settingsView(){
   card('Personale','Gli operai selezionabili nella registrazione delle ore. Il tipo decide quale costo orario aziendale si applica. Chi ha ore registrate non si può eliminare.',
     SD.ops.map((o,i)=>row(`<input value="${esc(o.n)}" style="flex:1;min-width:160px" oninput="sdSet('ops',${i},'n',this.value)">${tsel(i,o.t)}${use('ops',o)}${btns('ops',i,false)}`)).join('')+
     row(`<input id="newops" placeholder="Nome nuovo operaio" style="flex:1;min-width:160px"><select id="newopt"><option value="C">Operaio comune</option><option value="S">Operaio specializzato</option></select><button class="b pri" onclick="sdAdd('ops')">Aggiungi</button>`))+
-  card('Categorie e prezzi dei prodotti','Seleziona più prodotti insieme (con la ricerca o il filtro per categoria) e assegna a tutti la stessa categoria oppure cambia il prezzo unitario: impostandolo a un valore o con una variazione in percentuale. Le modifiche si applicano subito e non dipendono dal pulsante «Salva impostazioni».',`<div id="bubox">${buHtml()}</div>`)+
-  card('Importazione da Excel o CSV','Carica un file con prodotti, clienti o fornitori: scegli quali colonne corrispondono ai campi del programma, controlla l’anteprima e importa. Le scelte fatte (colonne e opzioni) restano salvate per le prossime importazioni. Funziona con file .xlsx e CSV.',`<div id="impbox">${impHtml()}</div>`)+
+  card('Categorie dei prodotti','Le categorie suddividono l’elenco dei prodotti e dell’inventario. Qui puoi aggiungerne di nuove, rinominarle (scrivi il nuovo nome e premi Invio) o eliminarle. Le modifiche valgono subito e non dipendono dal pulsante «Salva impostazioni».',`<div id="catbox">${catHtml()}</div>`)+
   card('Stati della commessa','Completato, Consegnata e Fatturata sono usati dal programma (fatturazione, commesse in corso) e non si possono modificare. Uno stato usato da commesse non si può eliminare.',list('st'))+
   card('Priorità','La prima voce è evidenziata come priorità massima nell’elenco commesse. Una priorità usata da commesse non si può eliminare.',list('prio'))+
   card('Fasi di produzione','Le fasi mostrate nell’avanzamento di ogni commessa e nella registrazione delle ore. Eliminando una fase se ne perde l’avanzamento nelle commesse; le ore già registrate restano.',list('ph'))+
@@ -1646,10 +1652,40 @@ function settingsView(){
 const CAT_DEF=['Profilati','Lamiere','Tubolari','Piatti e tondi','Bulloneria','Saldatura e consumabili','Vernici e trattamenti','Ferramenta','Altro'];
 let catF='';
 const catKey=c=>String(c||'').trim().toLowerCase();
-const catName=c=>{const k=catKey(c);if(!k)return '';const d=CAT_DEF.find(x=>catKey(x)==k);if(d)return d;const l=D.items.filter(i=>catKey(i.cat)==k).map(i=>String(i.cat).trim());return l.find(x=>x!==x.toLowerCase())||l[0]||String(c).trim()};
-function catList(){const m=new Map();CAT_DEF.forEach(c=>m.set(catKey(c),c));D.items.forEach(i=>{const k=catKey(i.cat);if(k&&!m.has(k))m.set(k,String(i.cat).trim())});return [...m.values()].sort((a,b)=>a.localeCompare(b,'it'))}
+const catBase=()=>D.cats||CAT_DEF;
+const catName=c=>{const k=catKey(c);if(!k)return '';const d=catBase().find(x=>catKey(x)==k);if(d)return d;const l=D.items.filter(i=>catKey(i.cat)==k).map(i=>String(i.cat).trim());return l.find(x=>x!==x.toLowerCase())||l[0]||String(c).trim()};
+function catList(){const m=new Map();catBase().forEach(c=>m.set(catKey(c),c));D.items.forEach(i=>{const k=catKey(i.cat);if(k&&!m.has(k))m.set(k,String(i.cat).trim())});return [...m.values()].sort((a,b)=>a.localeCompare(b,'it'))}
 function catGroups(a){const g=new Map();a.forEach(x=>{const k=catKey(x.cat);if(!g.has(k))g.set(k,{n:k?catName(x.cat):'Senza categoria',a:[]});g.get(k).a.push(x)});
   return [...g.entries()].sort((p,q)=>(p[0]===''?1:0)-(q[0]===''?1:0)||p[1].n.localeCompare(q[1].n,'it')).map(e=>{e[1].a.sort((x,y)=>String(x.code).localeCompare(String(y.code),'it',{numeric:true}));return e[1]})}
+// ---- gestione delle categorie (Impostazioni): si aggiungono, rinominano ed eliminano subito, senza «Salva impostazioni»
+const catCount=k=>D.items.filter(i=>catKey(i.cat)==k).length;
+function catHtml(){
+  const l=catList();
+  return `<div class="tw" style="max-width:640px"><table style="min-width:0"><thead><tr><th>Categoria</th><th class="n">Prodotti</th><th></th></tr></thead><tbody>${l.length?l.map(c=>`<tr><td><input value="${esc(c)}" data-n="${esc(c)}" style="width:100%;min-width:200px" onchange="catRen(this)" title="Modifica il nome e premi Invio"></td><td class="n">${catCount(catKey(c))}</td><td style="white-space:nowrap"><button class="b dng" data-n="${esc(c)}" onclick="catDel(this.dataset.n)">Elimina</button></td></tr>`).join(''):'<tr><td colspan="3" class="empty">Nessuna categoria. Aggiungine una qui sotto.</td></tr>'}</tbody></table></div>
+  <div class="tools" style="margin-top:10px"><input id="catnew" placeholder="Nome della nuova categoria" style="flex:1;min-width:200px;max-width:380px" onkeydown="if(event.key=='Enter')catAdd()"><button class="b pri" onclick="catAdd()">Aggiungi categoria</button></div>`;
+}
+const catBox=()=>{const e=document.getElementById('catbox');if(e)e.innerHTML=catHtml()};
+function catAdd(){
+  const e=document.getElementById('catnew'),v=(e.value||'').trim();if(!v)return toast('Scrivi il nome della nuova categoria.');
+  if(catList().some(c=>catKey(c)==catKey(v)))return toast('Questa categoria esiste già.');
+  D.cats=[...catBase(),v];addLog('Categoria creata: '+v);save();catBox();toast('Categoria «'+v+'» aggiunta.');
+}
+function catRen(el){
+  const old=el.dataset.n,nv=el.value.trim(),ok=catKey(old);
+  if(!nv){el.value=old;return toast('Il nome non può essere vuoto.')}
+  if(nv===old)return;
+  const dup=catList().some(c=>catKey(c)==catKey(nv)&&catKey(c)!=ok);
+  const go=()=>{const seen=new Set();D.cats=catBase().map(c=>catKey(c)==ok?nv:c).filter(c=>{const k=catKey(c);if(seen.has(k))return false;seen.add(k);return true});
+    if(!D.cats.some(c=>catKey(c)==catKey(nv)))D.cats.push(nv);
+    D.items.forEach(i=>{if(catKey(i.cat)==ok)i.cat=nv});addLog('Categoria «'+old+'» rinominata in «'+nv+'»');save();catBox();toast('Categoria rinominata.')};
+  if(dup)askConfirm('Esiste già la categoria «'+catName(nv)+'»: le due categorie verranno unite. Continuare?',go);else go();
+  if(dup)catBox();
+}
+function catDel(n){
+  const k=catKey(n),c=catCount(k);
+  askConfirm('Eliminare la categoria «'+n+'»?'+(c?' I '+c+(c==1?' prodotto resta':' prodotti restano')+' senza categoria.':''),()=>{
+    D.cats=catBase().filter(x=>catKey(x)!=k);D.items.forEach(i=>{if(catKey(i.cat)==k)delete i.cat});addLog('Categoria eliminata: '+n);save();catBox();toast('Categoria eliminata.')});
+}
 function catSet(c){catF=catF===c?'':c;render()}
 function list(k){
   const e=E[k]; let a=[...D[e.c]]; if(k=='items')a=a.filter(invVisible); if(k=='sup')a=a.filter(x=>!x.man);
@@ -1658,9 +1694,9 @@ function list(k){
   if(grp){const gs=catGroups(a);if(catF&&!gs.some(g=>g.n==catF))catF='';
     chips=gs.length>1?`<div class="cchips"><button class="${catF?'':'on'}" onclick="catSet('${catF.replace(/'/g,"\\'")}')">Tutte (${a.length})</button>${gs.map(g=>`<button class="${catF==g.n?'on':''}" onclick="catSet('${g.n.replace(/'/g,"\\'")}')">${esc(g.n)} (${g.a.length})</button>`).join('')}</div>`:'';
     gh=gs.filter(g=>!catF||g.n==catF)}
-  const rowH=x=>`<tr ${k=='items'?'':`class="row" onclick="${k=='cl'||k=='sup'?'anOpen':'ed'}('${k}',${x.id})"`} ${k=='items'&&incoming(x).length?'style="background:rgba(255,212,59,.35)" title="Ordinato al fornitore: merce in arrivo"':''}>${e.r(x).map(c=>`<td>${c}</td>`).join('')}</tr>`;
+  const rowH=x=>`<tr data-id="${x.id}" ${k=='items'?'':`class="row" onclick="${k=='cl'||k=='sup'?'anOpen':'ed'}('${k}',${x.id})"`} ${k=='items'&&incoming(x).length?'style="background:rgba(255,212,59,.35)" title="Ordinato al fornitore: merce in arrivo"':''}>${e.r(x).map(c=>`<td>${c}</td>`).join('')}</tr>`;
   const rows=grp&&gh?gh.map(g=>`<tr class="grp"><td colspan="${e.h.length}">${esc(g.n)}<small>${g.a.length} ${g.a.length==1?'articolo':'articoli'}</small></td></tr>`+g.a.map(rowH).join('')).join(''):a.map(rowH).join('');
-  return `${chips}<div class="tools"><input id="lq" placeholder="Cerca" style="flex:1;min-width:200px"><button class="b" onclick="pdfSection('${k}')">Esporta PDF</button>${k=='items'?`${lv('rcv')>0?'<button class="b" onclick="goView(\'rcv\')">Carico merce</button>':''}${lv('moves')>0?'<button class="b" onclick="goView(\'moves\')">Scarico merce</button>':''}<button class="b" onclick="rtOpen()">Rettifica giacenze</button><button class="b" onclick="invOpen()">Inventario a una data</button><button class="b" onclick="slOpen()">Storico movimenti</button><label style="display:inline-flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" ${invZ?'checked':''} onchange="invZ=this.checked;render()"> Mostra anche esauriti</label>`:''}${k=='items'?'':`<button class="b pri" onclick="ed('${k}')">${e.nw}</button>`}</div>${k=='items'?'<div class="mut" style="margin:0 0 6px">Sono mostrati solo gli articoli con giacenza di almeno 1. Le giacenze si modificano solo con «Rettifica giacenze», «Carico merce» e «Scarico merce». Le caratteristiche dei prodotti si cambiano da Magazzino › Prodotti.</div>':''}
+  return `${chips}<div class="tools"><input id="lq" placeholder="Cerca" style="flex:1;min-width:200px"><button class="b" onclick="pdfSection('${k}')">Esporta PDF</button>${['prod','cl','sup'].includes(k)&&lv(k=='prod'?'items':k)>=2?`<button class="b" onclick="impOpen('${k}')">Importa da Excel</button>`:''}${k=='prod'&&lv('items')>=2?`<button class="b" onclick="buOpen()">Categorie e prezzi</button>`:''}${k=='items'?`${lv('rcv')>0?'<button class="b" onclick="goView(\'rcv\')">Carico merce</button>':''}${lv('moves')>0?'<button class="b" onclick="goView(\'moves\')">Scarico merce</button>':''}<button class="b" onclick="rtOpen()">Rettifica giacenze</button><button class="b" onclick="invOpen()">Inventario a una data</button><button class="b" onclick="slOpen()">Storico movimenti</button><label style="display:inline-flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" ${invZ?'checked':''} onchange="invZ=this.checked;render()"> Mostra anche esauriti</label>`:''}${k=='items'?'':`<button class="b pri" onclick="ed('${k}')">${e.nw}</button>`}</div>${k=='items'?'<div class="mut" style="margin:0 0 6px">Sono mostrati solo gli articoli con giacenza di almeno 1. Le giacenze si modificano solo con «Rettifica giacenze», «Carico merce» e «Scarico merce». Le caratteristiche dei prodotti si cambiano da Magazzino › Prodotti.</div>':''}
   <div class="tw"><table id="lt"><thead><tr>${e.h.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${a.length?rows:`<tr><td colspan="${e.h.length}" class="empty">Ancora nessun dato. Usa il pulsante in alto per aggiungerne.</td></tr>`}</tbody></table></div>`;
 }
 const F=(id,l,v,t='text',x='')=>`<label ${x}>${l}<input id="${id}" type="${t}" value="${esc(v)}" ${t=='number'?'min="0" step="any"':''}></label>`;
@@ -1680,8 +1716,32 @@ function ed(k,id){
   $('#dlg').innerHTML=`<div class="dh"><h2>${old?'Modifica':e.nw}</h2></div><div class="db">${e.f.map(f=>f.t=='sel'?S(f.k,f.l,f.o(),rec[f.k]):f.t=='item'?IC(f.k,f.l,rec[f.k]):(k=='prod'&&f.k=='cat'?F(f.k,f.l,rec[f.k],'text','').replace('<input ','<input list="catdl" autocomplete="off" '):F(f.k,f.l,rec[f.k],f.t||'text',f.full?'class="full"':''))).join('')}<datalist id="catdl">${catList().map(c=>`<option value="${esc(c)}">`).join('')}</datalist><datalist id="artlist">${D.items.map(i=>`<option value="${esc(i.code)}">${esc(i.desc)}</option>`).join('')}</datalist></div>
   <div class="df">${old?(blocked?'<span class="mut l">Già usato in altri dati: non eliminabile.</span>':`<button class="b dng l" onclick="del('${k}',${id})">Elimina</button>`):''}<button class="b" onclick="$('#dlg').close()">Annulla</button><button class="b pri" onclick="sv('${k}',${id||0})">Salva</button></div>`;
   $('#dlg').showModal();
-  if(k=='prod'){const cp=()=>{const g=i=>$('#'+i).value,ca=+g('ca')||0,uc=g('uc').trim(),pc=+g('pc')||0,fc=pc>0?1/pc:(+g('fc')||0),um=g('um');const el=$('#costprev');if(el)el.textContent=(uc&&fc>0&&nu(uc)!=nu(um))?'Costo in inventario (per '+um+'): '+eur2(ca/fc):''};
-    $('#ca').insertAdjacentHTML('afterend','<small class="mut" id="costprev"></small>');$('#dlg').oninput=cp;cp();
+  if(k=='prod'){
+    // unità e prezzo guidati: la logica (unità di acquisto, conversione, costo) è la stessa, cambia solo come si inserisce
+    const g=x=>$('#'+x),lab=x=>g(x).closest('label'),setL=(x,t)=>{const l=lab(x);if(l&&l.firstChild)l.firstChild.nodeValue=t},num=v=>{v=+String(v).replace(',','.');return isFinite(v)?v:0};
+    lab('pc').style.display=lab('fc').style.display='none';
+    const on0=!!String(rec.uc||'').trim(),dir0=(+rec.pc>0)?'pc':(+rec.fc>0?'fc':(nu(rec.uc||'')=='kg'?'pc':'fc')),n0=dir0=='pc'?(+rec.pc||''):(+rec.fc||'');
+    lab('uc').insertAdjacentHTML('beforebegin',`<label class="full" style="flex-direction:row;display:flex;gap:8px;align-items:center;color:var(--ink);font-size:15px"><input type="checkbox" id="cv_on" style="width:auto" ${on0?'checked':''}> Lo acquisto in un’unità diversa da quella con cui lo vendo (es. compro a kg, vendo a metro)</label>`);
+    lab('uc').insertAdjacentHTML('afterend',`<div class="full" id="cv_row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px"><label>Come si converte<select id="cv_d"><option value="fc" ${dir0=='fc'?'selected':''}></option><option value="pc" ${dir0=='pc'?'selected':''}></option></select></label><label>Valore<input id="cv_n" type="number" min="0" step="any" value="${n0}"></label></div>`);
+    $('#ca').insertAdjacentHTML('afterend','<small class="mut" id="costprev"></small>');
+    g('cv_row').after(lab('ca'));lab('ca').after(lab('kg'));lab('ca').style.gridColumn='span 1';
+    let ucBak=rec.uc||'';
+    const cp=()=>{
+      if(!document.getElementById('cv_on'))return;
+      const on=g('cv_on').checked,um=g('um').value,uc=g('uc').value.trim();
+      lab('uc').style.display=g('cv_row').style.display=on?'':'none';
+      if(!on){if(uc)ucBak=uc;g('uc').value='';g('pc').value=0;g('fc').value=0}
+      else{if(!uc&&ucBak)g('uc').value=ucBak;const d=g('cv_d').value,n=num(g('cv_n').value);g('pc').value=d=='pc'?n:0;g('fc').value=d=='fc'?n:0}
+      const u2=on?g('uc').value.trim():'',ua=u2||'unità di acquisto',pc=num(g('pc').value),fc=pc>0?1/pc:num(g('fc').value),ca=num(g('ca').value);
+      g('cv_d').options[0].text='Quante '+um+' sono 1 '+ua;g('cv_d').options[1].text='Quanti '+ua+' ci sono in 1 '+um;
+      setL('uc','Unità in cui lo acquisto (es. kg, barra, lastra)');setL('kg','Peso di 1 '+um+' in kg (facoltativo)');
+      setL('ca','Prezzo di acquisto (€ per '+(u2||um)+')');setL('um','Unità in cui lo vendo e lo scarico sulle commesse');
+      const el=g('costprev'),kgOk=!(pc>0||num(g('fc').value)>0)&&nu(u2)=='kg'&&num(g('kg').value)>0;
+      el.textContent=(on&&u2&&nu(u2)!=nu(um))?((fc>0||kgOk)?'Costo in magazzino: '+eur2(kgOk?ca*num(g('kg').value):ca/fc)+' per '+um:'Indica la conversione per vedere il costo per '+um+'.'):'';
+    };
+    $('#dlg').oninput=cp;$('#dlg').onchange=cp;cp();
+    if(!old)g('cat').addEventListener('change',()=>{const ru=(D.catRules||{})[catKey(g('cat').value)];if(!ru||g('cv_on').checked)return;
+      if(ru.um)g('um').value=ru.um;g('cv_on').checked=true;g('uc').value=ru.uc;g('cv_d').value=ru.dir=='pc'?'pc':'fc';g('cv_n').value=ru.dir=='peso'?'':ru.n;cp()});
     PRID=id||0;CODE_AUTO=old?'\u0000':'';const c=$('#code'),d=$('#desc');
     c.insertAdjacentHTML('afterend','<small class="mut">Il codice si compila in automatico dalla descrizione (es. Trave HEA 200 → HEA-200). Puoi modificarlo.</small>');
     d.addEventListener('input',()=>codeAuto(false));
@@ -4403,19 +4463,75 @@ function buHtml(){
     <div class="tools" style="margin-top:8px"><input id="bu_c" list="catdl" autocomplete="off" placeholder="Scegli o scrivi una categoria" value="${esc(BU.cat)}" oninput="BU.cat=this.value" style="flex:1;min-width:160px"><button class="b pri" onclick="buCat()">Assegna</button><button class="b" onclick="buCat(1)">Togli categoria</button></div></div>
    <div class="tw" style="padding:12px 14px"><b>Cambia il prezzo unitario dei selezionati</b>
     <div class="tools" style="margin-top:8px"><select id="bu_m" onchange="BU.mode=this.value;buPh()"><option value="set" ${BU.mode=='set'?'selected':''}>Imposta il prezzo a (€)</option><option value="pct" ${BU.mode=='pct'?'selected':''}>Aumenta o diminuisci del (%)</option></select><input id="bu_v" type="number" step="any" value="${esc(BU.val)}" oninput="BU.val=this.value" style="width:130px"><button class="b pri" onclick="buPrice()">Applica</button></div>
-    <div class="mut" id="bu_h" style="margin-top:6px"></div></div></div>
+    <div class="mut" id="bu_h" style="margin-top:6px"></div></div>
+   <div id="bu_cvb" style="display:contents">${buCvHtml()}</div></div>
   <datalist id="catdl">${cs.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>`;
 }
+// ---- conversione acquisto/vendita su più prodotti o su un'intera categoria
+BU.cv={um:'',uc:'kg',dir:'peso',n:''};
+function buCvHtml(){
+  const c=BU.cv,um=c.um||'unità di vendita',ua=c.uc.trim()||'unità di acquisto',catSel=BU.f!=='*'&&BU.f!=='',n=D.items.filter(i=>catKey(i.cat)==catKey(BU.f)).length;
+  return `<div class="tw" style="padding:12px 14px;grid-column:1/-1"><b>Acquisto e vendita in unità diverse (es. lamiere: compro a kg, vendo al m)</b>
+   <div class="mut" style="margin:4px 0 8px">Imposta una volta sola l’unità di acquisto e la conversione: vale per i prodotti selezionati oppure per tutta la categoria scelta nel filtro «Mostra categoria». Il costo per unità di vendita già inserito non cambia: il programma ricalcola il prezzo per unità di acquisto.</div>
+   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end">
+    <label>Unità in cui li vendo<select onchange="BU.cv.um=this.value;buCvBox()"><option value="" ${c.um?'':'selected'}>Come ora (non cambiare)</option>${['m','kg','pz','m²'].map(u=>`<option ${c.um==u?'selected':''}>${u}</option>`).join('')}</select></label>
+    <label>Unità in cui li acquisto<input value="${esc(c.uc)}" list="bu_ul" oninput="BU.cv.uc=this.value;buCvHint()" onchange="buCvBox()"><datalist id="bu_ul"><option value="kg"><option value="m"><option value="pz"><option value="m²"><option value="barra"><option value="lastra"><option value="conf"></datalist></label>
+    <label>Come si converte<select onchange="BU.cv.dir=this.value;buCvBox()"><option value="peso" ${c.dir=='peso'?'selected':''}>Usa il peso indicato su ogni prodotto (kg per 1 ${esc(um)})</option><option value="fc" ${c.dir=='fc'?'selected':''}>Quante ${esc(um)} sono 1 ${esc(ua)} (stesso valore per tutti)</option><option value="pc" ${c.dir=='pc'?'selected':''}>Quanti ${esc(ua)} ci sono in 1 ${esc(um)} (stesso valore per tutti)</option></select></label>
+    ${c.dir=='peso'?'':`<label>Valore<input type="number" min="0" step="any" value="${esc(c.n)}" oninput="BU.cv.n=this.value;buCvHint()"></label>`}</div>
+   <div class="tools" style="margin-top:10px"><button class="b pri" onclick="buCv(0)">Applica ai selezionati</button>${catSel?`<button class="b pri" onclick="buCv(1)">Applica a tutta la categoria «${esc(catName(BU.f))}» (${n})</button>`:''}<button class="b" onclick="buCvClear()">Togli la conversione ai selezionati</button></div>
+   <div class="mut" id="bu_cvh" style="margin-top:6px"></div></div>`;
+}
+function buCvBox(){const e=$('#bu_cvb');if(e){e.innerHTML=buCvHtml();buCvHint()}}
+function buCvHint(){const e=$('#bu_cvh');if(!e)return;const c=BU.cv;e.textContent=c.dir=='peso'?(nu(c.uc)=='kg'?'I prodotti senza peso indicato vengono saltati: il peso si scrive nella scheda del prodotto.':'Il peso si può usare solo se l’unità di acquisto è il kg.'):''}
+const buCvItems=all=>all?D.items.filter(i=>catKey(i.cat)==catKey(BU.f)):buSelItems();
+function buCv(all){
+  const a=buCvItems(all),c=BU.cv,uc=c.uc.trim();
+  if(!a.length)return toast(all?'Nessun prodotto in questa categoria.':'Seleziona almeno un prodotto.');
+  if(!uc)return toast('Scrivi l’unità in cui acquisti i prodotti.');
+  const n=parseFloat(String(c.n).replace(',','.'));
+  if(c.dir=='peso'&&nu(uc)!='kg')return toast('Il peso si può usare solo se l’unità di acquisto è il kg: scegli un’altra conversione.');
+  if(c.dir!='peso'&&!(n>0))return toast('Scrivi il valore della conversione.');
+  const plan=[];let skipW=0,same=0,umCh=0;
+  a.forEach(i=>{const um=c.um||i.um;if(um!=i.um)umCh++;
+    if(nu(uc)==nu(um)){plan.push({i,um,clear:1});same++;return}
+    let pc=0,fc=0;
+    if(c.dir=='peso'){if(!(+i.kg>0)){skipW++;return}pc=+i.kg;fc=1/pc}else if(c.dir=='pc'){pc=n;fc=1/n}else{fc=n}
+    plan.push({i,um,pc,fc})});
+  if(!plan.length)return toast('Nessun prodotto aggiornabile: '+skipW+' senza peso indicato.');
+  const ex=plan.find(p=>!p.clear)||plan[0],e1=ex.i;
+  askConfirm('Impostare l’acquisto in '+uc+(c.um?' e la vendita in '+c.um:'')+' su '+plan.length+(plan.length==1?' prodotto':' prodotti')+'? '+(ex.clear?'':'Esempio: '+e1.code+' costa '+eur2(e1.cost)+'/'+ex.um+', cioè '+eur2(r4((+e1.cost||0)*ex.fc))+'/'+uc+'. ')+(umCh?'ATTENZIONE: cambia l’unità di vendita di '+umCh+' prodotti, ma giacenze e costi restano com’erano: controllali. ':'')+(skipW?skipW+' prodotti senza peso verranno saltati. ':'')+(same?same+' hanno l’unità di acquisto uguale a quella di vendita: nessuna conversione. ':''),()=>{
+    plan.forEach(p=>{const i=p.i;i.um=p.um;
+      if(p.clear){i.uc='';i.pc=0;i.fc=0;i.ca=+i.cost||0}
+      else{i.uc=uc;i.pc=p.pc;i.fc=p.fc;i.ca=r4((+i.cost||0)*p.fc)}});
+    if(all){D.catRules=D.catRules||{};D.catRules[catKey(BU.f)]={um:c.um,uc,dir:c.dir,n:c.dir=='peso'?'':n}}
+    addLog('Unità di acquisto «'+uc+'» impostata su '+plan.length+' prodotti'+(all?' (categoria '+catName(BU.f)+')':''));save();BU.sel.clear();buBox();toast('Fatto: '+plan.length+(plan.length==1?' prodotto aggiornato.':' prodotti aggiornati.')+(skipW?' '+skipW+' saltati (senza peso).':''))})
+}
+function buCvClear(){
+  const a=buSelItems().filter(i=>i.uc);if(!a.length)return toast('Seleziona almeno un prodotto con unità di acquisto diversa.');
+  askConfirm('Togliere la conversione a '+a.length+(a.length==1?' prodotto':' prodotti')+'? Acquisto e vendita useranno la stessa unità.',()=>{a.forEach(i=>{i.uc='';i.pc=0;i.fc=0;i.ca=+i.cost||0});save();BU.sel.clear();buBox();toast('Conversione tolta.')});
+}
+
 function buPh(){const e=$('#bu_h');if(e)e.textContent=BU.mode=='pct'?'Esempio: 5 aumenta del 5%, -10 diminuisce del 10%. Si applica al costo unitario di ogni articolo selezionato.':'Il prezzo è per unità di misura dell’articolo (€/m, €/kg, €/pz...) e diventa lo stesso per tutti i selezionati.'}
 function buDraw(){
   const a=buRows(),n=BU.sel.size,all=a.length&&a.every(i=>BU.sel.has(i.id));
   const e=$('#bu_t');if(!e)return;
+  const sc0=(e.querySelector('.tw')||{}).scrollTop||0,dl=e.closest('.db'),dsc=dl?dl.scrollTop:0;
   e.innerHTML=`<div class="tools" style="margin-bottom:6px"><b>${n}</b> ${n==1?'selezionato':'selezionati'} · ${a.length} ${a.length==1?'prodotto mostrato':'prodotti mostrati'}<span style="flex:1"></span><button class="b" onclick="buClr()" ${n?'':'disabled'}>Deseleziona tutto</button></div>
   <div class="tw" style="max-height:340px;overflow:auto"><table style="min-width:560px"><thead><tr><th style="width:34px"><input type="checkbox" ${all?'checked':''} onchange="buAll(this.checked)" title="Seleziona tutti i mostrati"></th><th>Codice</th><th>Descrizione</th><th>Categoria</th><th style="text-align:right">Prezzo unitario</th></tr></thead><tbody>${a.slice(0,500).map(i=>`<tr><td><input type="checkbox" ${BU.sel.has(i.id)?'checked':''} onchange="buTog(${i.id},this.checked)"></td><td><b>${esc(i.code)}</b></td><td>${esc(i.desc)}</td><td>${esc(catName(i.cat))||'<span class="mut">-</span>'}</td><td style="text-align:right">${eur2(i.cost)}/${esc(i.um)}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nessun prodotto.</td></tr>'}</tbody></table></div>${a.length>500?`<div class="mut">Mostrati i primi 500: usa la ricerca o il filtro per restringere.</div>`:''}`;
+  const sc=e.querySelector('.tw');if(sc)sc.scrollTop=sc0;if(dl)dl.scrollTop=dsc;
 }
-function buInit(){buDraw();buPh()}
+function buInit(){buDraw();buPh();buCvHint()}
+// finestra «Categorie e prezzi» (aperta dal pulsante in Magazzino › Prodotti)
+function buOpen(){
+  if(!ME||lv('items')<2){toast('Non hai il permesso di modificare i prodotti.');return}
+  BU.sel.clear();BU.q='';BU.f='*';BU.val='';BU.cat='';
+  const d=$('#dlg');d.oninput=null;d.classList.add('wide');d.oncancel=null;
+  d.innerHTML=`<div class="dh"><h2>Categorie, prezzi e unità dei prodotti</h2><div class="mut">Seleziona più prodotti insieme (con la ricerca o il filtro per categoria) e assegna a tutti la stessa categoria oppure cambia il prezzo unitario: impostandolo a un valore o con una variazione in percentuale. In fondo trovi la conversione acquisto/vendita (es. lamiere: compro a kg, vendo al m), da applicare ai selezionati o a un’intera categoria. Le modifiche si applicano subito.</div></div><div class="db"><div class="full" id="bubox">${buHtml()}</div></div><div class="df"><button class="b pri" onclick="$('#dlg').close()">Chiudi</button></div>`;
+  d.addEventListener('close',()=>{BU.sel.clear();if(ME)render()},{once:true});
+  d.showModal();buInit();
+}
 function buQ(v){BU.q=v;buDraw()}
-function buF(v){BU.f=v;buDraw()}
+function buF(v){BU.f=v;buDraw();buCvBox()}
 function buTog(id,on){on?BU.sel.add(id):BU.sel.delete(id);buDraw()}
 function buAll(on){buRows().forEach(i=>on?BU.sel.add(i.id):BU.sel.delete(i.id));buDraw()}
 function buClr(){BU.sel.clear();buDraw()}
@@ -4504,18 +4620,138 @@ function dlgX(d){
   });
 })();
 
+// ---------- collegamento con il programma mobile (produzione): note, ordini da approvare, dipendente collegato all'utente
+D.nt=D.nt||[];
+const ntNew=()=>(D.nt||[]).filter(n=>!n.read).length;
+function ntBadge(){const m=document.getElementById('me');if(!m||!ME)return;let b=document.getElementById('ntb');
+  if(!(lv('jobs')>0)){if(b)b.remove();return}
+  if(!b){b=document.createElement('button');b.id='ntb';b.className='b';b.onclick=ntOpen;m.insertBefore(b,m.firstChild)}
+  const n=ntNew();b.innerHTML='Note produzione'+(n?` <span class="tag late" style="margin-left:4px">${n}</span>`:'')}
+function ntOpen(){
+  const l=[...(D.nt||[])].sort((a,b)=>b.t.localeCompare(a.t)),d=$('#dlg');d.oninput=null;d.classList.add('wide');
+  d.innerHTML=`<div class="dh"><h2>Note dalla produzione</h2><div class="mut">Note scritte da smartphone sulle schede di lavorazione. Segnale come lette o eliminale quando non servono più.</div></div><div class="db"><div class="full tw"><table><thead><tr><th>Quando</th><th>Da</th><th>Scheda</th><th>Nota</th><th></th></tr></thead><tbody>${l.length?l.map(n=>`<tr ${n.read?'style="opacity:.6"':''}><td>${esc(new Date(n.t).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))}</td><td>${esc(n.op||n.name||'-')}</td><td>${n.sheet?`<a href="#" onclick="event.preventDefault();$('#dlg').close();sheetOpen(${n.sheet})"><b>${esc(n.code||'')}</b></a>`:'-'}</td><td style="white-space:pre-wrap">${esc(n.text)}</td><td style="white-space:nowrap">${n.read?'':`<button class="b" onclick="ntRead(${n.id})">Letta</button> `}<button class="b dng" onclick="ntDel(${n.id})">Elimina</button></td></tr>`).join(''):'<tr><td colspan="5" class="empty">Nessuna nota.</td></tr>'}</tbody></table></div></div><div class="df">${ntNew()?'<button class="b" onclick="ntReadAll()">Segna tutte come lette</button>':''}<button class="b pri" onclick="$(\'#dlg\').close()">Chiudi</button></div>`;
+  if(!d.open)d.showModal();
+}
+function ntRead(id){const n=D.nt.find(x=>x.id==id);if(n){n.read=1;save()}ntOpen();ntBadge()}
+function ntReadAll(){D.nt.forEach(n=>n.read=1);save();ntOpen();ntBadge()}
+function ntDel(id){D.nt=D.nt.filter(x=>x.id!=id);save();ntOpen();ntBadge()}
+const _bn0=buildNav;buildNav=function(){_bn0.apply(this,arguments);ntBadge()};
+setInterval(()=>{if(ME)ntBadge()},5000);
+// ordini creati dalla produzione: devono essere approvati dall'ufficio
+const ordPend=()=>D.orders.filter(o=>o.status=='Da approvare');
+function ordApprove(sp){const g=ordPend().filter(o=>ordSup(o)==sp);g.forEach(o=>{o.status='Bozza'});save();render();toast('Ordine approvato: è in Bozza, ora puoi confermarlo al fornitore.')}
+function ordReject(sp){askConfirm('Rifiutare e cancellare le voci richieste dalla produzione?',()=>{const ids=new Set(ordPend().filter(o=>ordSup(o)==sp).map(o=>o.id));D.orders=D.orders.filter(o=>!ids.has(o.id));save();render()})}
+const _ob0=ordersBody;ordersBody=function(){
+  let h=_ob0.apply(this,arguments);const p=ordPend();if(!p.length)return h;
+  const sups=[...new Set(p.map(ordSup))];
+  const blk=`<h3 style="margin:22px 0 2px">Da approvare <span class="mut" style="font:600 14px 'IBM Plex Sans',sans-serif">· richieste dalla produzione</span></h3><div class="mut" style="margin-bottom:8px">Ordini creati da smartphone: approvali per portarli in Bozza (poi li confermi al fornitore) oppure rifiutali.</div>`+
+  sups.map(sp=>{const g=p.filter(o=>ordSup(o)==sp);return `<div class="tw" style="margin-bottom:12px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--line)"><b style="flex:1">${sp?esc(nm('sup',sp)):'Fornitore da definire'}</b><button class="b pri" onclick="ordApprove(${sp})">Approva</button><button class="b dng" onclick="ordReject(${sp})">Rifiuta</button></div><table><thead><tr><th>Articolo</th><th class="n">Quantità</th><th>Commessa</th><th>Richiesto da</th></tr></thead><tbody>${g.map(o=>`<tr><td>${esc(ordName(o))}</td><td class="n">${fN(o.qty)} ${esc(ordUm(o))}</td><td>${esc(jb(o.job))}</td><td>${esc(o.by||'-')}</td></tr>`).join('')}</tbody></table></div>`}).join('');
+  return blk+h};
+// utenti locali: dipendente collegato
+const _uo0=userEdit;userEdit=function(id){_uo0.apply(this,arguments);const u=id?D.users.find(x=>x.id==id):null,e=document.getElementById('ur');if(!e)return;
+  e.closest('label').insertAdjacentHTML('afterend',`<label>Dipendente collegato (per il programma mobile)<select id="uop"><option value="">— nessuno —</option>${OPS.map(o=>`<option ${u&&u.op==o.n?'selected':''}>${esc(o.n)}</option>`).join('')}</select></label>`)};
+const _us0=userSave;userSave=async function(id){const op=(document.getElementById('uop')||{}).value||'';const r=await _us0.apply(this,arguments);
+  const us=((document.getElementById('uu')||{}).value||'').trim().toLowerCase();const u=D.users.find(x=>x.user==us);if(u&&u.op!==op){u.op=op;save()}return r};
+
+// ---------- selezione multipla negli elenchi ed eliminazione di più righe
+const BSV={
+  jobs:{re:/^editJob\((-?\d+)\)/,n:['commessa','commesse'],warn:'Verranno eliminati anche le ore e i prelievi di magazzino collegati (la merce torna in giacenza). Le aggiunte collegate diventano commesse autonome.'},
+  quotes:{re:/^editQuote\((\d+)\)/,n:['preventivo','preventivi'],warn:'I documenti già convertiti in commessa non vengono eliminati.'},
+  ordc:{re:/^editQuote\((\d+)\)/,n:['ordine cliente','ordini cliente'],warn:'I documenti già convertiti in commessa non vengono eliminati.'},
+  sheets:{re:/^sheetOpen\((-?\d+)\)/,n:['scheda','schede'],warn:'Vengono eliminati tutti i documenti e i file archiviati nelle schede selezionate (le schede delle commesse restano, ma vuote).'},
+  items:{data:1,n:['articolo','articoli'],warn:'Gli articoli già usati in altri dati non vengono eliminati.'},
+  prod:{data:1,n:['prodotto','prodotti'],warn:'I prodotti già usati in altri dati non vengono eliminati.'},
+  cl:{data:1,n:['cliente','clienti'],warn:'I clienti con commesse non vengono eliminati.'},
+  sup:{data:1,n:['fornitore','fornitori'],warn:'I fornitori già usati in altri dati non vengono eliminati.'},
+  moves:{data:1,n:['movimento','movimenti'],warn:'La quantità degli scarichi torna in magazzino.'},
+  orders:{re:/^ordOpenG\('([^']+)'\)/,n:['ordine','ordini'],warn:'Vengono eliminate tutte le voci degli ordini selezionati. Per gli ordini già ricevuti la giacenza viene riportata com’era.'},
+  rcv:{re:/^rcvOpen\((\d+)\)/,n:['carico','carichi'],warn:'Ogni carico viene annullato: le quantità caricate vengono tolte dalla giacenza e gli ordini collegati tornano «Ordinato».'}
+};
+const BS={v:'',ids:new Set()};
+const bsOk=()=>!!ME&&canDel()&&lv(view)>=2&&!!BSV[view];
+function bsId(r){
+  const c=BSV[view];if(!c)return null;
+  if(c.data)return r.dataset&&r.dataset.id?r.dataset.id:null;
+  if(!r.classList.contains('row'))return null;
+  const m=c.re.exec((r.getAttribute('onclick')||'').trim());return m?m[1]:null;
+}
+function bsInject(){
+  if(!bsOk()){if(BS.ids.size){BS.ids=new Set()}bsBar();return}
+  if(BS.v!=view){BS.v=view;BS.ids=new Set()}
+  const main=document.getElementById('main');if(!main)return;
+  main.querySelectorAll('table').forEach(t=>{
+    const rows=[...t.querySelectorAll('tbody tr')],ids=rows.map(bsId);if(!ids.some(x=>x!=null))return;
+    const hr=t.querySelector('thead tr');
+    if(hr&&!hr.querySelector('.bsc')){const th=document.createElement('th');th.className='bsc';th.innerHTML='<input type="checkbox" class="bsa" title="Seleziona tutte le righe" aria-label="Seleziona tutte le righe" onchange="bsAll(this)">';hr.insertBefore(th,hr.firstChild)}
+    rows.forEach((r,i)=>{
+      if(r.firstElementChild&&r.firstElementChild.classList.contains('bsc'))return;
+      const id=ids[i];
+      if(id==null&&r.cells.length==1&&r.cells[0].colSpan>1){r.cells[0].colSpan++;return}
+      const td=document.createElement('td');td.className='bsc';td.onclick=e=>e.stopPropagation();
+      if(id!=null)td.innerHTML=`<input type="checkbox" class="bsk" data-k="${esc(id)}" aria-label="Seleziona riga" onchange="bsTog(this)">`;
+      r.insertBefore(td,r.firstChild);
+    });
+  });
+  main.querySelectorAll('.bsk').forEach(c=>{const on=BS.ids.has(c.dataset.k);if(c.checked!=on)c.checked=on;c.closest('tr').classList.toggle('bss',on)});
+  main.querySelectorAll('table').forEach(t=>{const a=t.querySelector('.bsa');if(!a)return;const ks=[...t.querySelectorAll('.bsk')],n=ks.filter(k=>k.checked).length;a.checked=!!ks.length&&n==ks.length;a.indeterminate=n>0&&n<ks.length});
+  bsBar();
+}
+function bsTog(c){c.checked?BS.ids.add(c.dataset.k):BS.ids.delete(c.dataset.k);bsInject()}
+function bsAll(a){
+  const t=a.closest('table');t.querySelectorAll('.bsk').forEach(k=>{if(k.closest('tr').style.display=='none')return;a.checked?BS.ids.add(k.dataset.k):BS.ids.delete(k.dataset.k)});bsInject();
+}
+function bsNone(){BS.ids=new Set();bsInject()}
+function bsBar(){
+  let b=document.getElementById('bsbar');const n=BS.ids.size;
+  if(!n||!bsOk()){if(b)b.hidden=true;return}
+  if(!b){b=document.createElement('div');b.id='bsbar';document.body.appendChild(b)}
+  const c=BSV[view];b.hidden=false;
+  b.innerHTML=`<b>${n} ${n==1?c.n[0]+' selezionato':c.n[1]+' selezionati'}</b><button class="b" onclick="bsNone()">Deseleziona</button><button class="b dng" onclick="bsDel()">Elimina selezionati</button>`;
+}
+async function bsDelOne(id){
+  switch(view){
+    case 'jobs':{const j=D.jobs.find(x=>x.id==id);if(!j)return 0;
+      D.moves.filter(m=>m.job==j.id).forEach(m=>E.moves.ap(m,-1));
+      D.jobs.forEach(c=>{if(c.parent==j.id)c.parent=0});D.jobs=D.jobs.filter(x=>x.id!=j.id);['moves','hours'].forEach(c=>D[c]=D[c].filter(x=>x.job!=j.id));
+      D.quotes.forEach(q=>{if(q.job==j.id){q.job=0;q.status=(q.kind=='O')?'Confermato':'Accettato'}});
+      D.orders=D.orders.filter(o=>!(o.job==j.id&&o.auto&&o.status=='Bozza'&&!(D.orders.some(x=>x.po==o.po&&x.job!=j.id))));D.orders.forEach(o=>{if(o.job==j.id)o.job=0});
+      D.rcv.forEach(r=>{if(r.job==j.id)r.job=0;r.lines.forEach(l=>{if(l.job==j.id)l.job=0})});return 1}
+    case 'quotes':case 'ordc':{const q=D.quotes.find(x=>x.id==id);if(!q||q.job)return 0;D.quotes=D.quotes.filter(x=>x.id!=id);return 1}
+    case 'sheets':{const s=shJob(id);if(!s)return 0;
+      for(const d of (s.docs||[]))for(const f of [...(d.pdfs||[]),...(d.files||[])]){try{await fDel(f.fid)}catch(e){}}
+      if(id<0)D.xsheets=D.xsheets.filter(x=>x.id!=id);else s.docs=[];return 1}
+    case 'items':case 'prod':case 'cl':case 'sup':{const e=E[view],o=D[e.c].find(x=>x.id==id);if(!o)return 0;if(e.use&&e.use(o))return 0;e.ap&&e.ap(o,-1);D[e.c]=D[e.c].filter(x=>x.id!=id);return 1}
+    case 'moves':{const o=D.moves.find(x=>x.id==id);if(!o)return 0;E.moves.ap(o,-1);D.moves=D.moves.filter(x=>x.id!=id);return 1}
+    case 'orders':{const ids=OGM[id]||[];let n=0;ids.forEach(i=>{const o=D.orders.find(x=>x.id==i);if(!o)return;E.orders.ap(o,-1);D.orders=D.orders.filter(x=>x.id!=i);n++});return n?1:0}
+    case 'rcv':{const r=D.rcv.find(x=>x.id==id);if(!r)return 0;
+      r.lines.forEach(l=>{const it=itm(l.item);if(it.id&&(!r.jx||!l.job)){slCtx='Annullo carico merce';it.stock=r4(it.stock-l.qty)}});
+      (r.orders||(r.order?[r.order]:[])).forEach(i=>{const o=D.orders.find(x=>x.id==i);if(o&&o.status=='Ricevuto')o.status='Ordinato'});
+      D.rcv=D.rcv.filter(x=>x.id!=id);return 1}
+  }
+  return 0;
+}
+function bsDel(){
+  const ids=[...BS.ids],c=BSV[view],n=ids.length;if(!n)return;
+  askConfirm(`Eliminare ${n} ${n==1?c.n[0]:c.n[1]}? ${c.warn} L’operazione non si può annullare.`,async()=>{
+    let ok=0;for(const id of ids){try{ok+=await bsDelOne(id)}catch(e){console.error(e)}}
+    BS.ids=new Set();save();render();
+    toast(ok==n?(ok==1?'Elemento eliminato.':ok+' elementi eliminati.'):ok+' eliminati su '+n+': gli altri sono in uso o già convertiti e restano al loro posto.');
+  });
+}
+new MutationObserver(()=>{if(bsInject.t)return;bsInject.t=requestAnimationFrame(()=>{bsInject.t=0;try{bsInject()}catch(e){console.error(e)}})}).observe(document.getElementById('main'),{childList:true,subtree:true});
+document.addEventListener('keydown',e=>{if(e.key=='Escape'&&BS.ids.size&&!document.querySelector('dialog[open]'))bsNone()});
+
 // ---------- avvio
 (function(){AUTH_READY=true;authInit();let sid=null;try{sid=+sessionStorage.getItem('carp_sess')}catch(e){}
   const u=D.users.find(x=>x.id==sid&&x.on);
   if(u){ME=u;lockUI(false);buildNav();view=firstView();render()}else showLogin()})();
 </script>
-<script>if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(function(){});</script>
 <script>
 /* ===== MODALITÀ SERVER (Supabase): accesso, dati condivisi, allegati, utenti ===== */
 (function(){
 const C=window.GC_CLOUD;if(!C)return;
 const API=C.url.replace(/\/+$/,''),PK=C.key,SK='gc_cloud_session',DOM='@gc-gremo.app';
-const COLL=['cl','sup','items','jobs','quotes','orders','moves','hours','rcv','xsheets','sl'];
+const COLL=['cl','sup','items','jobs','quotes','orders','moves','hours','rcv','xsheets','sl','nt'];
 const NOCONF=new Set([...COLL,'users','roles','log']);
 let SES=null,SYNC={},CONFV=null,WM='',PEND=[],pushing=0,again=0,pushT=null,pollT=null,authT=null,online=true,errCnt=0,LOADED=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -4689,7 +4925,7 @@ async function loadProfile(){
 async function enterCloud(){
   const p=await loadProfile();
   await loadAll();
-  ME={id:p.id,user:p.username,name:p.nome,role:p.ruolo,on:true,must:0};
+  ME={id:p.id,user:p.username,name:p.nome,role:p.ruolo,op:p.operatore||'',on:true,must:0};
   if(p.ruolo!='admin'&&!roleOf(p.ruolo))throw new HErr(403,'Ruolo non valido: contatta l’amministratore.');
   LOADED=true;lastAct=Date.now();lockUI(false);buildNav();view=firstView();render();stat();
   clearInterval(pollT);pollT=setInterval(()=>{poll();applyPend()},6000);
@@ -4844,8 +5080,9 @@ function usrHtml(){
   const card=(t,note,body)=>`<div class="tw" style="padding:14px 16px;margin-bottom:16px"><h3 style="margin:0 0 4px">${t}</h3><div class="mut" style="margin-bottom:10px">${note}</div>${body}</div>`;
   return (UM.err?`<div class="rsn neg" style="margin-bottom:10px">${esc(UM.err)}</div>`:'')+(UM.msg?`<div class="rsn pos" style="margin-bottom:10px">${esc(UM.msg)}</div>`:'')+
   card('Utenti','Ogni persona ha il suo nome utente e la sua password. Il ruolo decide cosa può vedere e modificare. Un utente disattivato non può più entrare.',
-   `<div class="tw"><table style="min-width:640px"><thead><tr><th>Nome</th><th>Utente</th><th>Ruolo</th><th>Attivo</th><th></th></tr></thead><tbody>${UM.list.map(u=>`<tr><td><b>${esc(u.nome)}</b>${u.id==ME.id?' <span class="tag">tu</span>':''}</td><td>${esc(u.username)}</td>
+   `<div class="tw"><table style="min-width:640px"><thead><tr><th>Nome</th><th>Utente</th><th>Ruolo</th><th>Dipendente (mobile)</th><th>Attivo</th><th></th></tr></thead><tbody>${UM.list.map(u=>`<tr><td><b>${esc(u.nome)}</b>${u.id==ME.id?' <span class="tag">tu</span>':''}</td><td>${esc(u.username)}</td>
    <td><select onchange="cuRole('${u.id}',this.value)" ${u.id==ME.id?'disabled':''}>${ropt(u.ruolo)}</select></td>
+   <td><select onchange="cuOp('${u.id}',this.value)"><option value="">—</option>${OPS.map(o=>`<option ${u.operatore==o.n?'selected':''}>${esc(o.n)}</option>`).join('')}</select></td>
    <td><input type="checkbox" ${u.attivo?'checked':''} ${u.id==ME.id?'disabled':''} onchange="cuOn('${u.id}',this.checked)"></td>
    <td style="white-space:nowrap"><button class="b" onclick="cuPwd('${u.id}')">Nuova password</button> ${u.id==ME.id?'':`<button class="b dng" onclick="cuDel('${u.id}')">Elimina</button>`}</td></tr>`).join('')}</tbody></table></div>
    <h3 style="margin:16px 0 6px">Nuovo utente</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;align-items:end">
@@ -4864,6 +5101,7 @@ function usrHtml(){
 usersView=()=>{setTimeout(usrLoad,0);return `<div id="usrbox">${usrHtml()}</div>`};
 const upd=async(tab,filt,body)=>{try{const r=await rest(tab+'?'+filt,{method:'PATCH',json:body,headers:{Prefer:'return=representation'}});if(!r||!r.length)throw new Error('Modifica non consentita.');UM.err='';UM.msg='Salvato.';await usrLoad()}catch(e){usrErr(e)}};
 cuRole=(id,v)=>upd('profili','id=eq.'+id,{ruolo:v});
+cuOp=(id,v)=>upd('profili','id=eq.'+id,{operatore:v});
 cuOn=(id,v)=>upd('profili','id=eq.'+id,{attivo:v});
 cuNew=async()=>{const b={nome:$('#nu_n').value.trim(),username:$('#nu_u').value.trim().toLowerCase(),ruolo:$('#nu_r').value,password:$('#nu_p').value};
   try{await fnc('crea',b);UM.err='';UM.msg='Utente «'+b.username+'» creato. Comunicagli nome utente e password.';await usrLoad()}catch(e){usrErr(e)}};
@@ -4954,43 +5192,345 @@ setInterval(()=>{if(ME)stat()},4000);
 })();
 </script>
 <script>
-/* ===== VARIANTE OFFICINA · schermata Home, barra in basso, tabelle a schede ===== */
+/* ===== PROGRAMMA MOBILE · produzione =====
+   Lavora sugli stessi dati del programma PC (via server). Nessun importo, nessuna creazione di utenti. */
 (function(){
-const IC={home:'M3 12l9-8 9 8M5 10v10h14V10',jobs:'M4 6h16M4 12h16M4 18h10',sheets:'M4 4h16v16H4zM4 12h16M12 4v16',hours:'M12 7v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z',items:'M3 8l9-5 9 5v12H3zM9 20v-7h6v7',orders:'M3 5h3l2 11h10l2-8H7',dash:'M4 20V10M10 20V4M16 20v-8M22 20H2',menu:'M4 7h16M4 12h16M4 17h16',lab:'M3 7l9-4 9 4v10l-9 4-9-4zM12 11v10M3 7l9 4 9-4'};
-const ico=d=>`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
-let fresh=true;
-function homeHtml(){
-  const open=D.jobs.filter(open_), low=D.items.filter(i=>!i.out&&i.stock<i.min).length, inc=D.orders.filter(o=>o.status=='Ordinato').length;
-  const today=(D.hours||[]).filter(h=>h.date==TODAY).length;
-  const T=[['jobs','Commesse',open.length+' aperte','#e8772e','#0b1426'],['sheets','Schede e disegni','Distinte, tavole, abachi','#2a6fd1','#fff'],['sheets','Etichette pezzi','Stampa codici PR e PL','#2fa66a','#06220f'],['hours','Registra ore',today?today+' registrazioni oggi':'Inizio, fine, commessa','#33466e','#fff'],['items','Magazzino',low?low+' sotto scorta':'Giacenze e prelievi','#33466e','#fff'],['orders','Ordini',inc+' da ricevere','#33466e','#fff'],['dash','Cruscotto','Ritardi e carichi','#33466e','#fff']]
-   .filter(t=>lv(t[0])>0);
-  const next=[...open].sort((a,b)=>a.due.localeCompare(b.due)).slice(0,4);
-  const h=new Date().getHours();
-  return `<div class="hm"><h2>${h<13?'Buongiorno':h<18?'Buon pomeriggio':'Buonasera'}, ${esc((ME.name||'').split(' ')[0])}</h2>
-   <p class="sub">${new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})}</p>
-   <div class="tiles">${T.map(t=>`<button class="tile" style="background:${t[3]};color:${t[4]}" onclick="goView('${t[0]}')">${ico(IC[t[0]]||IC.jobs)}<span><b>${t[1]}</b><span>${t[2]}</span></span></button>`).join('')}</div>
-   ${next.length&&lv('jobs')>0?`<div class="panel"><h2>Da consegnare presto</h2>${next.map(j=>`<div class="nx" onclick="goView('jobs')"><span class="tag ${late(j)?'late':''}" style="flex:none">${dt(j.due)}</span><span><b>${esc(j.code)}</b> · ${cn(j.client)}<br><span class="mut">${esc(j.desc)}</span></span></div>`).join('')}</div>`:''}</div>`;
+window.GC_MOBILE=true;
+const IC={home:'M3 12l9-8 9 8M5 10v10h14V10',jobs:'M4 6h16M4 12h16M4 18h10',sheets:'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7',hours:'M12 7v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z',items:'M3 8l9-5 9 5v12H3zM9 20v-7h6v7',orders:'M3 5h3l2 11h10l2-8H7M9 21h.01M17 21h.01',back:'M15 5l-7 7 7 7',out:'M9 4H5v16h4M16 8l4 4-4 4M20 12H9',plus:'M12 5v14M5 12h14',x:'M6 6l12 12M18 6L6 18'};
+const ico=(k,c)=>`<svg viewBox="0 0 24 24" class="${c||''}" aria-hidden="true"><path d="${IC[k]}"/></svg>`;
+const M={scr:'home',jid:0,sid:0,q:'',jf:'open',iq:'',icat:'',iall:0,hm:{y:+TODAY.slice(0,4),m:+TODAY.slice(5,7)-1},hd:TODAY,oq:''};
+const E=s=>esc(s);
+const ME_OP=()=>(ME&&ME.op)||'';
+const jobsOpen=()=>D.jobs.filter(open_).sort((a,b)=>a.due.localeCompare(b.due));
+const stk=i=>`${fN(i.stock)} ${E(i.um)}`;
+const canJ=()=>lv('jobs')>=2, canI=()=>lv('items')>=2, canH=()=>lv('hours')>=2, canO=()=>lv('orders')>=2;
+let SHEET=null; // schermata a tutto schermo aperta sopra (modulo)
+
+/* ---------- struttura ---------- */
+function shell(){
+  let m=document.getElementById('mob');
+  if(!m){m=document.createElement('div');m.id='mob';m.innerHTML='<div id="mtop"></div><div id="mbody"></div><div id="mbar"></div><div id="msheet" hidden></div>';document.body.appendChild(m)}
+  return m;
+}
+const TITLES={home:'GRE.MO',jobs:'Commesse',job:'Commessa',sheets:'Schede di lavorazione',sheet:'Scheda',items:'Magazzino',hours:'Ore',orders:'Ordini'};
+const PARENT={job:'jobs',sheet:'sheets'};
+function topbar(){
+  const back=PARENT[M.scr];
+  document.getElementById('mtop').innerHTML=`${back?`<button class="mb" onclick="MB.go('${back}')" aria-label="Indietro">${ico('back')}</button>`:'<span class="mlogo">GC</span>'}<b class="mt">${E(TITLES[M.scr]||'')}</b><span class="mw">${E((ME.op||ME.name||'').split(' ')[0])}</span><button class="mb" onclick="MB.exit()" aria-label="Esci">${ico('out')}</button>`;
 }
 function bar(){
-  let b=document.getElementById('bb');if(!b){b=document.createElement('div');b.id='bb';document.body.appendChild(b)}
-  const L=[['home','Home']];[['jobs','Commesse'],['sheets','Schede'],['hours','Ore'],['items','Magazzino']].forEach(x=>{if(lv(x[0])>0)L.push(x)});
-  b.innerHTML=L.map(x=>`<button data-bb="${x[0]}" onclick="document.body.classList.remove('menu');goView('${x[0]}')">${ico(IC[x[0]])}${x[1]}</button>`).join('')+`<button data-bb="menu" onclick="document.body.classList.toggle('menu');updBar()">${ico(IC.menu)}Menu</button>`;
-  updBar();
+  const L=[['home','Home']];[['jobs','Commesse','jobs'],['sheets','Schede','jobs'],['items','Magazzino','items'],['hours','Ore','hours'],['orders','Ordini','orders']].forEach(x=>{if(lv(x[2])>0)L.push([x[0],x[1]])});
+  const cur=PARENT[M.scr]||M.scr;
+  document.getElementById('mbar').innerHTML=L.map(x=>`<button class="${x[0]==cur?'on':''}" onclick="MB.go('${x[0]}')">${ico(x[0])}<span>${x[1]}</span></button>`).join('');
 }
-window.updBar=function(){document.querySelectorAll('#bb button').forEach(b=>b.classList.toggle('on',b.dataset.bb==view&&!document.body.classList.contains('menu')||b.dataset.bb=='menu'&&document.body.classList.contains('menu')))};
-function annot(){document.querySelectorAll('#main table:not(.dt):not(.rs)').forEach(t=>{if(t.dataset.a)return;const hs=[...t.querySelectorAll('thead th')].map(x=>x.textContent.trim());if(!hs.length)return;t.querySelectorAll('tbody tr').forEach(r=>[...r.children].forEach((c,i)=>{if(hs[i])c.dataset.l=hs[i]}));t.dataset.a=1})}
-const _bn=buildNav;buildNav=function(){_bn.apply(this,arguments);const n=document.getElementById('nav');n.insertAdjacentHTML('afterbegin','<button data-v="home">Home</button>');bar()};
-const _sl=showLogin;showLogin=function(){fresh=true;document.body.classList.remove('menu');return _sl.apply(this,arguments)};
-const _rn=render;render=function(){
-  if(!ME)return _rn.apply(this,arguments);
-  if(fresh){fresh=false;view='home'}
-  document.body.classList.remove('menu');
-  if(view=='home'){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v=='home'));$('#main').innerHTML=homeHtml();updBar();window.scrollTo(0,0);return}
-  _rn.apply(this,arguments);annot();updBar();
-};
-new MutationObserver(()=>{clearTimeout(window._anT);window._anT=setTimeout(annot,60)}).observe(document.getElementById('main'),{childList:true,subtree:true});
-document.querySelector('nav').addEventListener('click',e=>{if(e.target.closest('button[data-v]'))document.body.classList.remove('menu')},true);
-if(ME){bar();render()}
+function draw(){
+  if(!ME)return;
+  shell();document.body.classList.add('mobx');
+  if(M.scr=='job'&&!D.jobs.find(j=>j.id==M.jid))M.scr='jobs';
+  topbar();bar();
+  const b=document.getElementById('mbody');const sy=b.scrollTop;
+  b.innerHTML=({home:vHome,jobs:vJobs,job:vJob,sheets:vSheets,sheet:vSheet,items:vItems,hours:vHours,orders:vOrders}[M.scr]||vHome)();
+  b.scrollTop=sy;
+}
+const go=(s,id)=>{if(SHEET)closeSheet();if(s=='job')M.jid=id;if(s=='sheet')M.sid=id;if(s!=M.scr)document.getElementById('mbody')&&(document.getElementById('mbody').scrollTop=0);M.scr=s;draw()};
+function openSheet(title,html,foot){
+  const s=document.getElementById('msheet');SHEET=1;
+  s.innerHTML=`<div class="sh-h"><b>${E(title)}</b><button class="mb" onclick="MB.close()" aria-label="Chiudi">${ico('x')}</button></div><div class="sh-b">${html}</div>${foot?`<div class="sh-f">${foot}</div>`:''}`;
+  s.hidden=false;s.querySelector('.sh-b').scrollTop=0;
+}
+function closeSheet(){SHEET=null;const s=document.getElementById('msheet');if(s){s.hidden=true;s.innerHTML=''}}
+const msg=t=>toast(t);
+const val=id=>{const e=document.getElementById(id);return e?e.value:''};
+const hd=(t,c)=>`<div class="mh">${t}${c?`<span>${c}</span>`:''}</div>`;
+const tag=(t,c)=>`<span class="tg ${c||''}">${E(t)}</span>`;
+const prg=p=>`<div class="pg"><i style="width:${p}%"></i></div>`;
+const emp=t=>`<div class="mempty">${t}</div>`;
+
+/* ---------- home ---------- */
+function vHome(){
+  const h=new Date().getHours(),open=jobsOpen(),low=D.items.filter(i=>!i.out&&i.stock<i.min).length;
+  const pend=D.orders.filter(o=>o.status=='Da approvare'&&o.by==ME_OP()).length;
+  const T=[['jobs','Commesse',open.length+' aperte','jobs'],['sheets','Schede di lavorazione','Disegni e distinte','jobs'],['items','Magazzino',low?low+' sotto scorta':'Giacenze e movimenti','items'],['hours','Ore','Calendario e registrazione','hours'],['orders','Ordini fornitore',pend?pend+' in attesa di approvazione':'Richieste all’ufficio','orders']].filter(t=>lv(t[3])>0);
+  const next=open.slice(0,4);
+  return `<div class="mhome"><h2>${h<13?'Buongiorno':h<18?'Buon pomeriggio':'Buonasera'}, ${E((ME.op||ME.name||'').split(' ')[0])}</h2><p>${new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})}</p>
+  ${ME.op?'':'<div class="mwarn">Il tuo utente non è collegato a un dipendente: l’ufficio deve associarlo per registrare le ore.</div>'}
+  <div class="mtiles">${T.map(t=>`<button class="mtile" onclick="MB.go('${t[0]}')">${ico(t[0])}<span><b>${t[1]}</b><small>${t[2]}</small></span></button>`).join('')}</div>
+  ${next.length&&lv('jobs')>0?hd('Prossime consegne')+next.map(jobCard).join(''):''}</div>`;
+}
+
+/* ---------- commesse ---------- */
+function jobCard(j){
+  return `<button class="mcard" onclick="MB.go('job',${j.id})"><div class="r1"><b>${E(j.code)}</b>${tag(dt(j.due),late(j)?'bad':'')}</div><div>${E(cn(j.client))}</div><div class="mut">${E(j.desc)}</div><div class="r1">${prg(prog(j))}<small>${prog(j)}%</small></div></button>`;
+}
+function vJobs(){
+  return `<div class="mtools"><input id="jq" placeholder="Cerca commessa, cliente, descrizione" value="${E(M.q)}" oninput="MB.jq(this.value)"><div class="chips">${[['open','Aperte'],['all','Tutte']].map(c=>`<button class="${M.jf==c[0]?'on':''}" onclick="MB.jf('${c[0]}')">${c[1]}</button>`).join('')}</div></div><div id="jlist">${jobList()}</div>`;
+}
+function jobList(){
+  const q=M.q.toLowerCase(),l=D.jobs.filter(j=>(M.jf=='all'||open_(j))&&(!q||(j.code+' '+j.desc+' '+cn(j.client)).toLowerCase().includes(q))).sort((a,b)=>a.due.localeCompare(b.due));
+  return l.length?l.map(jobCard).join(''):emp('Nessuna commessa.');
+}
+function vJob(){
+  const j=D.jobs.find(x=>x.id==M.jid),ed=canJ();
+  const mv=D.moves.filter(m=>m.job==j.id).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id),hr=D.hours.filter(x=>x.job==j.id).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+  const tot=hr.reduce((a,x)=>a+x.h,0);
+  return `<div class="mjob"><div class="r1"><h2>${E(j.code)}</h2>${tag(dt(j.due),late(j)?'bad':'')}</div><div>${E(cn(j.client))}</div><div class="mut">${E(j.desc)}</div>
+  <div class="mrow"><label>Stato commessa<select ${ed?'':'disabled'} onchange="MB.jst(${j.id},this.value)">${ST.map(s=>`<option ${s==j.status?'selected':''}>${E(s)}</option>`).join('')}</select></label>${j.prio?`<div>${tag('Priorità '+j.prio)}</div>`:''}</div>
+  ${hd('Avanzamento produzione',prog(j)+'%')}${prg(prog(j))}
+  <div class="mph">${PH.map((p,i)=>{const off=phOff(j,i);return `<div class="mp"><span>${E(p)}</span>${off?'<button disabled>Non prevista</button>':`<button class="s${j.ph[i]||0}" ${ed?'':'disabled'} onclick="MB.ph(${j.id},${i})">${SL[j.ph[i]||0]}</button>`}</div>`}).join('')}</div>
+  <div class="mact"><button class="pri" onclick="MB.go('sheet',${j.id})">Scheda di lavorazione</button></div>
+  ${hd('Consumi effettivi')}
+  <div class="mact">${canI()?`<button onclick="MB.scar(${j.id})">Scarica materiale</button>`:''}${canH()&&ME.op?`<button onclick="MB.hnew('${TODAY}',${j.id})">Registra ore</button>`:''}</div>
+  ${hd('Materiale scaricato')}${mv.length?mv.map(m=>{const it=itm(m.item);return `<div class="mli"><b>${E(it.code||'?')}</b> ${E(it.desc||'')}<span>${fN(m.qIn!==undefined?m.qIn:m.qty)} ${E(m.uIn||it.um||'')}</span><small>${dt(m.date)}</small></div>`}).join(''):emp('Nessuno scarico registrato.')}
+  ${hd('Ore registrate',fN(tot)+' h')}${hr.length?hr.map(x=>`<div class="mli"><b>${E(x.op)}</b> ${E(x.phase||'')}<span>${fN(x.h)} h</span><small>${dt(x.date)}${x.desc?' · '+E(x.desc):''}</small></div>`).join(''):emp('Nessuna ora registrata.')}</div>`;
+}
+function phSyncJ(j){
+  const all=PH.every((_,i)=>phOff(j,i)||j.ph[i]==2);
+  if(all&&!LOCKED.includes(j.status))j.status='Completato';
+  else if(!all&&j.status=='Completato')j.status=ST.includes('In lavorazione')?'In lavorazione':ST[0];
+}
+function jPh(id,i){const j=D.jobs.find(x=>x.id==id);if(!j||!canJ())return;j.ph[i]=((j.ph[i]||0)+1)%3;phSyncJ(j);addLog('Avanzamento '+j.code+' · '+PH[i]+': '+SL[j.ph[i]]);save();draw()}
+function jSt(id,v){const j=D.jobs.find(x=>x.id==id);if(!j||!canJ())return;j.status=v;addLog('Stato '+j.code+': '+v);save();draw()}
+
+/* ---------- scarico materiale ---------- */
+function scar(jid){
+  const its=D.items.filter(i=>!i.out&&i.stock>0).sort((a,b)=>a.code.localeCompare(b.code));
+  const jopt=D.jobs.filter(open_).map(j=>`<option value="${j.id}" ${j.id==jid?'selected':''}>${E(j.code)} · ${E(cn(j.client))}</option>`).join('');
+  openSheet('Scarica materiale',`<label>Commessa<select id="sc_j"><option value="0">— scegli —</option>${jopt}</select></label>
+  <input id="sc_q" class="srch" placeholder="Cerca articolo" oninput="MB.scf(this.value)">
+  <div id="sc_l" class="sel-list"></div>
+  <div id="sc_f"></div>`,'');
+  SC={jid,item:0};scList('');
+}
+let SC={};
+function scList(q){
+  q=q.toLowerCase();const l=D.items.filter(i=>!i.out&&i.stock>0&&(!q||(i.code+' '+i.desc).toLowerCase().includes(q))).sort((a,b)=>a.code.localeCompare(b.code)).slice(0,60);
+  document.getElementById('sc_l').innerHTML=l.map(i=>`<button class="${SC.item==i.id?'on':''}" onclick="MB.scp(${i.id})"><b>${E(i.code)}</b> ${E(i.desc)}<small>${stk(i)}</small></button>`).join('')||emp('Nessun articolo disponibile.');
+}
+function scPick(id){
+  SC.item=id;const it=itm(id);scList(val('sc_q'));
+  document.getElementById('sc_f').innerHTML=`<div class="mfrm"><div class="mut">Disponibile: <b>${stk(it)}</b></div>
+  ${unitsOf(it).length>1?`<label>Unità<select id="sc_u">${unitsOf(it).map(u=>`<option>${E(u)}</option>`).join('')}</select></label>`:''}
+  <label>Quantità da scaricare<input id="sc_n" type="number" inputmode="decimal" min="0" step="any"></label>
+  <button class="b pri" onclick="MB.scok()">Conferma scarico</button></div>`;
+  document.getElementById('sc_f').scrollIntoView({block:'nearest'});
+}
+function scOk(){
+  const jid=+val('sc_j'),it=itm(SC.item),q=+val('sc_n'),u=val('sc_u')||it.um;
+  if(!jid)return msg('Scegli la commessa.');if(!it.id)return msg('Scegli l’articolo.');if(!(q>0))return msg('Inserisci la quantità.');
+  const qb=r4(toBase(it,q,u));if(qb>mvAvail(it,0)+1e-9)return msg('Giacenza insufficiente: disponibili '+fN(it.stock)+' '+it.um+'.');
+  const m={id:Date.now()+Math.floor(Math.random()*1e6),date:TODAY,item:it.id,job:jid,qty:qb};
+  if(nu(u)!=nu(it.um)){m.qIn=q;m.uIn=u}
+  D.moves.push(m);E_moves(m);save();closeSheet();draw();msg('Scarico registrato.');
+}
+function E_moves(m){slCtx='Scarico su commessa (mobile)';const i=itm(m.item);if(i.id)i.stock=r4(i.stock-m.qty)}
+
+/* ---------- schede di lavorazione ---------- */
+const allSheets=()=>[...D.jobs,...D.xsheets];
+function vSheets(){return `<div class="mtools"><input id="shq" placeholder="Cerca scheda o commessa" value="${E(M.q)}" oninput="MB.shq(this.value)"></div><div id="shl">${sheetList()}</div>`}
+function sheetList(){
+  const q=M.q.toLowerCase(),l=allSheets().filter(j=>shDocsOf(j).length&&(!q||(j.code+' '+j.desc+' '+(j.client?cn(j.client):j.cname||'')).toLowerCase().includes(q))).sort((a,b)=>String(a.code).localeCompare(b.code));
+  return l.length?l.map(j=>{const n=D.nt.filter(x=>x.sheet==j.id).length;return `<button class="mcard" onclick="MB.go('sheet',${j.id})"><div class="r1"><b>${E(j.code)}</b>${tag(shDocsOf(j).length+(shDocsOf(j).length==1?' documento':' documenti'))}</div><div class="mut">${E(j.desc)}</div>${n?`<small>${n} ${n==1?'nota inviata':'note inviate'}</small>`:''}</button>`}).join(''):emp('Nessuna scheda con documenti.');
+}
+function vSheet(){
+  const j=shJob(M.sid);if(!j){M.scr='sheets';return vSheets()}
+  const ds=shDocsOf(j),notes=D.nt.filter(n=>n.sheet==j.id).sort((a,b)=>b.t.localeCompare(a.t));
+  return `<div class="mjob"><h2>${E(j.code)}</h2><div class="mut">${E(j.desc)}${j.client?' · '+E(cn(j.client)):j.cname?' · '+E(j.cname):''}</div>
+  ${hd('Documenti dell’ufficio')}${ds.length?ds.map(s=>`<div class="mcard st"><div class="r1"><b>${E(s.title||SH_TY0[s.type||'dist'])}</b>${tag(SH_TY0[s.type||'dist'])}</div><div class="mut">${E(shDocSum(s))}</div><div class="mact"><button class="pri" onclick="MB.doc(${j.id},${s.id})">Leggi</button><button onclick="MB.pdf(${j.id},${s.id})">PDF</button></div></div>`).join(''):emp('Nessun documento.')}
+  ${hd('Note all’ufficio')}${canJ()?`<div class="mfrm"><textarea id="nt_t" rows="3" placeholder="Scrivi una nota per l’ufficio (problema, richiesta, modifica…)"></textarea><button class="b pri" onclick="MB.nota(${j.id})">Invia nota all’ufficio</button></div>`:''}
+  ${notes.length?notes.map(n=>`<div class="mli col"><span class="nt">${E(n.text)}</span><small>${E(n.op||n.name||'')} · ${new Date(n.t).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} · ${n.read?'letta dall’ufficio':'inviata'}</small></div>`).join(''):''}</div>`;
+}
+function sNota(id){
+  const j=shJob(id),t=val('nt_t').trim();if(!t)return msg('Scrivi la nota.');
+  D.nt.push({id:Date.now(),t:new Date().toISOString(),sheet:id,code:j.code,text:t,user:ME.id,name:ME.name,op:ME.op||ME.name,read:0});
+  save();draw();msg('Nota inviata all’ufficio.');
+}
+function docView(jid,did){
+  const j=shJob(jid),d=shDocsOf(j).find(x=>x.id==did);if(!d)return;const s=shNorm(JSON.parse(JSON.stringify(d))),ty=s.type||'dist';let body='';
+  if(ty=='ab'){body=(s.pl||[]).filter(p=>p.w||p.l).map((p,i)=>`<div class="mli col"><b>Piastra ${i+1} · ${E(p.w)} × ${E(p.l)}${p.t?' × sp. '+E(p.t):''} mm</b><span>${E(p.qty||1)} pz${p.mat?' · '+E(p.mat):''}${(p.holes||[]).length?' · '+p.holes.length+' fori':''}</span>${p.note?`<small>${E(p.note)}</small>`:''}</div>`).join('')||emp('Nessuna piastra.')}
+  else if(ty=='tav'){body=`<div class="mut">Tavola con ${(s.vw||[]).length} viste. Per il disegno completo usa il PDF.</div>`}
+  else{const r=(s.rows||[]).filter(x=>x.inc);body=r.map((x,i)=>`<div class="mli col"><b>${i+1}. ${E(x.desc||x.type||'')}</b><span>${E(x.qty||1)} pz${x.len?' · L '+E(x.len)+' mm':''}${x.sec?' · '+E(x.sec):''}${x.mat?' · '+E(x.mat):''}</span>${(x.cl||x.cr)?`<small>Angoli taglio: ${E(x.cl||0)}° / ${E(x.cr||0)}°</small>`:''}${x.note?`<small>${E(x.note)}</small>`:''}</div>`).join('')||emp('Nessuna posizione in distinta.')}
+  openSheet((s.title||SH_TY0[ty])+' · '+j.code,body,`<button class="b" onclick="MB.pdf(${jid},${did})">Apri PDF</button><button class="b pri" onclick="MB.close()">Chiudi</button>`);
+}
+async function docPdf(jid,did){SHW=shSt(jid);try{await sheetPdf(jid,did)}catch(e){msg('PDF non disponibile: '+(e.message||e))}}
+
+/* ---------- magazzino ---------- */
+function vItems(){
+  const cats=catList();
+  return `<div class="mtools"><input id="iq" placeholder="Cerca per codice o descrizione" value="${E(M.iq)}" oninput="MB.iq(this.value)">
+  <div class="chips"><button class="${!M.icat?'on':''}" onclick="MB.ic('')">Tutte</button>${cats.map(c=>`<button class="${M.icat==c?'on':''}" onclick="MB.ic(this.dataset.c)" data-c="${E(c)}">${E(c)}</button>`).join('')}</div>
+  <div class="chips"><button class="${!M.iall?'on':''}" onclick="MB.ia(0)">In giacenza</button><button class="${M.iall?'on':''}" onclick="MB.ia(1)">Tutti i prodotti</button></div>
+  ${canI()?`<div class="mact"><button class="pri" onclick="MB.pnew()">Nuovo prodotto</button><button onclick="MB.rm()">Rettifica multipla</button></div>`:''}</div><div id="il">${itemList()}</div>`;
+}
+function itemList(){
+  const q=M.iq.toLowerCase(),l=D.items.filter(i=>(M.iall||(!i.out&&i.stock>=1))&&(!M.icat||catKey(i.cat)==catKey(M.icat))&&(!q||(i.code+' '+i.desc).toLowerCase().includes(q))).sort((a,b)=>a.code.localeCompare(b.code));
+  return l.length?l.slice(0,200).map(i=>`<button class="mcard" onclick="MB.it(${i.id})"><div class="r1"><b>${E(i.code)}</b>${tag(stk(i),i.stock<i.min?'bad':(i.stock<=0?'':'ok'))}</div><div class="mut">${E(i.desc)}</div>${i.cat?`<small>${E(i.cat)}</small>`:''}</button>`).join('')+(l.length>200?emp('Altri articoli: affina la ricerca.'):''):emp('Nessun articolo.');
+}
+function itemSheet(id){
+  const it=itm(id);if(!it.id)return;const ed=canI();
+  openSheet(it.code,`<div>${E(it.desc)}</div><div class="mbig">${stk(it)}</div><div class="mut">Scorta minima: ${fN(it.min)} ${E(it.um)}${it.cat?' · '+E(it.cat):''}${it.out?' · fuori inventario':''}</div>
+  ${ed?`<div class="mfrm"><label>Nuova giacenza (rettifica)<input id="rt_n" type="number" inputmode="decimal" min="0" step="any" placeholder="${fN(it.stock)}"></label><button class="b" onclick="MB.rett(${id})">Applica rettifica</button>
+  <label>Quantità da caricare<input id="ca_n" type="number" inputmode="decimal" min="0" step="any"></label><button class="b" onclick="MB.cari(${id})">Carica a magazzino</button>
+  <label>Scarica su commessa<select id="sc_j2"><option value="0">— scegli la commessa —</option>${D.jobs.filter(open_).map(j=>`<option value="${j.id}">${E(j.code)} · ${E(cn(j.client))}</option>`).join('')}</select></label>
+  <label>Quantità da scaricare<input id="sc_n2" type="number" inputmode="decimal" min="0" step="any"></label><button class="b" onclick="MB.scar2(${id})">Scarica</button></div>`:''}`,`<button class="b pri" onclick="MB.close()">Chiudi</button>`);
+}
+const setStock=(it,nv,why)=>{slCtx=why;it.stock=r4(nv);if(it.stock>0)delete it.out;else it.out=1};
+function iRett(id){const it=itm(id),v=val('rt_n');if(v==='')return msg('Inserisci la nuova giacenza.');const n=Math.max(0,+v||0);
+  addLog('Rettifica giacenza '+it.code+': '+fN(it.stock)+' → '+fN(n)+' '+it.um+' (mobile)');setStock(it,n,'Rettifica giacenze (mobile)');save();draw();itemSheet(id);msg('Giacenza rettificata.')}
+function iCari(id){const it=itm(id),q=+val('ca_n');if(!(q>0))return msg('Inserisci la quantità.');
+  D.rcv.push({id:Date.now(),date:TODAY,sup:it.sup||0,doc:'Carico da mobile ('+(ME.op||ME.name)+')',order:0,orders:[],file:'',jmode:'none',job:0,jx:1,lines:[{item:it.id,code:it.code,desc:it.desc,qty:q,um:it.um,price:it.cost||0,qIn:q,uIn:it.um,pIn:it.cost||0,created:false,job:0}]});
+  setStock(it,it.stock+q,'Carico merce (mobile)');save();draw();itemSheet(id);msg('Carico registrato.')}
+function iScar2(id){const it=itm(id),jid=+val('sc_j2'),q=+val('sc_n2');if(!jid)return msg('Scegli la commessa.');if(!(q>0))return msg('Inserisci la quantità.');if(q>it.stock+1e-9)return msg('Giacenza insufficiente.');
+  const m={id:Date.now()+Math.floor(Math.random()*1e6),date:TODAY,item:id,job:jid,qty:r4(q)};D.moves.push(m);E_moves(m);if(it.stock<=0)it.out=1;save();draw();itemSheet(id);msg('Scarico registrato.')}
+function pNew(){
+  openSheet('Nuovo prodotto',`<div class="mfrm"><label>Codice<input id="np_c" autocapitalize="characters"></label><label>Descrizione<input id="np_d"></label>
+  <label>Unità di misura<select id="np_u">${['pz','kg','m','m²','l','conf'].map(u=>`<option>${u}</option>`).join('')}</select></label>
+  <label>Categoria<select id="np_k"><option value="">— nessuna —</option>${catList().map(c=>`<option>${E(c)}</option>`).join('')}</select></label>
+  <label>Scorta minima<input id="np_m" type="number" inputmode="decimal" min="0" step="any" value="0"></label>
+  <label>Giacenza iniziale<input id="np_s" type="number" inputmode="decimal" min="0" step="any" value="0"></label></div>`,`<button class="b" onclick="MB.close()">Annulla</button><button class="b pri" onclick="MB.pok()">Crea prodotto</button>`);
+}
+function pOk(){
+  const c=val('np_c').trim(),d=val('np_d').trim();if(!c||!d)return msg('Codice e descrizione sono obbligatori.');
+  if(D.items.some(i=>String(i.code).trim().toLowerCase()==c.toLowerCase()))return msg('Esiste già un prodotto con questo codice.');
+  const s=Math.max(0,+val('np_s')||0),o={id:Date.now()+Math.floor(Math.random()*1e6),code:c,desc:d,um:val('np_u'),stock:0,min:+val('np_m')||0,cost:0,ca:0,sup:0,cat:val('np_k'),mat:'',dim:'',fin:'',uc:'',fc:0,pc:0,pnote:''};
+  D.items.push(o);if(s>0){slCtx='Giacenza iniziale (mobile)';o.stock=s}else o.out=1;
+  addLog('Prodotto creato da mobile: '+c);save();closeSheet();draw();msg('Prodotto creato.');
+}
+/* rettifica multipla (solo mobile) */
+let RM={q:'',v:{}};
+function rmOpen(){RM={q:'',v:{}};openSheet('Rettifica multipla',`<div class="mut">Scrivi la giacenza reale solo per gli articoli da correggere. Con 0 l’articolo esce dall’inventario.</div><input class="srch" placeholder="Cerca articolo" oninput="MB.rmf(this.value)"><div id="rm_l"></div>`,`<span class="mut" id="rm_s" style="flex:1"></span><button class="b" onclick="MB.close()">Annulla</button><button class="b pri" onclick="MB.rmok()">Applica</button>`);rmList()}
+function rmList(){
+  const q=RM.q.toLowerCase(),l=D.items.filter(i=>!i.out&&(!q||(i.code+' '+i.desc).toLowerCase().includes(q))).sort((a,b)=>a.code.localeCompare(b.code)).slice(0,120);
+  document.getElementById('rm_l').innerHTML=l.map(i=>`<div class="mrm"><div><b>${E(i.code)}</b><small>${E(i.desc)}</small><small>Attuale: ${stk(i)}</small></div><input type="number" inputmode="decimal" min="0" step="any" placeholder="${fN(i.stock)}" value="${RM.v[i.id]===undefined?'':RM.v[i.id]}" oninput="MB.rms(${i.id},this.value)"></div>`).join('')||emp('Nessun articolo.');rmSum();
+}
+const rmCh=()=>D.items.filter(i=>!i.out&&RM.v[i.id]!==undefined&&Math.abs(RM.v[i.id]-i.stock)>1e-9);
+function rmSum(){const e=document.getElementById('rm_s');if(e){const n=rmCh().length;e.textContent=n?n+(n==1?' rettifica':' rettifiche'):'Nessuna modifica'}}
+function rmOk(){
+  const c=rmCh();if(!c.length)return msg('Nessuna giacenza modificata.');
+  slCtx='Rettifica multipla (mobile)';c.forEach(i=>{const old=i.stock,nv=r4(RM.v[i.id]);i.stock=nv;if(nv===0)i.out=1;else delete i.out;addLog('Rettifica giacenza '+i.code+': '+fN(old)+' → '+fN(nv)+' '+i.um+' (mobile)')});
+  save();closeSheet();draw();msg('Rettificati '+c.length+' articoli.');
+}
+
+/* ---------- ore ---------- */
+function vHours(){
+  const {y,m}=M.hm,first=new Date(y,m,1),off=(first.getDay()+6)%7,dim=new Date(y,m+1,0).getDate();
+  const pre=y+'-'+p2(m+1)+'-',mine=h=>h.uid&&ME&&h.uid==ME.id;
+  const byD={};D.hours.filter(h=>h.date.startsWith(pre)).forEach(h=>{(byD[h.date]=byD[h.date]||{t:0,me:0}).t+=h.h;if(mine(h))byD[h.date].me+=h.h});
+  let cells='';for(let i=0;i<off;i++)cells+='<i></i>';
+  for(let d=1;d<=dim;d++){const iso=isoD(y,m,d),b=byD[iso];cells+=`<button class="${iso==M.hd?'on':''} ${iso==TODAY?'td':''}" onclick="MB.hday('${iso}')">${d}${b?`<em class="${b.me?'me':''}">${fN(b.t)}</em>`:''}</button>`}
+  const list=D.hours.filter(h=>h.date==M.hd).sort((a,b)=>(a.t1||'').localeCompare(b.t1||'')),tot=list.reduce((a,h)=>a+h.h,0);
+  return `<div class="mcal"><div class="chd"><button class="mb" onclick="MB.hm(-1)">${ico('back')}</button><b>${MESI[m]} ${y}</b><button class="mb fl" onclick="MB.hm(1)">${ico('back')}</button></div>
+  <div class="cg"><span>L</span><span>M</span><span>M</span><span>G</span><span>V</span><span>S</span><span>D</span>${cells}</div></div>
+  ${hd(new Date(M.hd+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'}),fN(tot)+' h')}
+  ${canH()&&ME.op?`<div class="mact"><button class="pri" onclick="MB.hnew('${M.hd}',0)">Aggiungi ore</button></div>`:(canH()?'<div class="mwarn">Utente non collegato a un dipendente: non puoi registrare ore.</div>':'')}
+  ${list.length?list.map(h=>`<div class="mli col"><div class="r1"><b>${E(h.op)} · ${E(jcode(h.job))}</b><span>${fN(h.h)} h</span></div><small>${E(h.phase||'')}${h.t1?' · '+h.t1+'–'+h.t2:''}${h.desc?' · '+E(h.desc):''}</small>${mine(h)&&canH()?`<button class="b sm" onclick="MB.hed(${h.id})">Modifica</button>`:(mine(h)?'':'<small class="mut">Inserita dall’ufficio o da altri: non modificabile</small>')}</div>`).join(''):emp('Nessuna ora in questo giorno.')}`;
+}
+let HF={};
+function hForm(date,jid,id){
+  const ed=id?D.hours.find(h=>h.id==id):null;
+  if(ed&&!(ed.uid&&ed.uid==ME.id))return msg('Puoi modificare solo le ore inserite da te.');
+  HF={id:id||0,date:ed?ed.date:date};
+  const v=ed||{job:jid||0,phase:PH[0],t1:'08:00',t2:'12:00',desc:''};
+  const jobs=D.jobs.filter(j=>open_(j)||j.id==v.job);
+  openSheet(ed?'Modifica ore':'Registra ore',`<div class="mfrm"><div class="mut">${E(ME.op)} · ${dt(HF.date)}</div>
+  <label>Commessa<select id="h_job"><option value="0">— scegli —</option>${jobs.map(j=>`<option value="${j.id}" ${j.id==v.job?'selected':''}>${E(j.code)} · ${E(cn(j.client))}</option>`).join('')}</select></label>
+  <label>Fase<select id="h_ph">${PH.map(p=>`<option ${p==v.phase?'selected':''}>${E(p)}</option>`).join('')}</select></label>
+  <div class="two"><label>Dalle<input id="h_t1" type="time" value="${E(v.t1||'08:00')}" oninput="MB.htot()"></label><label>Alle<input id="h_t2" type="time" value="${E(v.t2||'12:00')}" oninput="MB.htot()"></label></div>
+  <div class="mbig" id="h_tot"></div>
+  <label>Lavoro svolto<input id="h_desc" value="${E(v.desc||'')}"></label></div>`,`<button class="b" onclick="MB.close()">Annulla</button><button class="b pri" onclick="MB.hok()">Salva</button>`);hTot();
+}
+const hmin=s=>{const m=/^(\d{1,2}):(\d{2})$/.exec(s||'');return m?+m[1]*60+ +m[2]:null};
+function hTot(){const a=hmin(val('h_t1')),b=hmin(val('h_t2')),e=document.getElementById('h_tot');const h=(a==null||b==null||b<=a)?0:Math.round((b-a)/60*100)/100;if(e)e.textContent=h?fN(h)+' ore':'Orario non valido';return h}
+function hOk(){
+  const job=+val('h_job'),h=hTot();if(!job)return msg('Scegli la commessa.');if(h<=0)return msg('Controlla gli orari.');
+  const f={op:ME.op,job,phase:val('h_ph'),h,t1:val('h_t1'),t2:val('h_t2'),desc:val('h_desc').trim()};
+  if(HF.id){const r=D.hours.find(x=>x.id==HF.id);if(!r||r.uid!=ME.id)return msg('Non modificabile.');Object.assign(r,f)}
+  else D.hours.push(Object.assign({id:Date.now(),date:HF.date,uid:ME.id},f));
+  save();closeSheet();draw();msg('Ore salvate.');
+}
+
+/* ---------- ordini a fornitore (vanno all'ufficio per approvazione) ---------- */
+function vOrders(){
+  const mine=D.orders.filter(o=>o.by&&o.by==ME_OP()||o.status=='Da approvare'),other=D.orders.filter(o=>!mine.includes(o)&&o.status!='Ricevuto');
+  const grp=l=>ordGroups(l).map(G=>{const o=G.lines[0];return `<div class="mcard st"><div class="r1"><b>${E(G.num||'Richiesta')}</b>${tag(o.status,o.status=='Da approvare'?'warn':o.status=='Ordinato'?'ok':'')}</div><div>${E(nm('sup',ordSup(o))||'Fornitore da definire')}</div><div class="mut">${G.lines.map(x=>E(ordName(x))+' × '+fN(x.qty)+' '+E(ordUm(x))).join(' · ')}</div>${G.job?`<small>Commessa ${E(jb(G.job))}</small>`:''}</div>`}).join('');
+  return `${canO()?`<div class="mtools"><div class="mact"><button class="pri" onclick="MB.onew()">Nuovo ordine</button></div><div class="mut">Gli ordini creati qui arrivano all’ufficio e vengono inviati al fornitore solo dopo l’approvazione.</div></div>`:''}
+  ${hd('Richieste e ordini')}${mine.length?grp(mine):emp('Nessuna richiesta.')}${other.length?hd('Altri ordini in corso')+grp(other):''}`;
+}
+let OF={lines:[]};
+function oForm(){
+  OF={lines:[{item:0,desc:'',um:'pz',qty:1}]};oDraw();
+}
+function oDraw(){
+  const sups=D.sup.slice().sort((a,b)=>a.n.localeCompare(b.n)),keep={sup:val('o_sup'),job:val('o_job'),due:val('o_due'),note:val('o_note')};
+  openSheet('Nuovo ordine fornitore',`<div class="mfrm"><label>Fornitore<select id="o_sup"><option value="0">— da definire dall’ufficio —</option>${sups.map(s=>`<option value="${s.id}" ${keep.sup==s.id?'selected':''}>${E(s.n)}</option>`).join('')}</select></label>
+  <label>Commessa (facoltativa)<select id="o_job"><option value="0">Scorta</option>${D.jobs.filter(open_).map(j=>`<option value="${j.id}" ${keep.job==j.id?'selected':''}>${E(j.code)} · ${E(cn(j.client))}</option>`).join('')}</select></label>
+  <label>Consegna richiesta<input id="o_due" type="date" value="${E(keep.due||TODAY)}"></label>
+  ${OF.lines.map((l,i)=>`<div class="mbox"><label>Articolo<select onchange="MB.oli(${i},this.value)"><option value="0">Voce libera…</option>${D.items.slice().sort((a,b)=>a.code.localeCompare(b.code)).map(it=>`<option value="${it.id}" ${l.item==it.id?'selected':''}>${E(it.code)} · ${E(it.desc)}</option>`).join('')}</select></label>
+  ${l.item?'':`<label>Descrizione<input value="${E(l.desc)}" oninput="MB.olf(${i},'desc',this.value)"></label><label>Unità<input value="${E(l.um)}" oninput="MB.olf(${i},'um',this.value)"></label>`}
+  <label>Quantità${l.item?' ('+E(itm(l.item).um)+')':''}<input type="number" inputmode="decimal" min="0" step="any" value="${l.qty}" oninput="MB.olf(${i},'qty',this.value)"></label>
+  ${OF.lines.length>1?`<button class="b sm dng" onclick="MB.old(${i})">Rimuovi riga</button>`:''}</div>`).join('')}
+  <button class="b" onclick="MB.ola()">+ Aggiungi articolo</button>
+  <label>Note per l’ufficio<input id="o_note" value="${E(keep.note||'')}"></label></div>`,`<button class="b" onclick="MB.close()">Annulla</button><button class="b pri" onclick="MB.ook()">Invia all’ufficio</button>`);
+}
+function oOk(){
+  const ls=OF.lines.filter(l=>l.item||String(l.desc).trim());if(!ls.length)return msg('Aggiungi almeno un articolo.');
+  if(ls.some(l=>!(+l.qty>0)))return msg('Controlla le quantità.');
+  const sup=+val('o_sup')||0,job=+val('o_job')||0,due=val('o_due')||TODAY,note=val('o_note').trim(),pn=poNext(),po=Date.now();
+  ls.forEach((l,k)=>{const it=l.item?itm(l.item):null;
+    D.orders.push({po,poNum:pn,poDate:TODAY,id:po+k+1,item:l.item||0,desc:l.item?'':String(l.desc).trim(),um:l.item?'':String(l.um||'pz').trim(),sup:sup||(it?it.sup:0)||0,qty:+l.qty,price:it?it.cost||0:0,job,due,status:'Da approvare',by:ME_OP()||ME.name,note:(note?note+' · ':'')+'Richiesto da '+(ME.op||ME.name)})});
+  addLog('Ordine da mobile in attesa di approvazione: '+pn);save();closeSheet();draw();msg('Ordine inviato all’ufficio per l’approvazione.');
+}
+
+/* ---------- accesso locale (senza server): utenti creati dall'ufficio e collegati a un dipendente ---------- */
+function mobLogin(){
+  ME=null;try{sessionStorage.removeItem('carp_sess')}catch(e){}
+  lockUI(true);const dl=$('#dlg');if(dl&&dl.open)dl.close();closeSheet();document.body.classList.remove('mobx');
+  const none=!D.users.length;
+  $('#lg').innerHTML=`<div class="lgc"><div class="mlg-logo">GC</div><h2>GRE.MO · Produzione</h2>
+  ${none?'<p class="mut">Nessun utente configurato. L’ufficio deve creare gli accessi dal programma PC.</p>':'<p class="mut">Accedi con le credenziali assegnate dall’ufficio.</p>'}
+  <label>Utente<input id="lgu" autocomplete="username" autocapitalize="off"></label>
+  <label>Password<input id="lgp" type="password" autocomplete="current-password"></label>
+  <label class="chk"><input type="checkbox" onchange="$('#lgp').type=this.checked?'text':'password'"> Mostra password</label>
+  <div id="lge" class="neg" style="min-height:20px"></div>
+  <button class="b pri" id="lgb" style="width:100%">Accedi</button>
+  ${window.GC_DEMO?'<div class="mut" style="font-size:13px;text-align:center">Versione di prova · utente <b>gianni</b>, password <b>demo1234</b></div>':''}</div>`;
+  $('#lgb').onclick=doLogin;$('#lg').onkeydown=e=>{if(e.key=='Enter')doLogin()};
+  let lu='';try{lu=localStorage.getItem('carp_lastuser')||''}catch(e){}if(lu)$('#lgu').value=lu;
+  setTimeout(()=>{const f=$(lu?'#lgp':'#lgu');if(f)f.focus()},50);
+}
+async function demoSeed(){
+  window.GC_DEMO=true;
+  if(D.users.length)return;
+  if(!D.jobs||!D.jobs.length){const s=seed();Object.keys(s).forEach(k=>{if(!['users','roles','sec','log','co'].includes(k))D[k]=s[k]})}
+  if(!D.roles.some(r=>r.id=='produzione'))D.roles.push({id:'produzione',name:'Produzione (mobile)',del:0,pdf:0,perm:P({jobs:2,items:2,prod:2,moves:2,rcv:2,hours:2,orders:2,cl:1,sup:1})});
+  const mk=async(id,user,name,op)=>{const salt=newSalt();return{id,user,name,role:'produzione',op,salt,hash:await hashPw('demo1234',salt),on:1,must:0,last:'',fails:0,lock:0}};
+  D.users=[await mk(1,'gianni','Gianni Rossi','Gianni'),await mk(2,'paolo','Paolo Verdi','Paolo')];
+  const R=(desc,type,qty,len,sec,mat,note,cl,cr)=>({inc:1,desc,type,qty,len,cl:cl||0,cr:cr||0,sec,mat,note:note||'',refs:[]});
+  D.jobs.slice(0,2).forEach((j,k)=>{if(!(j.docs||[]).length)j.docs=[
+    {id:1,type:'dist',title:'Distinta di taglio',dist:true,imp:TODAY,rows:[R('Montante','Profilo',4,'2150','HEA 200','S275JR','Smussare gli spigoli'),R('Traverso','Profilo',6,'1180','Tubo 60x40x3','S235JR','',45,45),R('Piastra di base','Piatto',4,'250','200x250x12','S275JR','4 fori Ø18')],views:[],pdfs:[]},
+    {id:2,type:'ab',title:'Abaco piastre',pl:[{w:200,l:250,t:12,qty:4,mat:'S275JR',note:'Zincare',holes:[{},{},{},{}]},{w:120,l:120,t:8,qty:8,mat:'S235JR',note:'',holes:[]}],imp:TODAY}]});
+  D.nt=D.nt||[];saveRaw();
+}
+
+/* ---------- aggancio al programma ---------- */
+window.MB={go,close:closeSheet,exit:()=>{closeSheet();logout()},jq:v=>{M.q=v;document.getElementById('jlist').innerHTML=jobList()},jf:v=>{M.jf=v;draw()},
+  ph:jPh,jst:jSt,scar,scf:scList,scp:scPick,scok:scOk,shq:v=>{M.q=v;document.getElementById('shl').innerHTML=sheetList()},doc:docView,pdf:docPdf,nota:sNota,
+  iq:v=>{M.iq=v;document.getElementById('il').innerHTML=itemList()},ic:v=>{M.icat=v;draw()},ia:v=>{M.iall=v;draw()},it:itemSheet,rett:iRett,cari:iCari,scar2:iScar2,pnew:pNew,pok:pOk,
+  rm:rmOpen,rmf:v=>{RM.q=v;rmList()},rms:(id,v)=>{RM.v[id]=v===''?undefined:Math.max(0,+v||0);rmSum()},rmok:rmOk,
+  hm:d=>{let {y,m}=M.hm;m+=d;if(m<0){m=11;y--}if(m>11){m=0;y++}M.hm={y,m};draw()},hday:d=>{M.hd=d;draw()},hnew:(d,j)=>hForm(d,j,0),hed:id=>hForm(0,0,id),htot:hTot,hok:hOk,
+  onew:oForm,oli:(i,v)=>{OF.lines[i].item=+v;oDraw()},olf:(i,k,v)=>{OF.lines[i][k]=v},ola:()=>{OF.lines.push({item:0,desc:'',um:'pz',qty:1});oDraw()},old:i=>{OF.lines.splice(i,1);oDraw()},ook:oOk};
+buildNav=function(){};
+const _rn=render;render=function(){if(!ME)return;draw()};
+const _ex=goView;goView=function(v){M.scr=['jobs','sheets','items','hours','orders'].includes(v)?v:'home';draw()};
+if(!window.GC_CLOUD){showLogin=mobLogin}
+else{const _sc=showLogin;showLogin=function(){closeSheet();document.body.classList.remove('mobx');return _sc.apply(this,arguments)}}
+// il modale del programma PC non serve: le schede si leggono con le schermate mobili
+(async function(){
+  D.nt=D.nt||[];
+  if(!window.GC_CLOUD){await demoSeed();
+    let sid=null;try{sid=+sessionStorage.getItem('carp_sess')}catch(e){}
+    const u=D.users.find(x=>x.id==sid&&x.on);if(u){ME=u;lockUI(false);M.scr='home';draw()}else mobLogin()}
+  else if(ME){draw()}
+})();
 })();
 </script>
 </body>
