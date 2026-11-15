@@ -202,7 +202,7 @@ body.lock #sb,body.lock #rb{display:none}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;try{t.hidePopover()}catch(e){}try{t.showPopover()}catch(e){}clearTimeout(t._t);t._t=setTimeout(()=>{try{t.hidePopover()}catch(e){}},7000)}
 window.alert=toast;
 function askConfirm(msg,yes){const d=document.getElementById('cfm');document.getElementById('cfmm').textContent=msg;document.getElementById('cfmy').onclick=()=>{d.close();yes()};d.showModal()}
-const APP_VER='1.4.0', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
+const APP_VER='1.4.1', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
 const OLDPH=['Taglio','Saldatura','Assemblaggio','Verniciatura/zincatura','Collaudo','Montaggio'], PHMAP=[0,0,0,1,0,2];
 const V28=['In produzione','Verniciatura/zincatura','Montaggio'];
 const PH=['Produzione','Zincatura/Verniciatura','Montaggio'];
@@ -6053,8 +6053,9 @@ setInterval(()=>{if(ME)stat()},4000);
 <script>
 /* ===== VARIANTE UFFICIO · barra multifunzione, barra di stato, scorciatoie ===== */
 (function(){
-const IC={dash:'M3 12l9-8 9 8M5 10v10h14V10',jobs:'M4 6h16M4 12h16M4 18h10',quotes:'M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6',ordc:'M5 4h14v16H5zM9 9h6M9 13h6',sheets:'M4 4h16v16H4zM4 12h16M12 4v16',fatt:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',items:'M3 8l9-5 9 5v12H3zM9 20v-7h6v7',prod:'M12 3l9 5v8l-9 5-9-5V8zM12 12l9-4M12 12v9M12 12L3 8',orders:'M3 5h3l2 11h10l2-8H7',hours:'M12 7v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z',cl:'M16 11a4 4 0 10-8 0 4 4 0 008 0zM4 21c1-4 4-6 8-6s7 2 8 6',sup:'M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',imp:'M12 15a3 3 0 100-6 3 3 0 000 6zM12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1',usr:'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',nuovo:'M12 5v14M5 12h14',pdf:'M6 3h9l4 4v14H6zM14 3v5h5',stats:'M4 20V10M10 20V4M16 20v-8M22 20H2',cerca:'M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-4-4'};
+const IC={dash:'M3 12l9-8 9 8M5 10v10h14V10',jobs:'M4 6h16M4 12h16M4 18h10',quotes:'M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6',ordc:'M5 4h14v16H5zM9 9h6M9 13h6',sheets:'M4 4h16v16H4zM4 12h16M12 4v16',fatt:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',items:'M3 8l9-5 9 5v12H3zM9 20v-7h6v7',prod:'M12 3l9 5v8l-9 5-9-5V8zM12 12l9-4M12 12v9M12 12L3 8',orders:'M3 5h3l2 11h10l2-8H7',hours:'M12 7v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z',cl:'M16 11a4 4 0 10-8 0 4 4 0 008 0zM4 21c1-4 4-6 8-6s7 2 8 6',sup:'M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',imp:'M12 15a3 3 0 100-6 3 3 0 000 6zM12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1',usr:'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',nuovo:'M12 5v14M5 12h14',pdf:'M6 3h9l4 4v14H6zM14 3v5h5',stats:'M4 20V10M10 20V4M16 20v-8M22 20H2',cdash:'M4 20V10M10 20V4M16 20v-8M22 20H2',cinv:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',cscad:'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',cpn:'M5 4h14v16H5zM9 9h6M9 13h6M9 17h4',cces:'M3 8l9-5 9 5v12H3zM9 20v-7h6v7',cgio:'M5 4h12a2 2 0 012 2v14H7a2 2 0 01-2-2zM9 9h6M9 13h6',cmas:'M4 4h16v16H4zM4 12h16M12 4v16',cbil:'M4 20V4M4 20h16M8 16v-5M12 16V8M16 16v-3',civa:'M5 19L19 5M7 8a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',csim:'M4 4h16v16H4zM8 8h8M8 12h3M13 12h3M8 16h3M13 16h3',cimp:'M12 15a3 3 0 100-6 3 3 0 000 6zM12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1',cerca:'M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-4-4'};
 const G=[['Cruscotto',[['dash','Cruscotto'],['stats','Statistiche']]],['Commesse',[['jobs','Commesse'],['sheets','Schede'],['quotes','Preventivi'],['ordc','Ordini cl.'],['fatt','Fattura']]],['Magazzino',[['items','Inventario'],['prod','Prodotti'],['orders','Ordini']]],['Personale',[['hours','Ore']]],['Anagrafica',[['cl','Clienti'],['sup','Fornitori']]]];
+const GC=[['Contabilità',[['cdash','Cruscotto'],['cinv','Fatture'],['cscad','Scadenze']]],['Registrazioni',[['cpn','Prima nota'],['cces','Cespiti'],['cgio','Giornale'],['cmas','Mastro'],['cbil','Bilancio']]],['Fiscale',[['civa','IVA'],['csim','Simulazione']]]];
 const ico=(d,c)=>`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
 function first(sel,rx){const l=[...document.querySelectorAll(sel)];return rx?l.find(b=>rx.test(b.textContent)):l[0]}
 function nuovo(){const b=first('#main button.pri')||first('#main .tools button.b',/^\s*(\+|Nuov|Aggiung|Registra|Crea)/i);if(b)b.click();else if(typeof toast=='function')toast('In questa schermata non c’è nulla da creare.')}
@@ -6065,17 +6066,17 @@ function build(){
   if(!ME)return;
   let rb=document.getElementById('rb');
   if(!rb){rb=document.createElement('div');rb.id='rb';document.querySelector('header').insertAdjacentElement('afterend',rb)}
-  const vis=v=>v=='usr'?isAdm():v=='stats'?lv('dash')>0:lv(v)>0;
+  const CM=(typeof MOD!='undefined'&&MOD=='cont'),vis=v=>v=='usr'?isAdm():v=='stats'?lv('dash')>0:lv(v)>0;
   let h=`<div class="g gr"><div class="bt"><button onclick="_rbNuovo()" title="Nuovo (Ctrl+N)">${ico(IC.nuovo)}Nuovo</button><button onclick="_rbPdf()" class="o" title="Esporta PDF">${ico(IC.pdf)}PDF</button><button onclick="_rbCerca()" title="Cerca (Ctrl+F)">${ico(IC.cerca)}Cerca</button></div><small>Azioni</small></div>`;
-  G.forEach(([t,l])=>{const b=l.filter(x=>vis(x[0]));if(b.length)h+=`<div class="g"><div class="bt">${b.map(x=>`<button data-rb="${x[0]}" onclick="goView('${x[0]}')">${ico(IC[x[0]])}${x[1]}</button>`).join('')}</div><small>${t}</small></div>`});
-  const s=[['imp','Opzioni'],['usr','Utenti']].filter(x=>vis(x[0]));
+  (CM?GC:G).forEach(([t,l])=>{const b=l.filter(x=>vis(x[0]));if(b.length)h+=`<div class="g"><div class="bt">${b.map(x=>`<button data-rb="${x[0]}" onclick="goView('${x[0]}')">${ico(IC[x[0]])}${x[1]}</button>`).join('')}</div><small>${t}</small></div>`});
+  const s=(CM?[['cimp','Impostazioni']]:[['imp','Opzioni'],['usr','Utenti']]).filter(x=>vis(x[0]));
   if(s.length)h+=`<div class="g"><div class="bt">${s.map(x=>`<button data-rb="${x[0]}" onclick="goView('${x[0]}')">${ico(IC[x[0]])}${x[1]}</button>`).join('')}</div><small>Sistema</small></div>`;
   rb.innerHTML=h;
   let sb=document.getElementById('sb');
   if(!sb){sb=document.createElement('div');sb.id='sb';document.body.appendChild(sb)}
   upd();
 }
-function label(){if(view=='stats')return 'Cruscotto › Statistiche';for(const t of tabs){if(t.g){const i=t.it.find(x=>x[0]==view);if(i)return t.l+' › '+i[1]}else if(t[0]==view)return t[1]}return ''}
+function label(){if(view=='stats')return 'Cruscotto › Statistiche';for(const t of (typeof MOD!='undefined'&&MOD=='cont'?tabsC:tabs)){if(t.g){const i=t.it.find(x=>x[0]==view);if(i)return t.l+' › '+i[1]}else if(t[0]==view)return t[1]}return ''}
 function upd(){
   if(!ME)return;
   document.querySelectorAll('#rb button[data-rb]').forEach(b=>b.classList.toggle('on',b.dataset.rb==view));
