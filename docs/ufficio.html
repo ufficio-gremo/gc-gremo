@@ -109,6 +109,10 @@ th.bsc,td.bsc{width:38px;min-width:38px;max-width:38px;padding-left:10px!importa
 tr.bss,tr.bss td{background:rgba(232,119,46,.16)!important}
 #bsbar{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:40;display:flex;gap:10px;align-items:center;background:#1f2a44;color:#fff;border-radius:14px;padding:10px 14px;box-shadow:0 8px 28px rgba(0,0,0,.35)}
 #bsbar[hidden]{display:none}#bsbar .b{white-space:nowrap}
+.msw{display:inline-flex;border:1px solid rgba(255,255,255,.45);border-radius:4px;overflow:hidden;margin-right:8px;vertical-align:middle}
+.msw button{background:transparent;border:0;color:inherit;padding:4px 12px;font:600 13px inherit;cursor:pointer;opacity:.75}.msw button.on{background:var(--acc);color:#1d252c;opacity:1}
+#dlg .bt>b{display:block}
+.tag.ok{background:rgba(47,125,82,.14);border-color:var(--ok);color:var(--ok)}
 </style>
 <style id="variante">
 /* ===== VARIANTE UFFICIO · stile applicazione Windows ===== */
@@ -198,7 +202,7 @@ body.lock #sb,body.lock #rb{display:none}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;try{t.hidePopover()}catch(e){}try{t.showPopover()}catch(e){}clearTimeout(t._t);t._t=setTimeout(()=>{try{t.hidePopover()}catch(e){}},7000)}
 window.alert=toast;
 function askConfirm(msg,yes){const d=document.getElementById('cfm');document.getElementById('cfmm').textContent=msg;document.getElementById('cfmy').onclick=()=>{d.close();yes()};d.showModal()}
-const APP_VER='1.3.3', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
+const APP_VER='1.4.0', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
 const OLDPH=['Taglio','Saldatura','Assemblaggio','Verniciatura/zincatura','Collaudo','Montaggio'], PHMAP=[0,0,0,1,0,2];
 const V28=['In produzione','Verniciatura/zincatura','Montaggio'];
 const PH=['Produzione','Zincatura/Verniciatura','Montaggio'];
@@ -215,7 +219,7 @@ function applyCfg(c){
 }
 // EMPTY_START = true: il programma parte senza dati (solo impostazioni di base); false: parte con dati di esempio
 const EMPTY_START=true;
-const emptyData=()=>({rates:{c:32,s:42,cc:22,cs:30},sl:[],cl:[],sup:[],items:[],jobs:[],quotes:[],orders:[],moves:[],hours:[],rcv:[]});
+const emptyData=()=>({rates:{c:32,s:42,cc:22,cs:30},sl:[],cl:[],sup:[],items:[],jobs:[],quotes:[],orders:[],moves:[],hours:[],rcv:[],inv:[],cmov:[],cset:[],pdc:[],reg:[],ces:[]});
 const seed=()=>{
  if(EMPTY_START)return emptyData();
  const H=(job,op,ph,h,date)=>({job,op,phase:PH[PHMAP[ph]],h,date}), M=(job,item,qty,date)=>({job,item,qty,date});
@@ -250,6 +254,7 @@ let D; try{D=JSON.parse(localStorage.getItem(KEY))}catch(e){} if(!D||!D.jobs)D=s
 // adatta i dati salvati con una versione precedente
 let AUTH_READY=false;
 const migrate=()=>{
+  accInit();
   D.xsheets=D.xsheets||[];D.sl=D.sl||[];D.nt=D.nt||[];
   [...D.jobs,...D.xsheets].forEach(j=>{if(j.sheet){if(!j.docs||!j.docs.length)j.docs=[{...j.sheet,id:1,type:'dist',title:'Distinta di taglio'}];delete j.sheet}});
 if(AUTH_READY)authInit();
@@ -354,10 +359,10 @@ const supOpt=()=>D.sup.map(s=>({v:s.id,t:s.n}));
 
 const E={
 cl:{c:'cl',nw:'Nuovo cliente',h:['Ragione sociale','P. IVA','Referente','Telefono','Commesse'],req:'n',
- f:[{k:'n',l:'Ragione sociale',full:1},{k:'iva',l:'Partita IVA'},{k:'ref',l:'Referente'},{k:'tel',l:'Telefono'}],
+ f:[{k:'n',l:'Ragione sociale',full:1},{k:'iva',l:'Partita IVA'},{k:'ref',l:'Referente'},{k:'tel',l:'Telefono'},{k:'pay',l:'Giorni di pagamento (per le scadenze)',t:'number'},{k:'iban',l:'IBAN'}],
  r:x=>[`<b>${x.n}</b>`,x.iva,x.ref,x.tel,D.jobs.filter(j=>j.client==x.id).length],use:x=>D.jobs.some(j=>j.client==x.id)},
 sup:{c:'sup',nw:'Nuovo fornitore',h:['Ragione sociale','Categoria','P. IVA','Referente','Telefono'],req:'n',
- f:[{k:'n',l:'Ragione sociale',full:1},{k:'cat',l:'Categoria merceologica'},{k:'iva',l:'Partita IVA'},{k:'ref',l:'Referente'},{k:'tel',l:'Telefono'}],
+ f:[{k:'n',l:'Ragione sociale',full:1},{k:'cat',l:'Categoria merceologica'},{k:'iva',l:'Partita IVA'},{k:'ref',l:'Referente'},{k:'tel',l:'Telefono'},{k:'pay',l:'Giorni di pagamento (per le scadenze)',t:'number'},{k:'iban',l:'IBAN'}],
  r:x=>[`<b>${x.n}</b>`,x.cat,x.iva,x.ref,x.tel],use:x=>D.items.some(i=>i.sup==x.id)},
 items:{c:'items',nw:'Nuovo articolo',h:['Codice','Descrizione','Giacenza','Scorta minima','Costo unitario','Fornitore'],req:'code',
  f:[{k:'code',l:'Codice articolo'},{k:'um',l:'Unità di misura',t:'sel',o:()=>['m','kg','pz','m²']},{k:'desc',l:'Descrizione',full:1},{k:'stock',l:'Giacenza',t:'number'},{k:'min',l:'Scorta minima',t:'number'},{k:'cost',l:'Costo unitario (€)',t:'number'},{k:'sup',l:'Fornitore abituale',t:'sel',id:1,o:supOpt}],
@@ -384,8 +389,8 @@ const poOrig=()=>{const a=oJobs(PO.lines);return a.length?a.map(j=>j?'Commessa '
 const jobSplit=l=>{if(l.split){const k=Object.keys(l.split),t=k.reduce((a,j)=>a+l.split[j],0)||1;return k.map(j=>esc(jb(+j))+': <b>'+fN(l.split[j]/t*(+l.qty||0))+' '+esc(l.um||'')+'</b>').join(' · ')}return l.job?esc(jb(l.job)):'Scorta'};
 const oLate=o=>o.status=='Ordinato'&&o.due<TODAY;
 const tabs=[['dash','Cruscotto'],{g:'com',l:'Commesse',it:[['jobs','Commesse'],['quotes','Preventivi'],['ordc','Ordini cliente'],['sheets','Schede di lavorazione'],['fatt','Fatturazione']]},{g:'mag',l:'Magazzino',it:[['items','Inventario'],['prod','Prodotti'],['orders','Ordini']]},['hours','Ore'],{g:'ana',l:'Anagrafica',it:[['cl','Clienti'],['sup','Fornitori']]},{g:'set',l:'Impostazioni',it:[['imp','Impostazioni'],['usr','Utenti e permessi']]}];
-const gOf=v=>(v=='rcv'||v=='moves')?'mag':(tabs.find(t=>t.g&&t.it.some(i=>i[0]==v))||{}).g;
-function goView(v){ddClose();if(view=='imp'&&v!='imp'){if(SD&&sdDirty())sdSave(true);SD=null}view=v;render()}
+const gOf=v=>(v=='rcv'||v=='moves')?'mag':((MOD=='cont'?tabsC:tabs).find(t=>t.g&&t.it.some(i=>i[0]==v))||{}).g;
+function goView(v){ddClose();accSync(v);if(view=='imp'&&v!='imp'){if(SD&&sdDirty())sdSave(true);SD=null}view=v;render()}
 let view='dash', q='', fs='', cur, lsq='';
 const ddClose=()=>document.querySelectorAll('.ddm').forEach(m=>m.hidden=true);
 $('#nav').onclick=e=>{
@@ -401,7 +406,7 @@ function render(){
   if(view!='usr'?lv(view)<1:!isAdm())view=firstView();
   lsq='';if(qvw!=view){qvw=view;qfs='';qq=''}
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v==view||b.dataset.g==gOf(view)&&!!b.dataset.g));
-  $('#main').innerHTML=view=='dash'?dash():view=='jobs'?jobs():view=='rcv'?rcvList():view=='fatt'?fattView():view=='imp'?settingsView():view=='usr'?usersView():view=='hours'?hoursView():(view=='quotes'||view=='ordc')?quotesView():view=='orders'?ordersView():view=='sheets'?sheetsView():list(view);
+  $('#main').innerHTML=CV.includes(view)?accView():view=='dash'?dash():view=='jobs'?jobs():view=='rcv'?rcvList():view=='fatt'?fattView():view=='imp'?settingsView():view=='usr'?usersView():view=='hours'?hoursView():(view=='quotes'||view=='ordc')?quotesView():view=='orders'?ordersView():view=='sheets'?sheetsView():list(view);
   if(view=='imp'&&typeof buInit=='function')buInit();
   if(view=='rcv'||view=='moves')$('#main').insertAdjacentHTML('afterbegin','<div style="margin-bottom:10px"><button class="b" onclick="goView(\'items\')">← Torna all’inventario</button></div>');
   if(view=='jobs'){$('#q').oninput=e=>{q=e.target.value;$('#jl').innerHTML=jobsLists()};$('#fs').onchange=e=>{fs=e.target.value;$('#jl').innerHTML=jobsLists()}}
@@ -1882,7 +1887,7 @@ function salFattSave(jid,sid){
   if(!dat){alert('Inserisci la data della fattura.');return}
   x.status='Fatturato';x.invNum=num;x.invDate=dat;save();$('#dlg').close();render();
 }
-const r2=v=>Math.round(v*100)/100;
+const r2=v=>Math.round((+v||0)*100)/100;
 function priceCalc(src){
   const g=k=>+$('#'+k).value||0, set=(k,v)=>{$('#'+k).value=r2(v)};
   let net=g('price'), rate=g('vat');
@@ -3978,22 +3983,22 @@ function shDraw(doc,j,s){
 }
 
 // ================= ACCESSI, UTENTI E PERMESSI =================
-const SECS=[['dash','Cruscotto'],['jobs','Commesse'],['quotes','Preventivi'],['ordc','Ordini cliente'],['items','Inventario'],['prod','Prodotti'],['rcv','Carico merce'],['moves','Scarico merce'],['orders','Ordini'],['hours','Ore'],['cl','Clienti'],['sup','Fornitori'],['imp','Impostazioni']];
+const SECS=[['dash','Cruscotto'],['jobs','Commesse'],['quotes','Preventivi'],['ordc','Ordini cliente'],['items','Inventario'],['prod','Prodotti'],['rcv','Carico merce'],['moves','Scarico merce'],['orders','Ordini'],['hours','Ore'],['cl','Clienti'],['sup','Fornitori'],['cont','Contabilità'],['imp','Impostazioni']];
 const LVN=['Nessun accesso','Sola lettura','Modifica'];
 const ADM={id:'admin',name:'Amministratore',del:1,pdf:1,perm:{}};
 const P=(o)=>{const p={};SECS.forEach(s=>p[s[0]]=o[s[0]]||0);return p};
 function defRoles(){return[
- {id:'ufficio',name:'Ufficio',del:1,pdf:1,perm:P({dash:2,jobs:2,quotes:2,ordc:2,items:2,prod:2,rcv:2,moves:2,orders:2,hours:2,fatt:2,cl:2,sup:2})},
+ {id:'ufficio',name:'Ufficio',del:1,pdf:1,perm:P({dash:2,jobs:2,quotes:2,ordc:2,items:2,prod:2,rcv:2,moves:2,orders:2,hours:2,fatt:2,cl:2,sup:2,cont:2})},
  {id:'reparto',name:'Capo reparto',del:0,pdf:1,perm:P({dash:1,jobs:1,items:1,prod:1,moves:2,orders:1,hours:2,cl:1,sup:1})},
  {id:'operaio',name:'Operaio',del:0,pdf:0,perm:P({dash:1,jobs:1,hours:2})}]}
 function authInit(){
-  D.users=D.users||[];D.roles=D.roles||defRoles();D.roles.forEach(r=>{r.perm=r.perm||{};if(r.perm.ordc===undefined)r.perm.ordc=r.perm.quotes||0;if(r.perm.prod===undefined)r.perm.prod=r.perm.items||0});D.log=D.log||[];
+  D.users=D.users||[];D.roles=D.roles||defRoles();D.roles.forEach(r=>{r.perm=r.perm||{};if(r.perm.ordc===undefined)r.perm.ordc=r.perm.quotes||0;if(r.perm.prod===undefined)r.perm.prod=r.perm.items||0;if(r.perm.cont===undefined)r.perm.cont=r.id=='ufficio'?2:0});D.log=D.log||[];
   D.sec=Object.assign({minLen:6,maxFail:5,lockMin:5,idle:30},D.sec||{});
 }
 const roleOf=id=>id=='admin'?ADM:D.roles.find(r=>r.id==id);
 const roleName=id=>(roleOf(id)||{name:'(ruolo eliminato)'}).name;
 const ROLE=()=>(ME&&roleOf(ME.role))||{perm:{}};
-const lv=v=>!ME?0:ME.role=='admin'?2:v=='usr'?0:((ROLE().perm||{})[v=='sheets'?'jobs':v]||0);
+const lv=v=>!ME?0:ME.role=='admin'?2:v=='usr'?0:((ROLE().perm||{})[v=='sheets'?'jobs':['cdash','cinv','cscad','cpn','cgio','cmas','cbil','cces','civa','csim','cimp'].includes(v)?'cont':v]||0);
 const canDel=()=>!!ME&&(ME.role=='admin'||!!ROLE().del), canPdf=()=>!!ME&&(ME.role=='admin'||!!ROLE().pdf);
 const isAdm=()=>!!ME&&ME.role=='admin';
 const hx=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
@@ -4112,13 +4117,13 @@ function enter(u){
   if(u.must)pwdOpen(true);
 }
 function logout(why){if(ME)addLog(why||'Uscita');saveRaw();showLogin();if(why)setTimeout(()=>lgErr(why),60)}
-const firstView=()=>{for(const t of tabs){const l=t.g?t.it:[t];for(const i of l)if(lv(i[0])>0)return i[0]}return 'dash'};
+const firstView=()=>{accModFix();for(const t of (MOD=='cont'?tabsC:tabs)){const l=t.g?t.it:[t];for(const i of l)if(lv(i[0])>0)return i[0]}return MOD=='cont'?'cdash':'dash'};
 function buildNav(){
   const vis=i=>i[0]=='usr'?isAdm():lv(i[0])>0;
-  $('#nav').innerHTML=tabs.map(t=>{
+  $('#nav').innerHTML=(MOD=='cont'?tabsC:tabs).map(t=>{
     if(t.g){const it=t.it.filter(vis);return it.length?`<div class="dd"><button data-g="${t.g}">${t.l} ▾</button><div class="ddm" id="dd_${t.g}" hidden>${it.map(i=>`<button data-v="${i[0]}">${i[1]}</button>`).join('')}</div></div>`:''}
     return vis(t)?`<button data-v="${t[0]}">${t[1]}</button>`:''}).join('');
-  $('#me').innerHTML=`<b>${esc(ME.name)}</b> <span class="mut2">· ${esc(roleName(ME.role))}</span> <button class="b" onclick="pwdOpen(false)">Password</button> <button class="b" onclick="logout()">Esci</button>`;
+  $('#me').innerHTML=`${accSwitch()}<b>${esc(ME.name)}</b> <span class="mut2">· ${esc(roleName(ME.role))}</span> <button class="b" onclick="pwdOpen(false)">Password</button> <button class="b" onclick="logout()">Esci</button>`;
   $('footer').style.display=isAdm()?'':'none';
   try{bkWarn()}catch(e){}
 }
@@ -4572,7 +4577,7 @@ function anOpen(k,id,tab){
   anDraw();d.showModal()}
 function anDraw(){
   const {k,id}=AN,r=D[k].find(x=>x.id==id),e=$('#an_b');if(!r||!e)return;const x=anData();
-  const info=[['P. IVA',r.iva],['Referente',r.ref],['Telefono',r.tel],...(k=='sup'?[['Categoria',r.cat]]:[])].filter(a=>a[1]);
+  const info=[['P. IVA',r.iva],['Referente',r.ref],['Telefono',r.tel],['Pagamento',r.pay?r.pay+' giorni':''],['IBAN',r.iban],...(k=='sup'?[['Categoria',r.cat]]:[])].filter(a=>a[1]);
   let tabs,stats;
   if(k=='cl'){
     const openJ=x.jobs.filter(j=>!['Consegnata','Fatturata'].includes(j.status)),totJ=x.jobs.reduce((a,j)=>a+(+j.price||0),0),openQ=x.qs.filter(q=>QK.Q.open.includes(q.status));
@@ -4582,9 +4587,11 @@ function anDraw(){
     const openO=x.ords.filter(o=>o.status!='Ricevuto'),rec=x.ords.filter(o=>o.status=='Ricevuto');
     stats=[[openO.length,'ordini aperti'+(openO.length?' · '+eur(openO.reduce((a,o)=>a+o.qty*o.price,0)):'')],[x.rc.length,'arrivi merce'],[eur(rec.reduce((a,o)=>a+o.qty*o.price,0)),'ordinato e ricevuto']];
     tabs=[['ords','Ordini materiale',x.ords.length],['rc','Arrivi merce',x.rc.length],['prods','Prodotti',x.prods.length]]}
+  const aiv=lv('cont')>0?D.inv.filter(i=>i.dir==(k=='cl'?'E':'R')&&i.party==id):[];if(lv('cont')>0)tabs.push(['inv','Fatture',aiv.length]);
   if(!AN.tab||!tabs.some(t=>t[0]==AN.tab))AN.tab=tabs[0][0];
   const T=(h,rows,empty)=>`<div class="tw"><table style="min-width:560px"><thead><tr>${h.map(c=>`<th${c[0]=='>'?' class="n"':''}>${c.replace(/^>/,'')}</th>`).join('')}</tr></thead><tbody>${rows.join('')||`<tr><td colspan="${h.length}" class="empty">${empty}</td></tr>`}</tbody></table></div>`;
   let body='';
+  if(AN.tab=='inv')body=T(['Numero','Data','Scadenza','Stato','>Totale','>Residuo'],aiv.map(i=>`<tr class="row" onclick="$('#dlg').close();goView('cinv');invEdit(${i.id})"><td><b>${esc(i.num||'-')}</b></td><td>${dt(i.date)}</td><td>${i.due?dt(i.due):'-'}</td><td>${aStTag(i)}</td><td class="n">${eur2(aTot(i))}</td><td class="n">${eur2(aOpen(i))}</td></tr>`),'Nessuna fattura registrata.');
   if(AN.tab=='jobs')body=T(['Commessa','Descrizione','Consegna','Stato','>Importo'],x.jobs.map(j=>`<tr class="row" onclick="editJob(${j.id})"><td><b>${esc(j.code)}</b></td><td>${esc(j.desc||'')}</td><td>${j.due?dt(j.due):'-'}</td><td>${esc(j.status||'')}</td><td class="n">${eur(j.price)}</td></tr>`),'Nessuna commessa per questo cliente.');
   if(AN.tab=='qs'||AN.tab=='oc'){const l=AN.tab=='qs'?x.qs:x.oc;body=T(['Numero','Oggetto','Data','Stato','>Imponibile'],l.map(q=>`<tr class="row" onclick="editQuote(${q.id})"><td><b>${esc(q.num)}</b></td><td>${esc(q.desc||'')}</td><td>${dt(q.date)}</td><td>${esc(q.status)}${q.job?' · '+esc(jcode(q.job)):''}</td><td class="n">${eur(q.price)}</td></tr>`),AN.tab=='qs'?'Nessun preventivo.':'Nessun ordine cliente.')}
   if(AN.tab=='ords')body=T(['Ordine','Articolo','Commessa','Consegna','Stato','>Totale'],x.ords.map(o=>`<tr class="row" onclick="ed('orders',${o.id})"><td>${esc(o.poNum||'-')}</td><td>${esc(ordName(o))} <span class="mut">${fN(o.qty)} ${esc(ordUm(o))}</span></td><td>${esc(jb(o.job))}</td><td>${o.due?dt(o.due):'-'}</td><td>${esc(o.status)}</td><td class="n">${eur2(o.qty*o.price)}</td></tr>`),'Nessun ordine a questo fornitore.');
@@ -4737,6 +4744,861 @@ function bsDel(){
 new MutationObserver(()=>{if(bsInject.t)return;bsInject.t=requestAnimationFrame(()=>{bsInject.t=0;try{bsInject()}catch(e){console.error(e)}})}).observe(document.getElementById('main'),{childList:true,subtree:true});
 document.addEventListener('keydown',e=>{if(e.key=='Escape'&&BS.ids.size&&!document.querySelector('dialog[open]'))bsNone()});
 
+// ---------- contabilità
+
+// ===================== MODULO CONTABILITÀ =====================
+// Dati propri: D.inv (fatture emesse/ricevute) e D.cmov (prima nota: movimenti di cassa e banca).
+// Dialoga con la produzione tramite: anagrafica clienti/fornitori, commesse (fatturazione, ore) e ordini ricevuti.
+const CV=['cdash','cinv','cscad','cpn','cgio','cmas','cbil','cces','civa','csim','cimp'];
+const tabsC=[['cdash','Cruscotto'],['cinv','Fatture'],['cscad','Scadenziario'],{g:'reg',l:'Registrazioni',it:[['cpn','Prima nota'],['cces','Cespiti'],['cgio','Libro giornale'],['cmas','Mastro e mastrini'],['cbil','Bilancio']]},['civa','IVA'],['csim','Simulazione reddito'],['cimp','Impostazioni']];
+let MOD='prod',cDir='E',cQ='',cYr=String(new Date().getFullYear()),cScad='tutte',cAcc='',cMese='',cPQ='',cIvaP='a',cOnlyOpen=false,cGC='',cMC='',cBT='ver',cMM='mas',cMT='cli',cMP='';
+const aId=()=>Date.now()*10+Math.floor(Math.random()*10);
+const aAdd=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+const aSg=i=>i.nc?-1:1;
+const aNet=i=>aSg(i)*r2(i.net), aIva=i=>aSg(i)*r2((+i.net||0)*(+i.vat||0)/100), aTot=i=>aNet(i)+aIva(i);
+const aRit=i=>aSg(i)*r2(r2(i.net)*((i.ritb==null||i.ritb==='')?100:+i.ritb)/100*(+i.rit||0)/100);
+const aPaid=i=>r2(D.cmov.filter(m=>m.inv==i.id).reduce((t,m)=>t+(+m.amt||0),0)*(i.dir=='E'?1:-1));
+const aOpen=i=>r2(aTot(i)-aRit(i)-aPaid(i));
+const aSt=i=>{const o=aOpen(i);if(Math.abs(o)<0.005)return 'ok';if(i.due&&i.due<TODAY)return 'late';return Math.abs(aPaid(i))>0.004?'part':'open'};
+const aStTag=i=>{const s=aSt(i),E_=i.dir=='E';return s=='ok'?`<span class="tag ok">${E_?'Incassata':'Pagata'}</span>`:s=='late'?'<span class="tag late">Scaduta</span>':s=='part'?'<span class="tag" style="background:#ffd43b;color:#000;border-color:#e0a800">Parziale</span>':`<span class="tag">${E_?'Da incassare':'Da pagare'}</span>`};
+const aCol=i=>i.dir=='E'?'cl':'sup';
+const aParty=i=>i.party?nm(aCol(i),i.party):(i.pname||'—');
+const aDays=(c,id)=>+((D[c].find(x=>x.id==id)||{}).pay)||CS().pay||0;
+const aJobs=i=>[...new Set([...(i.jobs||[]),...(i.job?[i.job]:[])])];
+const aJobTxt=i=>aJobs(i).map(id=>esc(jb(id))).join(', ')||'<span class="mut">-</span>';
+const aInYr=d=>!cYr||(d||'').slice(0,4)==cYr;
+function accInit(){D.inv=D.inv||[];D.cmov=D.cmov||[];D.cset=D.cset||[];D.pdc=D.pdc||[];D.reg=D.reg||[];D.ces=D.ces||[]}
+function accModFix(){const pv=tabs.some(t=>(t.g?t.it:[t]).some(i=>lv(i[0])>0));if(MOD=='cont'&&lv('cont')<1)MOD='prod';if(MOD=='prod'&&!pv&&lv('cont')>0)MOD='cont'}
+function accSync(v){if(!ME)return;const w=CV.includes(v)?'cont':'prod';if(MOD!=w){MOD=w;buildNav()}}
+function accMod(m){MOD=m;buildNav();view=firstView();render()}
+function accSwitch(){
+  if(!ME||lv('cont')<1)return '';
+  const pv=tabs.some(t=>(t.g?t.it:[t]).some(i=>lv(i[0])>0));if(!pv)return '';
+  return `<span class="msw"><button class="${MOD=='prod'?'on':''}" onclick="accMod('prod')">Produzione</button><button class="${MOD=='cont'?'on':''}" onclick="accMod('cont')">Contabilità</button></span> `;
+}
+const aYears=()=>{const s=new Set([String(new Date().getFullYear())]);D.inv.forEach(i=>i.date&&s.add(i.date.slice(0,4)));D.cmov.forEach(m=>m.date&&s.add(m.date.slice(0,4)));return [...s].sort().reverse()};
+const aYSel=()=>`<select onchange="cYr=this.value;render()"><option value="" ${cYr?'':'selected'}>Tutti gli anni</option>${aYears().map(y=>`<option ${y==cYr?'selected':''}>${y}</option>`).join('')}</select>`;
+const aSaldo=a=>r2(D.cmov.filter(m=>!a||m.acc==a).reduce((t,m)=>t+(+m.amt||0),0));
+const aN=(v,c)=>`<td class="n" ${c?`style="color:var(--${c})"`:''}>${eur2(v)}</td>`;
+// ---- da registrare: fatture di commessa non ancora in contabilità
+function aToReg(){
+  const have=new Set(D.inv.map(i=>i.ref).filter(Boolean)),out=[];
+  fattInvoices().forEach(v=>{const ref='f:'+v.key;if(have.has(ref))return;const net=v.jobs.reduce((t,j)=>t+netOf(j),0);if(net<=0.005)return;
+    out.push({ref,num:v.num,date:v.date,client:v.jobs[0].client,jobs:v.jobs.map(j=>j.id),net:r2(net),vat:v.jobs[0].vat??22,desc:v.jobs.map(j=>j.code+' · '+j.desc).join(' | ')})});
+  D.jobs.forEach(j=>(j.sals||[]).filter(x=>x.status=='Fatturato').forEach(x=>{const ref='s:'+j.id+':'+x.n;if(have.has(ref))return;
+    out.push({ref,num:x.invNum||'',date:x.invDate||'',client:j.client,jobs:[j.id],net:r2(x.amt),vat:j.vat??22,desc:j.code+' · S.A.L. '+x.n+(x.desc?' · '+x.desc:'')})}));
+  return out.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+}
+const aOrdsFree=sup=>{const used=new Set(D.inv.flatMap(i=>i.ords||[]));return D.orders.filter(o=>o.status=='Ricevuto'&&ordSup(o)==sup&&!used.has(o.id))};
+function aNext(){
+  const f=CS().num||{fmt:'{n}/{yyyy}',dig:1},y=TODAY.slice(0,4),ex=t=>t.replace(/[.*+?^$()|[\]\\]/g,'\\$&');
+  const re=new RegExp('^'+f.fmt.split(/(\{n\}|\{yyyy\}|\{yy\})/).map(p=>p=='{n}'?'(\\d+)':p=='{yyyy}'?y:p=='{yy}'?y.slice(2):ex(p)).join('')+'$');
+  let mx=0;D.inv.filter(i=>i.dir=='E'&&!i.nc&&(i.date||'').slice(0,4)==y).forEach(i=>{const m=String(i.num||'').match(re);if(m&&+m[1]>mx)mx=+m[1]});
+  return f.fmt.replace('{n}',String(mx+1).padStart(f.dig||1,'0')).replace('{yyyy}',y).replace('{yy}',y.slice(2));
+}
+// ---- vista principale
+function accView(){
+  accEnsure();return view=='cdash'?cDash():view=='cinv'?cInv():view=='cscad'?cScadV():view=='cpn'?cPn():view=='cgio'?cGio():view=='cmas'?cMas():view=='cbil'?cBil():view=='cimp'?cImp():view=='cces'?cCes():view=='csim'?cSim():cIva();
+}
+function cDash(){
+  const E_=D.inv.filter(i=>i.dir=='E'&&aSt(i)!='ok'),R_=D.inv.filter(i=>i.dir=='R'&&aSt(i)!='ok');
+  const sum=a=>r2(a.reduce((t,i)=>t+aOpen(i),0)),lat=a=>sum(a.filter(i=>i.due&&i.due<TODAY));
+  const y=TODAY.slice(0,4),fy=D.inv.filter(i=>i.dir=='E'&&(i.date||'').slice(0,4)==y),cy=D.inv.filter(i=>i.dir=='R'&&(i.date||'').slice(0,4)==y);
+  const ric=r2(fy.reduce((t,i)=>t+aNet(i),0)),cos=r2(cy.reduce((t,i)=>t+aNet(i),0));
+  const q=Math.floor(new Date().getMonth()/3),pp=n=>String(n).padStart(2,'0'),iv=ivaCalc(y+'-'+pp(q*3+1)+'-01',y+'-'+pp(q*3+3)+'-'+new Date(+y,q*3+3,0).getDate());
+  const toReg=aToReg().length;
+  const nx=(a,n)=>[...a].filter(i=>i.due).sort((x,y2)=>x.due.localeCompare(y2.due)).slice(0,n);
+  const ln=i=>`<div class="ph"><span><b>${esc(i.num||'-')}</b> · ${esc(aParty(i))}<br><small class="mut">scad. ${dt(i.due)}${i.due<TODAY?' · <span style="color:var(--bad)">in ritardo</span>':''}</small></span><b>${eur2(aOpen(i))}</b></div>`;
+  return `<div class="tools"><button class="b" onclick="invEdit(0,'E')">Nuova fattura emessa</button><button class="b" onclick="invEdit(0,'R')">Nuova fattura ricevuta</button><button class="b" onclick="pnEdit(0)">Nuovo movimento</button></div>
+  ${toReg?`<div class="tools" style="background:var(--soft);border:1px solid var(--line);padding:8px 12px;border-radius:4px"><span style="flex:1"><b>${toReg}</b> ${toReg==1?'fattura di commessa non è ancora registrata':'fatture di commessa non sono ancora registrate'} in contabilità.</span><button class="b pri" onclick="invImpOpen()">Registra ora</button></div>`:''}
+  <div class="kpis">
+   <div class="kpi acc"><span>Da incassare</span><b>${eur(sum(E_))}</b><span>${lat(E_)?'di cui scaduti '+eur(lat(E_)):'nessun ritardo'}</span></div>
+   <div class="kpi ${lat(R_)?'late':''}"><span>Da pagare</span><b>${eur(sum(R_))}</b><span>${lat(R_)?'di cui scaduti '+eur(lat(R_)):'nessun ritardo'}</span></div>
+   <div class="kpi"><span>Saldo cassa + banca</span><b>${eur(aSaldo())}</b><span>${accNames().map(n=>esc(n)+' '+eur(aSaldo(n))).join(' · ')}</span></div>
+   <div class="kpi"><span>Saldo previsto</span><b>${eur(aSaldo()+sum(E_)-sum(R_))}</b><span>dopo incassi e pagamenti aperti</span></div>
+  </div>
+  <div class="kpis">
+   <div class="kpi"><span>Fatturato ${y} (imponibile)</span><b>${eur(ric)}</b><span>${fy.length} fatture emesse</span></div>
+   <div class="kpi"><span>Costi ${y} (imponibile)</span><b>${eur(cos)}</b><span>${cy.length} fatture ricevute</span></div>
+   <div class="kpi"><span>Differenza ${y}</span><b style="color:var(--${ric-cos>=0?'ok':'bad'})">${eur(ric-cos)}</b><span>ricavi meno costi fatturati</span></div>
+   <div class="kpi"><span>IVA ${q+1}° trimestre</span><b>${eur(Math.abs(iv.liq))}</b><span>${iv.liq>=0?'a debito (da versare)':'a credito'} · indicativo</span></div>
+  </div>
+  <div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+   <div><h3 style="margin:0 0 6px">Prossimi incassi</h3><div class="tw" style="padding:4px 12px">${nx(E_,6).map(ln).join('')||'<div class="empty">Nessun incasso in sospeso.</div>'}</div></div>
+   <div><h3 style="margin:0 0 6px">Prossimi pagamenti</h3><div class="tw" style="padding:4px 12px">${nx(R_,6).map(ln).join('')||'<div class="empty">Nessun pagamento in sospeso.</div>'}</div></div>
+  </div>`;
+}
+// ---- fatture
+function cInv(){
+  let a=D.inv.filter(i=>i.dir==cDir&&aInYr(i.date));
+  const q=cQ.toLowerCase();if(q)a=a.filter(i=>[i.num,aParty(i),i.desc,aJobs(i).map(jb).join(' ')].join(' ').toLowerCase().includes(q));
+  if(cOnlyOpen)a=a.filter(i=>aSt(i)!='ok');
+  a.sort((x,y)=>(y.date||'').localeCompare(x.date||'')||String(y.num).localeCompare(String(x.num),'it',{numeric:true}));
+  const tn=r2(a.reduce((t,i)=>t+aNet(i),0)),ti=r2(a.reduce((t,i)=>t+aIva(i),0)),E_=cDir=='E',toReg=E_?aToReg().length:0;
+  return `<div class="tools"><button class="b ${E_?'pri':''}" onclick="cDir='E';render()">Fatture emesse</button><button class="b ${E_?'':'pri'}" onclick="cDir='R';render()">Fatture ricevute</button>${aYSel()}
+   <input id="cq" placeholder="Cerca numero, cliente, commessa" value="${esc(cQ)}" style="flex:1;min-width:200px"><label style="display:flex;gap:4px;align-items:center;font-size:13px"><input type="checkbox" ${cOnlyOpen?'checked':''} onchange="cOnlyOpen=this.checked;render()"> solo aperte</label>
+   <button class="b" onclick="pdfInv()">Esporta PDF</button><button class="b" onclick="csvInv()">Esporta CSV</button><button class="b" onclick="xmlOpen(cDir)">Importa XML</button>
+   ${E_&&toReg?`<button class="b" onclick="invImpOpen()">Da commesse (${toReg})</button>`:''}<button class="b pri" onclick="invEdit(0,'${cDir}')">Nuova fattura</button></div>
+  <div class="tw"><table><thead><tr><th>Numero</th><th>Data</th><th>${E_?'Cliente':'Fornitore'}</th><th>Commessa</th><th class="n">Imponibile</th><th class="n">IVA</th><th class="n">Totale</th><th>Scadenza</th><th>Stato</th><th></th></tr></thead><tbody>
+  ${a.length?a.map(i=>`<tr class="row" onclick="invEdit(${i.id})"><td><b>${esc(i.num||'-')}</b>${i.nc?' <span class="tag">nota di credito</span>':''}</td><td>${dt(i.date)}</td><td>${esc(aParty(i))}${i.desc?`<br><small class="mut">${esc(i.desc.slice(0,70))}</small>`:''}</td><td>${aJobTxt(i)}</td>${aN(aNet(i))}${aN(aIva(i))}<td class="n"><b>${eur2(aTot(i))}</b></td><td>${i.due?dt(i.due):'-'}</td><td>${aStTag(i)}</td>
+   <td>${aSt(i)!='ok'?`<button class="b" onclick="event.stopPropagation();payOpen(${i.id})">${E_?'Incassa':'Paga'}</button>`:''}</td></tr>`).join(''):`<tr><td colspan="10" class="empty">Nessuna fattura ${E_?'emessa':'ricevuta'}${cYr?' nel '+cYr:''}.</td></tr>`}
+  ${a.length?`<tr style="font-weight:700"><td colspan="4">Totale (${a.length})</td>${aN(tn)}${aN(ti)}<td class="n">${eur2(tn+ti)}</td><td colspan="3"></td></tr>`:''}
+  </tbody></table></div>`;
+}
+function invEdit(id,dir){
+  const n=!id,i=n?{dir:dir||cDir,num:(dir||cDir)=='E'?aNext():'',date:TODAY,vat:CS().vatDef,net:'',party:0,pname:'',job:0,desc:'',due:'',nc:0,ords:[]}:D.inv.find(x=>x.id==id);if(!i)return;
+  const E_=i.dir=='E',col=aCol(i);
+  if(n)i.due=aAdd(TODAY,aDays(col,0));
+  const d=$('#dlg');d.oninput=null;d.classList.remove('wide');
+  const pays=D.cmov.filter(m=>m.inv==i.id).sort((x,y)=>x.date.localeCompare(y.date));
+  d.innerHTML=`<div class="dh"><h2>${n?'Nuova fattura '+(E_?'emessa':'ricevuta'):'Fattura '+esc(i.num||'')+' · '+(E_?'emessa':'ricevuta')}</h2></div><div class="db">
+   ${S('iNc','Tipo documento',[{v:0,t:'Fattura'},{v:1,t:'Nota di credito'}],i.nc?1:0)}${F('iNum','Numero',i.num||'')}${F('iDate','Data',i.date,'date')}
+   ${S('iParty',E_?'Cliente':'Fornitore',[{v:0,t:'— altro / non in anagrafica —'},...D[col].filter(x=>!x.man).map(x=>({v:x.id,t:x.n}))],i.party||0)}
+   ${F('iPname','Nome (se non in anagrafica)',i.pname||'')}${S('iJob','Commessa collegata',[{v:0,t:'Nessuna (spesa generale)'},...D.jobs.map(j=>({v:j.id,t:j.code+' · '+cn(j.client)}))],i.job||0)}
+   <label class="full">Descrizione<input id="iDesc" value="${esc(i.desc||'')}"></label>
+   ${S('iCc',E_?'Conto di ricavo':'Conto di costo',invCcOpts(E_,i.cc||''),i.cc||CS().map[E_?'ricavi':'costi'])}${F('iNet','Imponibile (€)',i.net,'number')}<label>IVA %<input id="iVat" type="number" step="any" min="0" list="vatlist" value="${esc(i.vat)}"><datalist id="vatlist">${CS().vat.map(v=>`<option value="${v}">`).join('')}</datalist></label>${F('iDue','Scadenza pagamento',i.due||'','date')}${F('iRit','Ritenuta d’acconto (%)',i.rit||'','number')}${F('iRitb','Base della ritenuta (% dell’imponibile)',(i.ritb==null||i.ritb==='')?100:i.ritb,'number')}${E_?'':F('iDed','Deducibilità del costo (%): vuoto = come il conto',i.ded==null?'':i.ded,'number')}
+   <div class="bt">Totale fattura<b id="iTot">-</b></div>
+   ${E_?'':'<div class="full" id="iOrds"></div>'}
+   ${n?'':`<div class="full"><div class="mut" style="margin-bottom:4px">${E_?'Incassi':'Pagamenti'} registrati</div>${pays.length?`<div class="tw"><table style="min-width:0"><tbody>${pays.map(m=>`<tr class="row" onclick="pnEdit(${m.id})"><td>${dt(m.date)}</td><td>${esc(m.acc)}</td><td class="n">${eur2(Math.abs(m.amt))}</td><td>${esc(m.desc||'')}</td></tr>`).join('')}</tbody></table></div>`:'<span class="mut">Nessuno.</span>'}</div>
+   <div class="bt">Residuo<b>${eur2(aOpen(i))}</b></div>`}
+  </div>
+  <div class="df">${n?'':`<button class="b dng l" onclick="invDel(${i.id})">Elimina</button>`}<button class="b" onclick="$('#dlg').close()">Chiudi</button>${n||aSt(i)=='ok'?'':`<button class="b" onclick="$('#dlg').close();payOpen(${i.id})">${E_?'Registra incasso':'Registra pagamento'}</button>`}<button class="b pri" onclick="invSave(${n?0:i.id},'${i.dir}')">Salva</button></div>`;
+  d.showModal();
+  const tot=()=>{const nt=+$('#iNet').value||0,t=r2(nt*(1+(+$('#iVat').value||0)/100)),rt=r2(nt*((+$('#iRitb').value===0&&$('#iRitb').value==='')?100:(+$('#iRitb').value||0))/100*(+$('#iRit').value||0)/100);$('#iTot').textContent=eur2(t)+(rt?' · ritenuta '+eur2(rt)+' · netto '+eur2(r2(t-rt)):'')};
+  const due=()=>{const p=+$('#iParty').value,dd=$('#iDate').value;if(dd)$('#iDue').value=aAdd(dd,aDays(col,p))};
+  $('#iNet').oninput=tot;$('#iVat').oninput=tot;$('#iRit').oninput=tot;$('#iRitb').oninput=tot;tot();
+  $('#iDate').onchange=()=>{if(n)due()};
+  const ords=()=>{if(E_)return;const p=+$('#iParty').value,cur=new Set(i.ords||[]);
+    const l=D.orders.filter(o=>o.status=='Ricevuto'&&ordSup(o)==p&&(cur.has(o.id)||aOrdsFree(p).includes(o)));
+    $('#iOrds').innerHTML=p?(l.length?`<div class="mut" style="margin-bottom:4px">Ordini ricevuti di questo fornitore: spunta quelli coperti dalla fattura (l'imponibile si compila da solo)</div>${l.map(o=>`<label style="display:flex;gap:8px;align-items:center;padding:3px 0"><input type="checkbox" class="iO" value="${o.id}" data-v="${r2(o.qty*o.price)}" ${cur.has(o.id)?'checked':''}> ${esc(ordName(o))} · ${esc(jb(o.job))} · ${fN(o.qty)} ${esc(ordUm(o))} · <b>${eur2(o.qty*o.price)}</b></label>`).join('')}`:'<span class="mut">Nessun ordine ricevuto da collegare.</span>'):'';
+    document.querySelectorAll('.iO').forEach(c=>c.onchange=()=>{const s=[...document.querySelectorAll('.iO:checked')].reduce((t,x)=>t+(+x.dataset.v),0);if(s>0){$('#iNet').value=r2(s);tot()}})};
+  $('#iParty').onchange=()=>{if(n)due();ords()};ords();
+}
+function invSave(id,dir){
+  const i=id?D.inv.find(x=>x.id==id):{id:aId(),dir,jobs:[],ords:[]};if(!i)return;
+  const v=k=>$('#'+k).value,num=v('iNum').trim(),date=v('iDate'),party=+v('iParty')||0,pname=v('iPname').trim(),net=+v('iNet');
+  if(!date){alert('Inserisci la data della fattura.');return}
+  if(!party&&!pname){alert('Scegli un '+(dir=='E'?'cliente':'fornitore')+' dall’anagrafica oppure scrivi il nome.');return}
+  if(!(net>=0)||v('iNet')===''){alert('Inserisci l’imponibile.');return}
+  if(dir=='R'&&!num){alert('Inserisci il numero della fattura del fornitore.');return}
+  if(D.inv.some(x=>x.id!=i.id&&x.dir==dir&&num&&x.num==num&&(x.date||'').slice(0,4)==date.slice(0,4)&&(x.party||x.pname)==(party||pname))&&!confirm('Esiste già una fattura con lo stesso numero nello stesso anno per questa controparte. Salvare comunque?'))return;
+  Object.assign(i,{nc:+v('iNc')?1:0,num,date,party,pname:party?'':pname,job:+v('iJob')||0,desc:v('iDesc').trim(),net:r2(net),vat:+v('iVat')||0,due:v('iDue'),cc:v('iCc'),rit:+v('iRit')||0,ritb:v('iRitb')===''?100:+v('iRitb'),ded:(dir=='R'&&v('iDed')!=='')?+v('iDed'):null});
+  if(dir=='R')i.ords=[...document.querySelectorAll('.iO:checked')].map(x=>+x.value);
+  if(!id)D.inv.push(i);
+  save();$('#dlg').close();render();
+}
+function invDel(id){
+  const i=D.inv.find(x=>x.id==id);if(!i)return;const np=D.cmov.filter(m=>m.inv==id).length;
+  askConfirm('Eliminare la fattura '+(i.num||'')+'?'+(np?' Verranno eliminati anche i '+np+' movimenti di prima nota collegati.':''),()=>{
+    D.cmov=D.cmov.filter(m=>m.inv!=id);D.inv=D.inv.filter(x=>x.id!=id);save();$('#dlg').close();render()});
+}
+// importa dalla fatturazione commesse
+function invImpOpen(){
+  const l=aToReg();const d=$('#dlg');d.oninput=null;d.classList.remove('wide');
+  d.innerHTML=`<div class="dh"><h2>Fatture di commessa da registrare</h2></div><div class="db" style="display:block">
+   <p class="mut" style="margin-top:0">Queste fatture sono già state segnate come fatturate nelle commesse. Registrandole in contabilità finiscono nello scadenziario (la scadenza usa i giorni di pagamento del cliente, se indicati in anagrafica).</p>
+   ${l.length?`<div class="tw"><table style="min-width:0"><thead><tr><th><input type="checkbox" checked onchange="document.querySelectorAll('.iI').forEach(c=>c.checked=this.checked)"></th><th>Numero</th><th>Data</th><th>Cliente</th><th>Lavoro</th><th class="n">Imponibile</th></tr></thead><tbody>
+   ${l.map((r,k)=>`<tr><td><input type="checkbox" class="iI" value="${k}" checked></td><td><b>${esc(r.num||'-')}</b></td><td>${r.date?dt(r.date):'-'}</td><td>${esc(cn(r.client))}</td><td>${esc(r.desc.slice(0,80))}</td><td class="n">${eur2(r.net)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Tutto registrato.</div>'}
+  </div><div class="df"><button class="b" onclick="$('#dlg').close()">Chiudi</button>${l.length?'<button class="b pri" onclick="invImpGo()">Registra le fatture spuntate</button>':''}</div>`;
+  d.showModal();
+}
+function invImpGo(){
+  const l=aToReg(),sel=[...document.querySelectorAll('.iI:checked')].map(c=>+c.value);
+  sel.forEach(k=>{const r=l[k];if(!r)return;const dd=r.date||TODAY;
+    D.inv.push({id:aId()+k,dir:'E',nc:0,num:r.num||'',date:dd,party:r.client,pname:'',job:r.jobs[0]||0,jobs:r.jobs,desc:r.desc,net:r.net,vat:r.vat,due:aAdd(dd,aDays('cl',r.client)),ref:r.ref,ords:[]})});
+  if(!sel.length){$('#dlg').close();return}addLog('Contabilità: registrate '+sel.length+' fatture da commessa');save();$('#dlg').close();toast(sel.length+(sel.length==1?' fattura registrata':' fatture registrate')+' in contabilità.');render();
+}
+// incassi / pagamenti
+function payOpen(id){
+  const i=D.inv.find(x=>x.id==id);if(!i)return;const E_=i.dir=='E',o=aOpen(i);
+  const d=$('#dlg');d.oninput=null;d.classList.remove('wide');
+  d.innerHTML=`<div class="dh"><h2>${E_?'Registra incasso':'Registra pagamento'} · ${esc(i.num||'')}</h2></div><div class="db">
+   <div class="bt">${E_?'Cliente':'Fornitore'}<b>${esc(aParty(i))}</b></div><div class="bt">Residuo da ${E_?'incassare':'pagare'}<b>${eur2(o)}</b></div>
+   ${F('pDate','Data',TODAY,'date')}${F('pAmt','Importo (€)',o,'number')}${S('pAcc','Conto',accNames(),accNames().includes('Banca')?'Banca':accNames()[0])}
+   <label class="full">Nota<input id="pNote" placeholder="es. bonifico, assegno, contanti"></label></div>
+  <div class="df"><button class="b" onclick="$('#dlg').close()">Annulla</button><button class="b pri" onclick="paySave(${id})">Conferma</button></div>`;
+  d.showModal();
+}
+function paySave(id){
+  const i=D.inv.find(x=>x.id==id);if(!i)return;const a=r2($('#pAmt').value),dd=$('#pDate').value;
+  if(!dd||!(a!=0)){alert('Inserisci data e importo.');return}
+  const E_=i.dir=='E',sg=(E_?1:-1)*(i.nc?-1:1);
+  D.cmov.push({id:aId(),date:dd,acc:$('#pAcc').value,amt:r2(sg*Math.abs(a)),cat:E_?'Incasso cliente':'Pagamento fornitore',desc:(E_?'Incasso':'Pagamento')+' fatt. '+(i.num||'')+' · '+aParty(i)+($('#pNote').value?' · '+$('#pNote').value.trim():''),inv:i.id,party:i.party||0,pname:i.pname||''});
+  save();$('#dlg').close();render();
+}
+// ---- scadenziario
+function cScadV(){
+  let a=D.inv.filter(i=>aSt(i)!='ok');
+  const lim=aAdd(TODAY,30);
+  if(cScad=='scadute')a=a.filter(i=>i.due&&i.due<TODAY);else if(cScad=='30')a=a.filter(i=>i.due&&i.due<=lim);else if(cScad=='E')a=a.filter(i=>i.dir=='E');else if(cScad=='R')a=a.filter(i=>i.dir=='R');
+  a.sort((x,y)=>(x.due||'9999').localeCompare(y.due||'9999'));
+  const inn=r2(a.filter(i=>i.dir=='E').reduce((t,i)=>t+aOpen(i),0)),out=r2(a.filter(i=>i.dir=='R').reduce((t,i)=>t+aOpen(i),0));
+  const f=(k,l)=>`<button class="b ${cScad==k?'pri':''}" onclick="cScad='${k}';render()">${l}</button>`;
+  return `<div class="tools">${f('tutte','Tutte')}${f('scadute','Scadute')}${f('30','Entro 30 giorni')}${f('E','Solo incassi')}${f('R','Solo pagamenti')}<span style="flex:1"></span><button class="b" onclick="pdfScad()">Esporta PDF</button></div>
+  <div class="kpis"><div class="kpi acc"><span>Da incassare</span><b>${eur(inn)}</b></div><div class="kpi"><span>Da pagare</span><b>${eur(out)}</b></div><div class="kpi"><span>Saldo conti oggi</span><b>${eur(aSaldo())}</b></div><div class="kpi"><span>Previsto a fine scadenziario</span><b>${eur(aSaldo()+inn-out)}</b></div></div>
+  <div class="tw"><table><thead><tr><th>Scadenza</th><th>Tipo</th><th>Fattura</th><th>Controparte</th><th>Commessa</th><th class="n">Residuo</th><th></th></tr></thead><tbody>
+  ${a.length?a.map(i=>{const gg=i.due?Math.round((new Date(TODAY)-new Date(i.due))/864e5):0;return `<tr class="row" onclick="invEdit(${i.id})"><td>${i.due?dt(i.due):'-'}${i.due&&gg>0?`<br><small style="color:var(--bad)">${gg} gg di ritardo</small>`:''}</td><td>${i.dir=='E'?'Incasso':'Pagamento'}</td><td><b>${esc(i.num||'-')}</b></td><td>${esc(aParty(i))}</td><td>${aJobTxt(i)}</td><td class="n"><b style="color:var(--${i.dir=='E'?'ok':'bad'})">${i.dir=='E'?'+':'−'} ${eur2(Math.abs(aOpen(i)))}</b></td><td><button class="b" onclick="event.stopPropagation();payOpen(${i.id})">${i.dir=='E'?'Incassa':'Paga'}</button></td></tr>`}).join(''):'<tr><td colspan="7" class="empty">Nessuna scadenza aperta.</td></tr>'}
+  </tbody></table></div>`;
+}
+// ---- prima nota
+function pnRows(){
+  const all=[...D.cmov].sort((x,y)=>x.date.localeCompare(y.date)||x.id-y.id),run={};
+  all.forEach(m=>{run[m.acc]=r2((run[m.acc]||0)+m.amt);m._s=run[m.acc]});
+  let a=all.filter(m=>(!cAcc||m.acc==cAcc)&&(!cMese||m.date.slice(0,7)==cMese));
+  const q=cPQ.toLowerCase();if(q)a=a.filter(m=>[m.desc,m.cat,m.pname,m.party?nm('cl',m.party)+nm('sup',m.party):''].join(' ').toLowerCase().includes(q));
+  return a.reverse();
+}
+function cPn(){
+  const a=pnRows(),ent=r2(a.filter(m=>m.amt>0&&!m.giro).reduce((t,m)=>t+m.amt,0)),usc=r2(a.filter(m=>m.amt<0&&!m.giro).reduce((t,m)=>t+m.amt,0));
+  return `<div class="kpis">${accNames().map(n=>`<div class="kpi"><span>${esc(n)}</span><b>${eur(aSaldo(n))}</b></div>`).join('')}<div class="kpi acc"><span>Totale</span><b>${eur(aSaldo())}</b></div><div class="kpi"><span>Nel filtro: entrate / uscite</span><b style="font-size:24px">${eur(ent)} / ${eur(Math.abs(usc))}</b></div></div>
+  <div class="tools"><select onchange="cAcc=this.value;render()"><option value="">Tutti i conti</option>${accNames().map(x=>`<option ${cAcc==x?'selected':''}>${x}</option>`).join('')}</select><input type="month" value="${cMese}" onchange="cMese=this.value;render()" title="Mese">
+   <input id="cpq" placeholder="Cerca descrizione, categoria, controparte" value="${esc(cPQ)}" style="flex:1;min-width:200px"><button class="b" onclick="pdfPn()">Esporta PDF</button><button class="b" onclick="csvPn()">Esporta CSV</button><button class="b" onclick="girOpen()">Giroconto</button><button class="b pri" onclick="pnEdit(0)">Nuovo movimento</button></div>
+  <div class="tw"><table><thead><tr><th>Data</th><th>Conto</th><th>Descrizione</th><th>Categoria</th><th>Fattura</th><th class="n">Entrate</th><th class="n">Uscite</th>${cAcc?'<th class="n">Saldo</th>':''}</tr></thead><tbody>
+  ${a.length?a.map(m=>{const i=m.inv?D.inv.find(x=>x.id==m.inv):null;return `<tr class="row" onclick="pnEdit(${m.id})"><td>${dt(m.date)}</td><td>${esc(m.acc)}</td><td>${esc(m.desc||'')}${m.pname&&!m.inv?` <small class="mut">· ${esc(m.pname)}</small>`:''}</td><td>${esc(m.cat||'')}</td><td>${i?esc(i.num||'-'):'<span class="mut">-</span>'}</td><td class="n">${m.amt>0?eur2(m.amt):''}</td><td class="n">${m.amt<0?eur2(-m.amt):''}</td>${cAcc?`<td class="n">${eur2(m._s)}</td>`:''}</tr>`}).join(''):`<tr><td colspan="${cAcc?8:7}" class="empty">Nessun movimento. Registra incassi e pagamenti dalle fatture, oppure aggiungi un movimento.</td></tr>`}
+  </tbody></table></div>`;
+}
+function pnEdit(id){
+  const n=!id,m=n?{date:TODAY,acc:'Banca',amt:0,cat:'',desc:'',pname:''}:D.cmov.find(x=>x.id==id);if(!m)return;
+  const out=m.amt<0,d=$('#dlg');d.oninput=null;d.classList.remove('wide');
+  const inv=m.inv?D.inv.find(x=>x.id==m.inv):null;
+  d.innerHTML=`<div class="dh"><h2>${n?'Nuovo movimento':'Movimento di prima nota'}</h2></div><div class="db">
+   ${S('mDir','Tipo',[{v:'+',t:'Entrata'},{v:'-',t:'Uscita'}],out?'-':'+')}${F('mDate','Data',m.date,'date')}${S('mAcc','Conto',accNames(),m.acc)}
+   ${F('mAmt','Importo (€)',n?'':Math.abs(m.amt),'number')}${S('mCat','Categoria',[''].concat(catOpts(out),m.cat&&!catOpts(out).includes(m.cat)?[m.cat]:[]),m.cat||'')}${F('mParty','Controparte (facoltativo)',m.pname||(m.party?nm('cl',m.party):'')||'')}
+   <label class="full">Descrizione<input id="mDesc" value="${esc(m.desc||'')}"></label>
+   ${inv?`<div class="full mut">Collegato alla fattura <b>${esc(inv.num||'-')}</b> · ${esc(aParty(inv))}. Se cambi o elimini il movimento, lo stato della fattura si aggiorna.</div>`:''}</div>
+  <div class="df">${n?'':`<button class="b dng l" onclick="pnDel(${m.id})">Elimina</button>`}<button class="b" onclick="$('#dlg').close()">Annulla</button><button class="b pri" onclick="pnSave(${n?0:m.id})">Salva</button></div>`;
+  d.showModal();
+  $('#mDir').onchange=()=>{const o=$('#mDir').value=='-',cur=$('#mCat').value;$('#mCat').innerHTML=[''].concat(catOpts(o)).map(x=>`<option ${x==cur?'selected':''}>${x}</option>`).join('')};
+}
+function pnSave(id){
+  const m=id?D.cmov.find(x=>x.id==id):{id:aId()};if(!m)return;
+  const a=r2($('#mAmt').value),dd=$('#mDate').value;if(!dd||!(a>0)){alert('Inserisci data e un importo maggiore di zero.');return}
+  Object.assign(m,{date:dd,acc:$('#mAcc').value,amt:$('#mDir').value=='-'?-a:a,cat:$('#mCat').value,desc:$('#mDesc').value.trim(),pname:m.inv?m.pname:$('#mParty').value.trim()});
+  if(!id)D.cmov.push(m);save();$('#dlg').close();render();
+}
+function pnDel(id){askConfirm('Eliminare questo movimento di prima nota?',()=>{const m=D.cmov.find(x=>x.id==id);if(m&&m.giro)D.cmov=D.cmov.filter(x=>x.giro!=m.giro);else D.cmov=D.cmov.filter(x=>x.id!=id);save();$('#dlg').close();render()})}
+function girOpen(){
+  const d=$('#dlg');d.oninput=null;d.classList.remove('wide');
+  d.innerHTML=`<div class="dh"><h2>Giroconto tra conti</h2></div><div class="db">${S('gFrom','Da',accNames(),accNames()[1]||accNames()[0])}${S('gTo','A',accNames(),accNames()[0])}${F('gDate','Data',TODAY,'date')}${F('gAmt','Importo (€)','','number')}</div>
+  <div class="df"><button class="b" onclick="$('#dlg').close()">Annulla</button><button class="b pri" onclick="girSave()">Registra</button></div>`;d.showModal();
+}
+function girSave(){
+  const f=$('#gFrom').value,t=$('#gTo').value,a=r2($('#gAmt').value),dd=$('#gDate').value;
+  if(f==t){alert('Scegli due conti diversi.');return}if(!dd||!(a>0)){alert('Inserisci data e importo.');return}
+  const g=aId();D.cmov.push({id:g,date:dd,acc:f,amt:-a,cat:'Giroconto',desc:'Giroconto '+f+' → '+t,giro:g},{id:g+1,date:dd,acc:t,amt:a,cat:'Giroconto',desc:'Giroconto '+f+' → '+t,giro:g});
+  save();$('#dlg').close();render();
+}
+// ---- IVA
+function ivaRange(){
+  const y=cYr||String(new Date().getFullYear());if(cIvaP=='a')return[y+'-01-01',y+'-12-31'];
+  const t=cIvaP[0],k=+cIvaP.slice(1),m0=t=='q'?(k-1)*3+1:k,m1=t=='q'?m0+2:k,last=new Date(+y,m1,0).getDate(),p=n=>String(n).padStart(2,'0');
+  return[y+'-'+p(m0)+'-01',y+'-'+p(m1)+'-'+p(last)];
+}
+function ivaCalc(a,b){
+  const inR=i=>i.date>=a&&i.date<=b,V=D.inv.filter(i=>i.dir=='E'&&inR(i)),A=D.inv.filter(i=>i.dir=='R'&&inR(i));
+  const by=l=>{const m={};l.forEach(i=>{const k=+i.vat||0;m[k]=m[k]||{n:0,v:0};m[k].n+=aNet(i);m[k].v+=aIva(i)});return m};
+  const sv=r2(V.reduce((t,i)=>t+aIva(i),0)),sa=r2(A.reduce((t,i)=>t+aIva(i),0));
+  return{V,A,bv:by(V),ba:by(A),sv,sa,liq:r2(sv-sa)};
+}
+function cIva(){
+  const[a,b]=ivaRange(),c=ivaCalc(a,b),y=cYr||String(new Date().getFullYear());
+  const MN=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+  const opts=[['a','Anno intero'],...[1,2,3,4].map(k=>['q'+k,k+'° trimestre']),...MN.map((m,k)=>['m'+(k+1),m])];
+  const brk=m=>Object.keys(m).sort((x,y2)=>y2-x).map(k=>`<tr><td>${k}%</td>${aN(m[k].n)}${aN(m[k].v)}</tr>`).join('')||'<tr><td colspan="3" class="empty">-</td></tr>';
+  const reg=(l,t)=>`<h3 style="margin:18px 0 6px">${t}</h3><div class="tw"><table><thead><tr><th>Data</th><th>Numero</th><th>${t.includes('vendite')?'Cliente':'Fornitore'}</th><th class="n">Imponibile</th><th class="n">IVA %</th><th class="n">IVA</th><th class="n">Totale</th></tr></thead><tbody>${l.length?[...l].sort((x,y2)=>x.date.localeCompare(y2.date)).map(i=>`<tr class="row" onclick="invEdit(${i.id})"><td>${dt(i.date)}</td><td>${esc(i.num||'-')}${i.nc?' <span class="tag">NC</span>':''}</td><td>${esc(aParty(i))}</td>${aN(aNet(i))}<td class="n">${fN(i.vat)}%</td>${aN(aIva(i))}${aN(aTot(i))}</tr>`).join(''):'<tr><td colspan="7" class="empty">Nessuna fattura nel periodo.</td></tr>'}</tbody></table></div>`;
+  return `<div class="tools">${aYSel().replace('<option value="" '+(cYr?'':'selected')+'>Tutti gli anni</option>','')}<select onchange="cIvaP=this.value;render()">${opts.map(o=>`<option value="${o[0]}" ${o[0]==cIvaP?'selected':''}>${o[1]}</option>`).join('')}</select><span class="mut" style="flex:1">Dal ${dt(a)} al ${dt(b)} · calcolo per data fattura (competenza)</span><button class="b" onclick="pdfIva()">Esporta PDF</button></div>
+  <div class="kpis"><div class="kpi"><span>IVA sulle vendite</span><b>${eur2(c.sv)}</b></div><div class="kpi"><span>IVA sugli acquisti</span><b>${eur2(c.sa)}</b></div><div class="kpi ${c.liq>0?'late':'acc'}"><span>${c.liq>=0?'IVA a debito (da versare)':'IVA a credito'}</span><b>${eur2(Math.abs(c.liq))}</b></div></div>
+  <div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))"><div class="tw"><table style="min-width:0"><thead><tr><th>Vendite · aliquota</th><th class="n">Imponibile</th><th class="n">IVA</th></tr></thead><tbody>${brk(c.bv)}</tbody></table></div>
+  <div class="tw"><table style="min-width:0"><thead><tr><th>Acquisti · aliquota</th><th class="n">Imponibile</th><th class="n">IVA</th></tr></thead><tbody>${brk(c.ba)}</tbody></table></div></div>
+  <p class="mut" style="font-size:12px">Il conto è indicativo e serve per tenere sotto controllo l’IVA: la liquidazione ufficiale resta quella del commercialista (acconti, crediti precedenti, IVA indetraibile e fatture non registrate qui non sono considerati).</p>
+  ${reg(c.V,'Registro vendite')}${reg(c.A,'Registro acquisti')}`;
+}
+// ---- esportazioni
+async function aPdf(title,sub,head,body,name,o){if(!pdfReady())return;const doc=pdfDoc(title,sub,true);pdfTbl(doc,head,body,o||{});await pdfSave(doc,name+'_'+new Date().toISOString().slice(0,10)+'.pdf')}
+const aRO=n=>({columnStyles:Object.fromEntries(n.map(k=>[k,{halign:'right'}]))});
+function pdfInv(){
+  const a=D.inv.filter(i=>i.dir==cDir&&aInYr(i.date)).sort((x,y)=>(x.date||'').localeCompare(y.date||''));
+  aPdf('Fatture '+(cDir=='E'?'emesse':'ricevute'),a.length+' fatture'+(cYr?' · anno '+cYr:'')+'   |   Generato il '+today(),['Numero','Data',cDir=='E'?'Cliente':'Fornitore','Commessa','Imponibile','IVA','Totale','Scadenza','Stato'],
+   [...a.map(i=>[i.num||'-',i.date?dt(i.date):'',aParty(i),aJobs(i).map(jb).join(', ')||'-',pe(aNet(i)),pe(aIva(i)),pe(aTot(i)),i.due?dt(i.due):'-',{ok:'Saldata',late:'Scaduta',part:'Parziale',open:'Aperta'}[aSt(i)]]),
+    [{content:'Totale',colSpan:4,styles:{fontStyle:'bold'}},pB(pe(a.reduce((t,i)=>t+aNet(i),0))),pB(pe(a.reduce((t,i)=>t+aIva(i),0))),pB(pe(a.reduce((t,i)=>t+aTot(i),0))),'','']],'Fatture_'+(cDir=='E'?'emesse':'ricevute'),aRO([4,5,6]));
+}
+function pdfScad(){
+  const a=D.inv.filter(i=>aSt(i)!='ok').sort((x,y)=>(x.due||'9999').localeCompare(y.due||'9999'));
+  aPdf('Scadenziario',a.length+' scadenze aperte   |   Generato il '+today(),['Scadenza','Tipo','Fattura','Controparte','Commessa','Residuo'],a.map(i=>[i.due?dt(i.due):'-',i.dir=='E'?'Incasso':'Pagamento',i.num||'-',aParty(i),aJobs(i).map(jb).join(', ')||'-',pe(aOpen(i))]),'Scadenziario',aRO([5]));
+}
+function pdfPn(){
+  const a=pnRows().reverse();
+  aPdf('Prima nota',(cAcc||'Tutti i conti')+(cMese?' · '+cMese:'')+'   |   Generato il '+today(),['Data','Conto','Descrizione','Categoria','Entrate','Uscite'],a.map(m=>[dt(m.date),m.acc,m.desc||'',m.cat||'',m.amt>0?pe(m.amt):'',m.amt<0?pe(-m.amt):'']),'Prima_nota',aRO([4,5]));
+}
+function pdfIva(){
+  const[a,b]=ivaRange(),c=ivaCalc(a,b),row=i=>[dt(i.date),i.num||'-',aParty(i),pe(aNet(i)),fN(i.vat)+'%',pe(aIva(i)),pe(aTot(i))],h=['Data','Numero','Controparte','Imponibile','IVA %','IVA','Totale'];
+  aPdf('Registri IVA','Dal '+dt(a)+' al '+dt(b)+'   |   IVA vendite '+pe(c.sv)+' · IVA acquisti '+pe(c.sa)+' · '+(c.liq>=0?'a debito ':'a credito ')+pe(Math.abs(c.liq)),h,
+   [[{content:'REGISTRO VENDITE',colSpan:7,styles:{fontStyle:'bold'}}],...c.V.sort((x,y)=>x.date.localeCompare(y.date)).map(row),[{content:'REGISTRO ACQUISTI',colSpan:7,styles:{fontStyle:'bold'}}],...c.A.sort((x,y)=>x.date.localeCompare(y.date)).map(row)],'Registri_IVA',aRO([3,4,5,6]));
+}
+function aCsv(name,head,rows){
+  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',csv='﻿'+[head,...rows].map(r=>r.map(q).join(';')).join('\r\n');
+  const u=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));sfSaveAs(u,name+'_'+new Date().toISOString().slice(0,10)+'.csv');setTimeout(()=>URL.revokeObjectURL(u),60000);
+}
+const aF=n=>String(r2(n)).replace('.',',');
+function csvInv(){const a=D.inv.filter(i=>aInYr(i.date)).sort((x,y)=>(x.date||'').localeCompare(y.date||''));
+  aCsv('Fatture',['Tipo','Numero','Data','Controparte','Commessa','Descrizione','Imponibile','Aliquota IVA','IVA','Totale','Scadenza','Residuo'],a.map(i=>[i.dir=='E'?(i.nc?'Nota credito emessa':'Fattura emessa'):(i.nc?'Nota credito ricevuta':'Fattura ricevuta'),i.num||'',i.date||'',aParty(i),aJobs(i).map(jb).join(' '),i.desc||'',aF(aNet(i)),aF(i.vat),aF(aIva(i)),aF(aTot(i)),i.due||'',aF(aOpen(i))]))}
+function csvPn(){aCsv('Prima_nota',['Data','Conto','Descrizione','Categoria','Controparte','Importo'],pnRows().reverse().map(m=>[m.date,m.acc,m.desc||'',m.cat||'',m.pname||(m.party?nm('cl',m.party)+nm('sup',m.party):''),aF(m.amt)]))}
+document.addEventListener('input',e=>{if(!ME||!CV.includes(view))return;
+  if(e.target.id=='cq'){cQ=e.target.value;const p=e.target.selectionStart;render();const x=$('#cq');if(x){x.focus();x.setSelectionRange(p,p)}}
+  if(e.target.id=='cpq'){cPQ=e.target.value;const p=e.target.selectionStart;render();const x=$('#cpq');if(x){x.focus();x.setSelectionRange(p,p)}}});
+
+
+// ===================== PARTITA DOPPIA E IMPOSTAZIONI CONTABILI =====================
+// Collezioni: D.cset (impostazioni, un solo record), D.pdc (piano dei conti), D.reg (scritture manuali).
+// Le scritture di fatture e prima nota sono generate in automatico (giornale virtuale): non si duplicano mai.
+const PDC_T={A:'Attività',P:'Passività',N:'Patrimonio netto',R:'Ricavi',C:'Costi'};
+const PDC_DEF=[
+ ['100','Cassa','A'],['110','Banca c/c','A'],['130','Clienti','A'],['150','IVA a credito','A'],['160','Altri crediti','A'],['170','Macchinari e attrezzature','A'],['175','Automezzi','A'],
+ ['200','Fornitori','P'],['210','IVA a debito','P'],['220','Debiti tributari','P'],['230','Debiti verso dipendenti e istituti','P'],['240','Finanziamenti e mutui','P'],['250','Fondi ammortamento','P'],
+ ['300','Capitale e riserve','N'],
+ ['400','Ricavi da vendite e lavorazioni','R'],['410','Altri ricavi','R'],
+ ['500','Acquisti materie prime e merci','C'],['510','Lavorazioni di terzi','C'],['520','Utenze','C'],['530','Affitti e leasing','C'],['540','Carburante e mezzi','C'],['550','Stipendi e contributi','C'],['560','Imposte e tasse','C'],['570','Spese e commissioni bancarie','C'],['580','Ammortamenti','C'],['590','Altri costi','C']];
+const CS_DEF=()=>({id:1,seeded:0,vat:[22,10,4,0],vatDef:22,pay:30,num:{fmt:'{n}/{yyyy}',dig:1},
+ tes:[{n:'Cassa',conto:'100'},{n:'Banca',conto:'110'}],
+ map:{cli:'130',for:'200',ivaV:'210',ivaA:'150',ricavi:'400',costi:'500',altriR:'410',altriC:'590',pers:'550'},
+ cats:[{n:'Incasso cliente',dir:'E',conto:'130',lock:1},{n:'Altre entrate',dir:'E',conto:'410'},{n:'Saldo iniziale',dir:'E',conto:'300'},
+  {n:'Pagamento fornitore',dir:'U',conto:'200',lock:1},{n:'Stipendi e contributi',dir:'U',conto:'550'},{n:'Imposte e tasse',dir:'U',conto:'560'},{n:'Utenze',dir:'U',conto:'520'},{n:'Banca e commissioni',dir:'U',conto:'570'},{n:'Affitto e leasing',dir:'U',conto:'530'},{n:'Carburante e mezzi',dir:'U',conto:'540'},{n:'Altre uscite',dir:'U',conto:'590'}]});
+let CS_TMP=null;
+const CS=()=>{if(!D.cset)D.cset=[];if(!D.cset.length){if(!ME||lv('cont')<2)return CS_TMP||(CS_TMP=CS_DEF());D.cset.push(CS_DEF())}return D.cset[0]};
+function accEnsure(){
+  if(!ME||lv('cont')<2)return;const c=CS();let ch=0;
+  if(!c.seeded&&!D.pdc.length){PDC_DEF.forEach(([k,n,t])=>D.pdc.push({id:+k,code:k,name:n,type:t,sys:1}));ch=1}
+  if(!c.seeded){c.seeded=1;ch=1}
+  const d=CS_DEF();['vat','vatDef','pay','num','tes','map','cats'].forEach(k=>{if(c[k]===undefined){c[k]=d[k];ch=1}});
+  if(c.map&&c.map.pers===undefined){c.map.pers='550';ch=1}
+  if(!c.ces){c.ces=CES_CAT_DEF();CES_PDC.forEach(([k,n,t])=>{if(!pdcBy(k))D.pdc.push({id:+k,code:k,name:n,type:t,sys:1})});ch=1}
+  if(!c.v2){[['155','Erario c/ritenute subite','A'],['225','Erario c/ritenute da versare','P']].forEach(([k,n,t])=>{if(!pdcBy(k))D.pdc.push({id:+k,code:k,name:n,type:t,sys:1})});
+    c.map.ritS=c.map.ritS||'155';c.map.ritV=c.map.ritV||'225';
+    [['Versamento ritenute','U','225'],['Versamento imposte sul reddito','U','220'],['Versamento IVA','U','210']].forEach(([n,d,k])=>{if(!c.cats.some(x=>x.n==n))c.cats.push({n,dir:d,conto:k})});
+    (c.ces||[]).forEach(k=>{if(k.n=='Autovetture'&&k.ded==null)k.ded=20});if(!c.fx)c.fx=FX_DEF();c.v2=1;ch=1}
+  if(ch)save();
+}
+const accNames=()=>CS().tes.map(t=>t.n);
+const catOpts=out=>CS().cats.filter(c=>c.dir==(out?'U':'E')).map(c=>c.n);
+const pdcBy=c=>D.pdc.find(x=>x.code==c);
+const pdcName=c=>{const p=pdcBy(c);return p?p.code+' · '+p.name:(c||'?')+' · (conto non trovato)'};
+const pdcOpts=(types,cur)=>D.pdc.filter(p=>!types||types.includes(p.type)||p.code==cur).sort((a,b)=>a.code.localeCompare(b.code)).map(p=>({v:p.code,t:p.code+' · '+p.name}));
+const tesConto=n=>(CS().tes.find(t=>t.n==n)||{}).conto||CS().map.cli;
+const catConto=(n,isIn)=>{const c=CS().cats.find(x=>x.n==n);return c?c.conto:(isIn?CS().map.altriR:CS().map.altriC)};
+// ---- giornale (virtuale + scritture manuali)
+function jrnl(){
+  const M=CS().map,out=[],P=(k,date,desc,caus,righe,src,pk)=>{righe=righe.filter(r=>r.c&&(r.d||r.a)).map(r=>({c:r.c,d:r2(r.d||0),a:r2(r.a||0)}));if(righe.length)out.push({k,date,desc,caus,righe,src,pk:pk||''})};
+  D.inv.forEach(i=>{if(!i.date)return;const net=r2(i.net),iva=r2(net*(+i.vat||0)/100),tot=r2(net+iva),E_=i.dir=='E',cc=i.cc||(E_?M.ricavi:M.costi);
+    const rt=r2(Math.abs(aRit(i)));let r=E_?[{c:M.cli,d:r2(tot-rt)},{c:M.ritS||'155',d:rt},{c:cc,a:net},{c:M.ivaV,a:iva}]:[{c:cc,d:net},{c:M.ivaA,d:iva},{c:M.for,a:r2(tot-rt)},{c:M.ritV||'225',a:rt}];
+    if(i.nc)r=r.map(x=>({c:x.c,d:x.a,a:x.d}));
+    P('i'+i.id,i.date,(E_?(i.nc?'Nota di credito emessa ':'Fattura emessa '):(i.nc?'Nota di credito ricevuta ':'Fattura ricevuta '))+(i.num||'')+' · '+aParty(i),E_?(i.nc?'NCE':'FE'):(i.nc?'NCR':'FR'),r,{t:'inv',id:i.id},aPKey(i))});
+  D.cmov.forEach(m=>{
+    if(m.giro){if(m.amt<0)return;const o=D.cmov.find(x=>x.giro==m.giro&&x.amt<0);P('m'+m.id,m.date,m.desc||'Giroconto','GC',[{c:tesConto(m.acc),d:m.amt},{c:tesConto(o?o.acc:''),a:m.amt}],{t:'mov',id:m.id});return}
+    const a=Math.abs(m.amt),inv=m.inv?D.inv.find(x=>x.id==m.inv):null;let ctr;
+    if(inv)ctr=inv.dir=='E'?M.cli:M.for;else ctr=catConto(m.cat,m.amt>0);
+    const r=m.amt>0?[{c:tesConto(m.acc),d:a},{c:ctr,a}]:[{c:ctr,d:a},{c:tesConto(m.acc),a}];
+    P('m'+m.id,m.date,m.desc||m.cat||'Movimento','PN',r,{t:'mov',id:m.id},inv?aPKey(inv):(m.pname?'n:'+m.pname:''))});
+  const cy=new Date().getFullYear();
+  D.ces.forEach(a=>{const k=cesCat(a),nm_=a.desc||'cespite';
+    if(a.orig=='ini'&&a.date&&a.cost>0)P('c'+a.id,a.date,'Apertura cespite · '+nm_,'AC',[{c:a.conto||k.conto,d:a.cost},{c:catConto('Saldo iniziale',true),a:a.cost}],{t:'ces',id:a.id});
+    cesPiano(a).forEach(q=>{if(q.y>cy)return;P('q'+a.id+'_'+q.y,q.y+'-12-31','Ammortamento '+q.y+' · '+nm_,'AM',[{c:k.amm,d:q.q},{c:k.fondo,a:q.q}],{t:'ces',id:a.id})})});
+  D.reg.forEach(g=>P('g'+g.id,g.date,g.desc||'Scrittura',g.caus||'SM',g.righe||[],{t:'reg',id:g.id}));
+  out.sort((x,y)=>x.date.localeCompare(y.date)||x.k.localeCompare(y.k));
+  const cnt={};out.forEach(e=>{const y=e.date.slice(0,4);cnt[y]=(cnt[y]||0)+1;e.n=cnt[y];e.y=y});
+  return out;
+}
+const accSegno=t=>(t=='A'||t=='C')?1:-1;
+function accSaldi(upTo,from){
+  const m={};D.pdc.forEach(p=>m[p.code]={p,d:0,a:0});
+  jrnl().forEach(e=>{if(upTo&&e.date>upTo)return;if(from&&e.date<from)return;e.righe.forEach(r=>{const o=m[r.c]||(m[r.c]={p:{code:r.c,name:'(conto non trovato)',type:'A'},d:0,a:0});o.d+=r.d;o.a+=r.a})});
+  return m;
+}
+const yEnd=()=>cYr?cYr+'-12-31':'';
+// ---- libro giornale
+function cGio(){
+  accEnsure();
+  let a=jrnl().filter(e=>aInYr(e.date));const q=cQ.toLowerCase();
+  if(cGC)a=a.filter(e=>e.righe.some(r=>r.c==cGC));
+  if(q)a=a.filter(e=>(e.desc+' '+e.righe.map(r=>pdcName(r.c)).join(' ')).toLowerCase().includes(q));
+  const td=r2(a.reduce((t,e)=>t+e.righe.reduce((s,r)=>s+r.d,0),0));
+  return `<div class="tools">${aYSel()}<select onchange="cGC=this.value;render()"><option value="">Tutti i conti</option>${pdcOpts().map(o=>`<option value="${o.v}" ${cGC==o.v?'selected':''}>${esc(o.t)}</option>`).join('')}</select>
+   <input id="cq" placeholder="Cerca nella descrizione o nel conto" value="${esc(cQ)}" style="flex:1;min-width:200px"><button class="b" onclick="pdfGio()">Esporta PDF</button><button class="b" onclick="csvGio()">Esporta CSV</button><button class="b pri" onclick="regEdit(0)">Nuova scrittura</button></div>
+  <div class="tw"><table><thead><tr><th>N.</th><th>Data</th><th>Descrizione</th><th>Conto</th><th class="n">Dare</th><th class="n">Avere</th></tr></thead><tbody>
+  ${a.length?a.map(e=>e.righe.map((r,k)=>`<tr class="row" onclick="regOpenSrc('${e.src.t}',${e.src.id})" ${k?'':'style="border-top:2px solid var(--line)"'}>${k?'<td></td><td></td><td></td>':`<td><b>${e.n}</b></td><td>${dt(e.date)}</td><td>${esc(e.desc)} <span class="tag">${e.src.t=='reg'?'manuale':'automatica'}</span></td>`}<td ${r.a?'style="padding-left:26px"':''}>${esc(pdcName(r.c))}</td><td class="n">${r.d?eur2(r.d):''}</td><td class="n">${r.a?eur2(r.a):''}</td></tr>`).join('')).join('')+`<tr style="font-weight:700"><td colspan="4">Totale (${a.length} scritture)</td><td class="n">${eur2(td)}</td><td class="n">${eur2(td)}</td></tr>`:`<tr><td colspan="6" class="empty">Nessuna scrittura${cYr?' nel '+cYr:''}. Le scritture di fatture e prima nota compaiono da sole; per le altre usa “Nuova scrittura”.</td></tr>`}
+  </tbody></table></div><p class="mut" style="font-size:12px">Le scritture automatiche seguono fatture e prima nota: per cambiarle, modifica la fattura o il movimento (clic sulla riga). I conti usati sono quelli impostati in Contabilità › Impostazioni.</p>`;
+}
+function regOpenSrc(t,id){if(t=='ces')cesEdit(id);else if(t=='inv')invEdit(id);else if(t=='mov')pnEdit(id);else regEdit(id)}
+const CAUS=['Scrittura generica','Ammortamento','Stipendi e contributi','Rettifica','Apertura / chiusura conti','Liquidazione IVA','Altro'];
+let REG=null;
+function regEdit(id){
+  const g=id?D.reg.find(x=>x.id==id):null;
+  REG=g?JSON.parse(JSON.stringify(g)):{date:TODAY,desc:'',caus:CAUS[0],righe:[{c:'',d:0,a:0},{c:'',d:0,a:0}]};REG.id=id||0;
+  const d=$('#dlg');d.oninput=null;d.classList.add('wide');
+  d.innerHTML=`<div class="dh"><h2>${id?'Scrittura manuale':'Nuova scrittura in partita doppia'}</h2></div><div class="db">${F('rDate','Data',REG.date,'date')}${S('rCaus','Causale',CAUS,REG.caus)}<label class="full">Descrizione<input id="rDesc" value="${esc(REG.desc)}"></label><div class="full" id="rRows"></div></div>
+  <div class="df">${id?`<button class="b dng l" onclick="regDel(${id})">Elimina</button>`:''}<button class="b" onclick="$('#dlg').close()">Annulla</button><button class="b pri" onclick="regSave()">Salva</button></div>`;
+  regDraw();d.showModal();
+}
+function regDraw(){
+  const td=r2(REG.righe.reduce((t,r)=>t+(+r.d||0),0)),ta=r2(REG.righe.reduce((t,r)=>t+(+r.a||0),0));
+  $('#rRows').innerHTML=`<div class="tw"><table style="min-width:0"><thead><tr><th>Conto</th><th class="n">Dare</th><th class="n">Avere</th><th></th></tr></thead><tbody>
+  ${REG.righe.map((r,i)=>`<tr><td><select onchange="REG.righe[${i}].c=this.value" style="width:100%"><option value="">— scegli il conto —</option>${pdcOpts(null,r.c).map(o=>`<option value="${o.v}" ${o.v==r.c?'selected':''}>${esc(o.t)}</option>`).join('')}</select></td>
+   <td><input type="number" step="any" min="0" value="${r.d||''}" style="width:130px;text-align:right" onchange="REG.righe[${i}].d=+this.value||0;if(+this.value)REG.righe[${i}].a=0;regDraw()"></td>
+   <td><input type="number" step="any" min="0" value="${r.a||''}" style="width:130px;text-align:right" onchange="REG.righe[${i}].a=+this.value||0;if(+this.value)REG.righe[${i}].d=0;regDraw()"></td>
+   <td>${REG.righe.length>2?`<button class="b dng" onclick="REG.righe.splice(${i},1);regDraw()">×</button>`:''}</td></tr>`).join('')}
+  <tr style="font-weight:700"><td>Totale <span class="tag ${td==ta&&td>0?'ok':'late'}">${td==ta?(td>0?'quadra':'vuota'):'differenza '+eur2(Math.abs(td-ta))}</span></td><td class="n">${eur2(td)}</td><td class="n">${eur2(ta)}</td><td></td></tr></tbody></table></div>
+  <button class="b" style="margin-top:8px" onclick="REG.righe.push({c:'',d:0,a:0});regDraw()">+ Aggiungi riga</button>`;
+}
+function regSave(){
+  const dd=$('#rDate').value;if(!dd){alert('Inserisci la data.');return}
+  const r=REG.righe.filter(x=>x.c&&(+x.d||+x.a));if(r.length<2){alert('Servono almeno due righe con conto e importo.');return}
+  const td=r2(r.reduce((t,x)=>t+(+x.d||0),0)),ta=r2(r.reduce((t,x)=>t+(+x.a||0),0));
+  if(td!=ta){alert('La scrittura non quadra: dare '+eur2(td)+' e avere '+eur2(ta)+'.');return}
+  const g=REG.id?D.reg.find(x=>x.id==REG.id):{id:aId()};
+  Object.assign(g,{date:dd,desc:$('#rDesc').value.trim(),caus:$('#rCaus').value,righe:r.map(x=>({c:x.c,d:r2(x.d),a:r2(x.a)}))});
+  if(!REG.id)D.reg.push(g);save();$('#dlg').close();render();
+}
+function regDel(id){askConfirm('Eliminare questa scrittura?',()=>{D.reg=D.reg.filter(x=>x.id!=id);save();$('#dlg').close();render()})}
+// ---- mastro
+function cMas(){
+  accEnsure();if(cMM=='mini')return cMini();if(!cMC||!pdcBy(cMC))cMC=(D.pdc[0]||{}).code||'';
+  const p=pdcBy(cMC),sg=p?accSegno(p.type):1,y=cYr;
+  let op=0;const lines=[];
+  jrnl().forEach(e=>e.righe.forEach(r=>{if(r.c!=cMC)return;const v=sg*(r.d-r.a);if(y&&e.date.slice(0,4)<y){if(!(p&&(p.type=='R'||p.type=='C')))op+=v}else if(!y||e.date.slice(0,4)==y)lines.push({e,r,v})}));
+  let s=r2(op);const rows=lines.map(l=>{s=r2(s+l.v);return{...l,s}});
+  const td=r2(lines.reduce((t,l)=>t+l.r.d,0)),ta=r2(lines.reduce((t,l)=>t+l.r.a,0));
+  return `<div class="tools"><button class="b pri">Mastro dei conti</button><button class="b" onclick="cMM='mini';render()">Mastrini</button><span style="width:10px"></span>${aYSel()}<select onchange="cMC=this.value;render()" style="min-width:300px">${pdcOpts().map(o=>`<option value="${o.v}" ${cMC==o.v?'selected':''}>${esc(o.t)}</option>`).join('')}</select><span style="flex:1"></span><button class="b" onclick="pdfMas()">Esporta PDF</button></div>
+  <div class="kpis"><div class="kpi"><span>${p?PDC_T[p.type]:''} · saldo ${sg==1?'(dare − avere)':'(avere − dare)'}</span><b>${eur2(s)}</b></div><div class="kpi"><span>Totale dare</span><b>${eur2(td)}</b></div><div class="kpi"><span>Totale avere</span><b>${eur2(ta)}</b></div></div>
+  <div class="tw"><table><thead><tr><th>Data</th><th>N.</th><th>Descrizione</th><th class="n">Dare</th><th class="n">Avere</th><th class="n">Saldo</th></tr></thead><tbody>
+  ${y&&op?`<tr><td colspan="5"><i>Saldo riportato dagli anni precedenti</i></td><td class="n">${eur2(r2(op))}</td></tr>`:''}
+  ${rows.length?rows.map(l=>`<tr class="row" onclick="regOpenSrc('${l.e.src.t}',${l.e.src.id})"><td>${dt(l.e.date)}</td><td>${l.e.n}</td><td>${esc(l.e.desc)}</td><td class="n">${l.r.d?eur2(l.r.d):''}</td><td class="n">${l.r.a?eur2(l.r.a):''}</td><td class="n"><b>${eur2(l.s)}</b></td></tr>`).join(''):'<tr><td colspan="6" class="empty">Nessun movimento su questo conto.</td></tr>'}</tbody></table></div>`;
+}
+// ---- bilancio
+function cBil(){
+  accEnsure();const end=yEnd(),S_=accSaldi(end),Y=accSaldi(end,cYr?cYr+'-01-01':'');
+  const L=Object.values(S_).filter(o=>o.d||o.a).sort((a,b)=>a.p.code.localeCompare(b.p.code));
+  const tb=(t)=>{const sg=accSegno(t);return Object.values(S_).filter(o=>o.p.type==t&&(o.d||o.a)).sort((a,b)=>a.p.code.localeCompare(b.p.code)).map(o=>({p:o.p,v:r2(sg*(o.d-o.a))}))};
+  const ye=t=>{const sg=accSegno(t);return Object.values(Y).filter(o=>o.p.type==t&&(o.d||o.a)).sort((a,b)=>a.p.code.localeCompare(b.p.code)).map(o=>({p:o.p,v:r2(sg*(o.d-o.a))}))};
+  const sum=l=>r2(l.reduce((t,x)=>t+x.v,0));
+  const f=(k,l)=>`<button class="b ${cBT==k?'pri':''}" onclick="cBT='${k}';render()">${l}</button>`;
+  const lst=(l,tot,lab)=>`<table style="min-width:0"><tbody>${l.map(x=>`<tr><td>${esc(x.p.code)} · ${esc(x.p.name)}</td><td class="n">${eur2(x.v)}</td></tr>`).join('')||'<tr><td class="empty" colspan="2">-</td></tr>'}<tr style="font-weight:700"><td>${lab}</td><td class="n">${eur2(tot)}</td></tr></tbody></table>`;
+  let body='';
+  if(cBT=='ver'){
+    const T=L.reduce((t,o)=>({d:t.d+o.d,a:t.a+o.a}),{d:0,a:0}),sd=L.reduce((t,o)=>t+Math.max(0,r2(o.d-o.a)),0),sa=L.reduce((t,o)=>t+Math.max(0,r2(o.a-o.d)),0);
+    body=`<div class="tw"><table><thead><tr><th>Conto</th><th>Tipo</th><th class="n">Totale dare</th><th class="n">Totale avere</th><th class="n">Saldo dare</th><th class="n">Saldo avere</th></tr></thead><tbody>
+    ${L.length?L.map(o=>{const s=r2(o.d-o.a);return `<tr class="row" onclick="cMC='${o.p.code}';goView('cmas')"><td><b>${esc(o.p.code)}</b> ${esc(o.p.name)}</td><td>${PDC_T[o.p.type]||''}</td><td class="n">${eur2(o.d)}</td><td class="n">${eur2(o.a)}</td><td class="n">${s>0?eur2(s):''}</td><td class="n">${s<0?eur2(-s):''}</td></tr>`}).join('')+`<tr style="font-weight:700"><td colspan="2">Totali <span class="tag ${Math.abs(T.d-T.a)<0.005?'ok':'late'}">${Math.abs(T.d-T.a)<0.005?'quadra':'NON quadra'}</span></td><td class="n">${eur2(T.d)}</td><td class="n">${eur2(T.a)}</td><td class="n">${eur2(sd)}</td><td class="n">${eur2(sa)}</td></tr>`:'<tr><td colspan="6" class="empty">Nessuna scrittura.</td></tr>'}</tbody></table></div>`;
+  }else if(cBT=='ce'){
+    const R=ye('R'),C=ye('C'),ut=r2(sum(R)-sum(C));
+    body=`<div class="kpis"><div class="kpi acc"><span>Ricavi</span><b>${eur(sum(R))}</b></div><div class="kpi"><span>Costi</span><b>${eur(sum(C))}</b></div><div class="kpi"><span>${ut>=0?'Utile':'Perdita'}${cYr?' '+cYr:''}</span><b style="color:var(--${ut>=0?'ok':'bad'})">${eur(Math.abs(ut))}</b></div></div>
+    <div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))"><div class="tw"><h3 style="padding:8px 12px 0;margin:0">Ricavi</h3>${lst(R,sum(R),'Totale ricavi')}</div><div class="tw"><h3 style="padding:8px 12px 0;margin:0">Costi</h3>${lst(C,sum(C),'Totale costi')}</div></div>`;
+  }else{
+    const A=tb('A'),P=tb('P'),N=tb('N'),ut=r2(sum(tb('R'))-sum(tb('C'))),pas=r2(sum(P)+sum(N)+ut);
+    body=`<div class="kpis"><div class="kpi acc"><span>Totale attività</span><b>${eur(sum(A))}</b></div><div class="kpi"><span>Passività + patrimonio netto + risultato</span><b>${eur(pas)}</b></div><div class="kpi"><span>Quadratura</span><b style="font-size:22px;color:var(--${Math.abs(sum(A)-pas)<0.005?'ok':'bad'})">${Math.abs(sum(A)-pas)<0.005?'Quadra':'Differenza '+eur2(sum(A)-pas)}</b></div></div>
+    <div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))"><div class="tw"><h3 style="padding:8px 12px 0;margin:0">Attività</h3>${lst(A,sum(A),'Totale attività')}</div>
+    <div class="tw"><h3 style="padding:8px 12px 0;margin:0">Passività e patrimonio netto</h3><table style="min-width:0"><tbody>${[...P,...N].map(x=>`<tr><td>${esc(x.p.code)} · ${esc(x.p.name)}</td><td class="n">${eur2(x.v)}</td></tr>`).join('')}<tr><td>${ut>=0?'Utile':'Perdita'} dell’esercizio (cumulato)</td><td class="n">${eur2(ut)}</td></tr><tr style="font-weight:700"><td>Totale</td><td class="n">${eur2(pas)}</td></tr></tbody></table></div></div>`;
+  }
+  return `<div class="tools">${f('ver','Bilancio di verifica')}${f('ce','Conto economico')}${f('sp','Stato patrimoniale')}${aYSel()}<span style="flex:1"></span><button class="b" onclick="pdfBil()">Esporta PDF</button></div>${body}
+  <p class="mut" style="font-size:12px">Prospetti gestionali calcolati dalle scritture: servono a tenere sotto controllo l’azienda e non sostituiscono il bilancio civilistico (niente ratei, risconti, rimanenze e chiusure di fine anno).</p>`;
+}
+// ---- esportazioni partita doppia
+function pdfGio(){const a=jrnl().filter(e=>aInYr(e.date)),b=[];a.forEach(e=>e.righe.forEach((r,k)=>b.push([k?'':String(e.n),k?'':dt(e.date),k?'':e.desc,pdcName(r.c),r.d?pe(r.d):'',r.a?pe(r.a):''])));aPdf('Libro giornale',a.length+' scritture'+(cYr?' · anno '+cYr:'')+'   |   Generato il '+today(),['N.','Data','Descrizione','Conto','Dare','Avere'],b,'Libro_giornale',aRO([4,5]))}
+function csvGio(){const b=[];jrnl().filter(e=>aInYr(e.date)).forEach(e=>e.righe.forEach(r=>b.push([e.n,e.date,e.desc,r.c,(pdcBy(r.c)||{}).name||'',aF(r.d),aF(r.a)])));aCsv('Libro_giornale',['N.','Data','Descrizione','Codice conto','Conto','Dare','Avere'],b)}
+function pdfMas(){const p=pdcBy(cMC),sg=p?accSegno(p.type):1;let s=0;const b=[];jrnl().forEach(e=>e.righe.forEach(r=>{if(r.c!=cMC)return;s=r2(s+sg*(r.d-r.a));if(aInYr(e.date))b.push([dt(e.date),String(e.n),e.desc,r.d?pe(r.d):'',r.a?pe(r.a):'',pe(s)])}));aPdf('Mastro · '+pdcName(cMC),(cYr?'Anno '+cYr+'   |   ':'')+'Generato il '+today(),['Data','N.','Descrizione','Dare','Avere','Saldo'],b,'Mastro',aRO([3,4,5]))}
+function pdfBil(){const S_=accSaldi(yEnd()),L=Object.values(S_).filter(o=>o.d||o.a).sort((a,b)=>a.p.code.localeCompare(b.p.code));aPdf('Bilancio di verifica',(cYr?'Al 31/12/'+cYr:'Tutti gli anni')+'   |   Generato il '+today(),['Conto','Tipo','Totale dare','Totale avere','Saldo dare','Saldo avere'],L.map(o=>{const s=r2(o.d-o.a);return[o.p.code+' '+o.p.name,PDC_T[o.p.type]||'',pe(o.d),pe(o.a),s>0?pe(s):'',s<0?pe(-s):'']}),'Bilancio_verifica',aRO([2,3,4,5]))}
+// ---- impostazioni contabilità
+const cscard=(t,note,body)=>`<div class="tw" style="padding:14px 16px;margin-bottom:16px"><h3 style="margin:0 0 4px">${t}</h3><div class="mut" style="margin-bottom:10px">${note}</div>${body}</div>`;
+const csrow=c=>`<div style="display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap">${c}</div>`;
+const cSel=(opts,cur,on)=>`<select onchange="${on}">${opts.map(o=>`<option value="${esc(o.v)}" ${o.v==cur?'selected':''}>${esc(o.t)}</option>`).join('')}</select>`;
+function cImp(){return cImp0()+cImpCes()+cImpFisc()}
+function cImp0(){
+  accEnsure();const c=CS(),M=c.map,used={};jrnl().forEach(e=>e.righe.forEach(r=>used[r.c]=(used[r.c]||0)+1));
+  const mapRow=(k,l,types)=>`<label>${l}${cSel(pdcOpts(types,M[k]),M[k],`csMap('${k}',this.value)`)}</label>`;
+  return `<div class="mut" style="margin-bottom:12px">Le modifiche si salvano da sole. I dati aziendali (ragione sociale, P. IVA, logo) sono quelli delle Impostazioni di produzione.</div>`+
+  cscard('Aliquote IVA e pagamenti','Le aliquote compaiono nel menu dell’IVA delle fatture. I giorni di pagamento predefiniti si usano per calcolare la scadenza quando il cliente o il fornitore non ha i suoi.',
+   `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px"><label>Aliquota IVA predefinita (%)<input type="number" step="any" min="0" value="${c.vatDef}" onchange="csSet('vatDef',+this.value||0)"></label><label>Giorni di pagamento predefiniti<input type="number" min="0" value="${c.pay}" onchange="csSet('pay',+this.value||0)"></label></div>`+
+   csrow(`<span class="mut">Aliquote disponibili:</span>${c.vat.map((v,i)=>`<span class="tag" style="font-size:13px;padding:3px 8px">${v}% <a href="#" onclick="csVatDel(${i});return false" title="Elimina" style="margin-left:4px;color:var(--bad)">×</a></span>`).join('')}<input id="csvn" type="number" step="any" min="0" placeholder="Nuova %" style="width:100px"><button class="b" onclick="csVatAdd()">Aggiungi</button>`))+
+  cscard('Numerazione delle fatture emesse','Il formato usa {n} per il numero progressivo, {yyyy} per l’anno a 4 cifre e {yy} per quello a 2 cifre. Il numero riparte da 1 ogni anno. Esempi: {n}/{yyyy} → 12/2026 · FT{yy}-{n} → FT26-12.',
+   `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px"><label>Formato<input value="${esc(c.num.fmt)}" onchange="csNum('fmt',this.value)"></label><label>Cifre del progressivo (con zeri iniziali)<input type="number" min="1" max="6" value="${c.num.dig}" onchange="csNum('dig',+this.value||1)"></label><div class="bt">Prossimo numero<b>${esc(aNext())}</b></div></div>`)+
+  cscard('Conti di cassa e banca','Ogni conto di tesoreria è collegato a un conto del piano dei conti (attività). Rinominando un conto, i movimenti già registrati lo seguono. Un conto con movimenti non si può eliminare.',
+   c.tes.map((t,i)=>csrow(`<input value="${esc(t.n)}" style="flex:1;min-width:160px" onchange="csTesRen(${i},this.value)">${cSel(pdcOpts(['A'],t.conto),t.conto,`csTes(${i},this.value)`)}<small class="mut" style="min-width:90px">${D.cmov.filter(m=>m.acc==t.n).length} movimenti</small><button class="b dng" onclick="csTesDel(${i})">Elimina</button>`)).join('')+
+   csrow(`<input id="cstn" placeholder="Nuovo conto (es. Carta aziendale)" style="flex:1;min-width:160px"><button class="b pri" onclick="csTesAdd()">Aggiungi</button>`))+
+  cscard('Collegamenti ai conti (partita doppia)','Decidono in quali conti finiscono le scritture automatiche di fatture e movimenti. Il conto di ricavo o di costo si può cambiare fattura per fattura.',
+   `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px">${mapRow('cli','Clienti (crediti)',['A'])}${mapRow('for','Fornitori (debiti)',['P'])}${mapRow('ivaV','IVA sulle vendite',['P','A'])}${mapRow('ivaA','IVA sugli acquisti',['A','P'])}${mapRow('ricavi','Ricavi di vendita predefinito',['R'])}${mapRow('costi','Costi di acquisto predefinito',['C'])}${mapRow('altriR','Altri ricavi (entrate generiche)',['R'])}${mapRow('altriC','Altri costi (uscite generiche)',['C'])}${mapRow('pers','Costo del personale (base IRAP)',['C'])}${mapRow('ritS','Ritenute d’acconto subite (credito)',['A'])}${mapRow('ritV','Ritenute d’acconto da versare (debito)',['P'])}</div>`)+
+  cscard('Categorie dei movimenti di prima nota','Ogni categoria è collegata a un conto: una uscita “Utenze” genera in automatico dare Utenze / avere Banca. “Incasso cliente” e “Pagamento fornitore” sono usate dal programma e non si possono modificare.',
+   c.cats.map((k,i)=>csrow(`<input value="${esc(k.n)}" ${k.lock?'readonly':''} style="flex:1;min-width:160px" onchange="csCatRen(${i},this.value)"><select ${k.lock?'disabled':''} onchange="csCat(${i},'dir',this.value)"><option value="E" ${k.dir=='E'?'selected':''}>Entrata</option><option value="U" ${k.dir=='U'?'selected':''}>Uscita</option></select>${k.lock?`<span style="min-width:260px">${esc(pdcName(k.conto))}</span>`:cSel(pdcOpts(null,k.conto),k.conto,`csCat(${i},'conto',this.value)`)}<small class="mut" style="min-width:90px">${D.cmov.filter(m=>m.cat==k.n).length} movimenti</small>${k.lock?'<span class="mut" style="min-width:70px;text-align:center">fissa</span>':`<button class="b dng" onclick="csCatDel(${i})">Elimina</button>`}`)).join('')+
+   csrow(`<input id="cscn" placeholder="Nuova categoria" style="flex:1;min-width:160px"><select id="cscd"><option value="U">Uscita</option><option value="E">Entrata</option></select><button class="b pri" onclick="csCatAdd()">Aggiungi</button>`))+
+  cscard('Piano dei conti','L’elenco dei conti usati nelle scritture. Il codice non si cambia dopo la creazione. Un conto già usato nelle scritture o collegato sopra non si può eliminare.',
+   `<div class="tw"><table style="min-width:0"><thead><tr><th>Codice</th><th>Nome del conto</th><th>Tipo</th><th class="n">Deducibile %</th><th class="n">Scritture</th><th></th></tr></thead><tbody>${[...D.pdc].sort((a,b)=>a.code.localeCompare(b.code)).map(p=>`<tr><td><b>${esc(p.code)}</b></td><td><input value="${esc(p.name)}" style="width:100%" onchange="csPdc('${p.code}','name',this.value)"></td><td><select onchange="csPdc('${p.code}','type',this.value)">${Object.entries(PDC_T).map(([k,v])=>`<option value="${k}" ${p.type==k?'selected':''}>${v}</option>`).join('')}</select></td><td class="n">${p.type=='C'?`<input type="number" min="0" max="100" step="any" value="${p.ded==null?100:p.ded}" style="width:80px;text-align:right" onchange="csPdc('${p.code}','ded',this.value)">`:''}</td><td class="n">${used[p.code]||''}</td><td><button class="b dng" onclick="csPdcDel('${p.code}')">Elimina</button></td></tr>`).join('')}</tbody></table></div>`+
+   csrow(`<input id="cspc" placeholder="Codice" style="width:110px"><input id="cspn" placeholder="Nome del nuovo conto" style="flex:1;min-width:200px"><select id="cspt">${Object.entries(PDC_T).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select><button class="b pri" onclick="csPdcAdd()">Aggiungi conto</button>`));
+}
+const csSave=()=>{save();render()};
+function csSet(k,v){CS()[k]=v;csSave()}
+function csNum(k,v){CS().num[k]=v;csSave()}
+function csMap(k,v){CS().map[k]=v;csSave()}
+function csVatAdd(){const v=+$('#csvn').value;if(!(v>=0)||$('#csvn').value===''){return}const c=CS();if(!c.vat.includes(v))c.vat.push(v);c.vat.sort((a,b)=>b-a);csSave()}
+function csVatDel(i){const c=CS();if(c.vat.length<2){alert('Serve almeno un’aliquota.');return}c.vat.splice(i,1);csSave()}
+function csTes(i,v){CS().tes[i].conto=v;csSave()}
+function csTesRen(i,v){v=v.trim();const t=CS().tes[i];if(!v||v==t.n)return;if(CS().tes.some(x=>x.n==v)){alert('Esiste già un conto con questo nome.');render();return}D.cmov.forEach(m=>{if(m.acc==t.n)m.acc=v});t.n=v;csSave()}
+function csTesDel(i){const t=CS().tes[i];if(D.cmov.some(m=>m.acc==t.n)){alert('Il conto «'+t.n+'» ha movimenti: non si può eliminare.');return}if(CS().tes.length<2){alert('Serve almeno un conto.');return}CS().tes.splice(i,1);csSave()}
+function csTesAdd(){const n=$('#cstn').value.trim();if(!n)return;if(CS().tes.some(x=>x.n==n)){alert('Esiste già.');return}const a=D.pdc.find(p=>p.type=='A'&&p.code!=CS().map.cli);CS().tes.push({n,conto:(a||{}).code||'100'});csSave()}
+function csCat(i,k,v){CS().cats[i][k]=v;csSave()}
+function csCatRen(i,v){v=v.trim();const k=CS().cats[i];if(!v||v==k.n)return;if(CS().cats.some(x=>x.n==v)){alert('Esiste già una categoria con questo nome.');render();return}D.cmov.forEach(m=>{if(m.cat==k.n)m.cat=v});k.n=v;csSave()}
+function csCatDel(i){const k=CS().cats[i];const n=D.cmov.filter(m=>m.cat==k.n).length;askConfirm('Eliminare la categoria «'+k.n+'»?'+(n?' I '+n+' movimenti che la usano restano, ma verranno registrati sul conto generico.':''),()=>{CS().cats.splice(i,1);csSave()})}
+function csCatAdd(){const n=$('#cscn').value.trim();if(!n)return;if(CS().cats.some(x=>x.n==n)){alert('Esiste già.');return}const o=$('#cscd').value;CS().cats.push({n,dir:o,conto:o=='E'?CS().map.altriR:CS().map.altriC});csSave()}
+function csPdc(code,k,v){const p=pdcBy(code);if(!p)return;if(k=='ded'){p.ded=v===''?null:Math.max(0,Math.min(100,+v||0));csSave();return}v=String(v).trim();if(k=='name'&&!v){render();return}p[k]=v;csSave()}
+function csPdcDel(code){const M=CS().map,u=jrnl().some(e=>e.righe.some(r=>r.c==code))||Object.values(M).includes(code)||CS().tes.some(t=>t.conto==code)||CS().cats.some(k=>k.conto==code)||D.inv.some(i=>i.cc==code);
+  if(u){alert('Il conto '+code+' è in uso (scritture o collegamenti): non si può eliminare.');return}D.pdc=D.pdc.filter(p=>p.code!=code);csSave()}
+function csPdcAdd(){const c=$('#cspc').value.trim(),n=$('#cspn').value.trim();if(!c||!n){alert('Inserisci codice e nome.');return}if(pdcBy(c)){alert('Il codice '+c+' esiste già.');return}if(!/^\d+$/.test(c)){alert('Il codice deve essere numerico.');return}D.pdc.push({id:+c,code:c,name:n,type:$('#cspt').value});csSave()}
+
+
+// ===================== SIMULAZIONE DEL REDDITO (in tempo reale) =====================
+// Prospetto dell'anno scelto, calcolato solo dai dati registrati (fatture, prima nota, cespiti, scritture) e dalle
+// caratteristiche fiscali impostate in Contabilità › Impostazioni. Nessuno scenario: si aggiorna a ogni modifica.
+const FX_DEF=()=>({forma:'srl',ires:24,irap:3.9,irapDed:0,perdite:0,crediti:0,dist:0,ritDiv:26,reg:1.73,com:0.8,
+  sc:[[28000,23],[50000,35],[1e12,43]],inps:{art:24,com:24.48,min:18555,max:120607,soglia:55448,extra:1},
+  soci:[{n:'Titolare',q:100,altri:0,oneri:0,detr:0,inps:'art'}]});
+const FORME={srl:'S.r.l. (società di capitali)',spa:'S.p.A. (società di capitali)',snc:'S.n.c. (società di persone)',sas:'S.a.s. (società di persone)',ditta:'Ditta individuale'};
+const fxCap=f=>f.forma=='srl'||f.forma=='spa';
+function FX(){const d=FX_DEF(),f=(CS().fx)||{},m=Object.assign(d,f);m.inps=Object.assign(FX_DEF().inps,f.inps||{});if(!Array.isArray(m.sc)||!m.sc.length)m.sc=FX_DEF().sc;if(!Array.isArray(m.soci)||!m.soci.length)m.soci=FX_DEF().soci;return m}
+const fxW=()=>{const c=CS();if(!c.fx)c.fx=FX();if(!c.fx.inps)c.fx.inps=FX_DEF().inps;return c.fx};
+function fxSet(k,v){fxW()[k]=v;csSave()}
+function fxInps(k,v){fxW().inps[k]=+v||0;csSave()}
+function fxSc(i,j,v){const f=fxW();f.sc[i][j]=j==0&&(+v||0)==0?1e12:(+v||0);csSave()}
+function fxSocio(i,k,v){const f=fxW();f.soci[i][k]=(k=='n'||k=='inps')?v:(+v||0);csSave()}
+function fxSocioAdd(){const f=fxW();f.soci.push({n:'Socio '+(f.soci.length+1),q:0,altri:0,oneri:0,detr:0,inps:'art'});csSave()}
+function fxSocioDel(i){const f=fxW();if(f.soci.length<2){alert('Serve almeno un socio o titolare.');return}f.soci.splice(i,1);csSave()}
+function fxCalc(){
+  const f=FX(),M=CS().map,y=cYr||String(new Date().getFullYear()),y0=y+'-01-01',y1=y+'-12-31',cap=fxCap(f);
+  const ric=[],cos=[],months=Array.from({length:12},()=>({r:0,c:0}));
+  jrnl().forEach(e=>{if(e.date<y0||e.date>y1)return;
+    const inv=e.src.t=='inv'?D.inv.find(x=>x.id==e.src.id):null,ces=e.src.t=='ces'?D.ces.find(x=>x.id==e.src.id):null,mi=+e.date.slice(5,7)-1;
+    e.righe.forEach(r=>{const p=pdcBy(r.c);if(!p)return;
+      if(p.type=='R'){const v=r2(r.a-r.d);ric.push({date:e.date,desc:e.desc,name:aPKName(e.pk),p,v,src:e.src,inv});months[mi].r+=v}
+      else if(p.type=='C'){const v=r2(r.d-r.a);let ded=null;
+        if(inv&&inv.ded!=null&&inv.ded!=='')ded=+inv.ded;else if(ces)ded=(ces.ded!=null&&ces.ded!=='')?+ces.ded:cesCat(ces).ded;
+        if(ded==null||isNaN(ded))ded=p.ded==null?100:+p.ded;
+        cos.push({date:e.date,desc:e.desc,name:aPKName(e.pk),p,v,ded:Math.max(0,Math.min(100,ded)),src:e.src});months[mi].c+=v}})});
+  const nonReg=aToReg().filter(r=>(r.date||'').slice(0,4)==y);
+  nonReg.forEach(r=>{const p=pdcBy(M.ricavi)||{code:M.ricavi,name:'Ricavi',type:'R'};ric.push({virtual:1,date:r.date,desc:'Fattura '+(r.num||'')+' · '+r.desc.slice(0,70),name:cn(r.client),p,v:r.net,src:{t:'inv0'}});months[+r.date.slice(5,7)-1].r+=r.net});
+  const sum=(l,k)=>r2(l.reduce((t,x)=>t+x[k],0)),R=sum(ric,'v'),C=sum(cos,'v'),ris=r2(R-C);
+  const indeduc=r2(cos.reduce((t,x)=>t+x.v*(1-x.ded/100),0)),redFisc=r2(ris+indeduc);
+  const pers=r2(cos.filter(x=>x.p.code==(M.pers||'550')).reduce((t,x)=>t+x.v,0));
+  const offs=r2(Math.min(+f.perdite||0,Math.max(0,redFisc)*0.8)),imponibile=r2(Math.max(0,redFisc-offs));
+  const irapBase=r2(Math.max(0,ris+pers-(+f.irapDed||0))),irap=r2(irapBase*f.irap/100);
+  const ritSub=r2(D.inv.filter(i=>i.dir=='E'&&(i.date||'')>=y0&&(i.date||'')<=y1).reduce((t,i)=>t+aRit(i),0));
+  const acc=r2(-D.cmov.filter(m=>m.cat=='Versamento imposte sul reddito'&&m.date>=y0&&m.date<=y1).reduce((t,m)=>t+m.amt,0));
+  const irpef=x=>{let t=0,prev=0;for(const[lim,r] of f.sc){if(x>prev)t+=(Math.min(x,lim)-prev)*r/100;prev=lim}return t};
+  const inpsCalc=(base,tipo)=>{if(!tipo||tipo=='no')return{fisso:0,ecc:0};const I=f.inps,al=(tipo=='com'?I.com:I.art)/100,fisso=r2(al*I.min),b=Math.min(Math.max(base,0),I.max);let ecc=0;
+    if(b>I.min){ecc=al*(b-I.min);if(b>I.soglia)ecc+=I.extra/100*(b-I.soglia)}return{fisso,ecc:r2(ecc)}};
+  let ires=0,soci=[],impRed=0,contrib=0,dist=0,ritDiv=0;
+  if(cap){ires=r2(imponibile*f.ires/100);impRed=r2(ires+irap);const net0=r2(ris-impRed);dist=r2(Math.max(0,net0)*(+f.dist||0)/100);ritDiv=r2(dist*(+f.ritDiv||0)/100)}
+  else{let ir=0;soci=f.soci.map(s=>{const base=r2(imponibile*(+s.q||0)/100),ip=inpsCalc(base,s.inps),cont=r2(ip.fisso+ip.ecc),a=Math.max(0,(+s.altri||0)-(+s.oneri||0)),imp=Math.max(0,base+(+s.altri||0)-cont-(+s.oneri||0));
+      const inc=r2(Math.max(0,irpef(imp)-irpef(a)-(+s.detr||0))),ad=r2((imp-a)*((+f.reg||0)+(+f.com||0))/100);ir+=inc+ad;contrib+=cont;
+      return{s,base,fisso:ip.fisso,ecc:ip.ecc,cont,inc,ad,net:r2(base-inc-ad-cont),rit:r2(ritSub*(+s.q||0)/100)}});
+    impRed=r2(irap+ir)}
+  const tot=impRed,cred=r2(ritSub+acc+(+f.crediti||0)),saldo=r2(tot-cred),net=r2(ris-tot-contrib);
+  return{f,y,cap,ric,cos,nonReg,R,C,ris,indeduc,redFisc,offs,imponibile,pers,irapBase,irap,ires,soci,impRed,contrib,dist,ritDiv,ritSub,acc,cred:r2(+f.crediti||0),saldo,net,months,tot};
+}
+function cSim(){
+  accEnsure();const x=fxCalc(),f=x.f,pc=(a,b)=>b?Math.round(a/b*100):0,q=cQ.toLowerCase();
+  const row=(l,v,b,c,n)=>`<tr ${b?'style="font-weight:700"':''}><td>${l}${n?`<br><small class="mut">${n}</small>`:''}</td><td class="n" ${c?`style="color:var(--${c})"`:''}>${eur2(v)}</td></tr>`;
+  const mo=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];let cum=0;
+  const flt=l=>q?l.filter(z=>(z.desc+' '+z.name+' '+z.p.name).toLowerCase().includes(q)):l;
+  const grp=(l,costi)=>{const m=new Map();flt(l).sort((a,b)=>a.p.code.localeCompare(b.p.code)||a.date.localeCompare(b.date)).forEach(z=>{if(!m.has(z.p.code))m.set(z.p.code,{p:z.p,l:[]});m.get(z.p.code).l.push(z)});
+    const nc=costi?7:5;
+    return [...m.values()].map(g=>{const t=r2(g.l.reduce((s,z)=>s+z.v,0)),td=costi?r2(g.l.reduce((s,z)=>s+z.v*z.ded/100,0)):0;
+      return `<tr class="grp"><td colspan="3">${esc(g.p.code)} · ${esc(g.p.name)}<small>${g.l.length} ${g.l.length==1?'voce':'voci'}</small></td><td class="n"><b>${eur2(t)}</b></td>${costi?`<td></td><td class="n"><b>${eur2(td)}</b></td>`:'<td></td>'}</tr>`+
+      g.l.map(z=>{const rt=!costi&&z.inv?aRit(z.inv):0;
+        return `<tr class="row" onclick="${z.virtual?'invImpOpen()':`regOpenSrc('${z.src.t}',${z.src.id})`}"><td>${dt(z.date)}</td><td>${esc(z.desc)}${z.virtual?' <span class="tag late">non registrata</span>':''}</td><td>${esc(z.name)}</td><td class="n">${eur2(z.v)}</td>${costi?`<td class="n">${fN(z.ded)}%</td><td class="n">${eur2(r2(z.v*z.ded/100))}</td>`:`<td class="n">${rt?eur2(rt):''}</td>`}</tr>`}).join('')}).join('')};
+  const nR=x.ric.length,nC=x.cos.length;
+  return `<div class="tools"><b style="align-self:center">Anno</b>${aYSel().replace('<option value="" '+(cYr?'':'selected')+'>Tutti gli anni</option>','')}<span class="mut" style="align-self:center">${esc(FORME[f.forma]||'')} · calcolato sui dati registrati, si aggiorna da solo</span><span style="flex:1"></span>
+   <input id="cq" placeholder="Cerca nelle voci" value="${esc(cQ)}" style="min-width:200px"><button class="b" onclick="pdfSim()">Esporta PDF</button></div>
+  ${x.nonReg.length?`<div class="rvn" style="margin-bottom:12px">Ci sono <b>${x.nonReg.length}</b> fatture di commessa del ${x.y} non ancora registrate in contabilità (${eur(sum2(x.nonReg))}): le conto comunque nei ricavi. <a href="#" onclick="invImpOpen();return false">Registrale ora</a></div>`:''}
+  <div class="kpis"><div class="kpi acc"><span>Ricavi ${x.y}</span><b>${eur(x.R)}</b><span>${nR} voci</span></div><div class="kpi"><span>Costi ${x.y}</span><b>${eur(x.C)}</b><span>${nC} voci</span></div>
+   <div class="kpi"><span>Risultato prima delle imposte</span><b style="color:var(--${x.ris>=0?'ok':'bad'})">${eur(x.ris)}</b><span>${x.R?pc(x.ris,x.R)+'% dei ricavi':''}</span></div>
+   <div class="kpi"><span>Imposte sul reddito${x.cap?'':' + contributi'}</span><b>${eur(x.tot+x.contrib)}</b><span>${x.ris>0?'incidenza '+pc(x.tot+x.contrib,x.ris)+'%':''}</span></div>
+   <div class="kpi ${x.net<0?'late':''}"><span>${x.net>=0?'Utile netto':'Perdita'}</span><b style="color:var(--${x.net>=0?'ok':'bad'})">${eur(x.net)}</b><span>dopo imposte${x.cap?'':' e contributi'}</span></div></div>
+  <div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(380px,1fr))">
+   <div class="tw"><h3 style="padding:8px 12px 0;margin:0">Dal risultato al reddito imponibile</h3><table style="min-width:0"><tbody>
+    ${row('Ricavi',x.R)}${row('Costi',-x.C)}${row('Risultato prima delle imposte',x.ris,1,x.ris<0?'bad':'')}
+    ${row('+ Costi non deducibili (ripresa fiscale)',x.indeduc,0,'',x.indeduc?'parte indeducibile dei costi: vedi la colonna “Ded.” nell’elenco costi':'')}${row('Reddito fiscale',x.redFisc,1)}
+    ${x.offs?row('− Perdite degli anni precedenti utilizzate',-x.offs,0,'','limite 80% del reddito'):''}${row('Reddito imponibile',x.imponibile,1)}</tbody></table></div>
+   <div class="tw"><h3 style="padding:8px 12px 0;margin:0">Imposte e saldo</h3><table style="min-width:0"><tbody>
+    ${x.cap?row('IRES ('+f.ires+'% sul reddito imponibile)',x.ires):''}${row('IRAP ('+f.irap+'% su '+eur2(x.irapBase)+')',x.irap,0,'',x.pers?'base = risultato + costo del personale '+eur2(x.pers):'')}
+    ${x.cap?'':row('IRPEF e addizionali dei soci',r2(x.impRed-x.irap),0,'','dettaglio per socio qui sotto')}
+    ${row('Totale imposte sul reddito',x.tot,1)}
+    ${row('− Ritenute d’acconto subite',-x.ritSub,0,'','indicate sulle fatture emesse')}${row('− Acconti già versati',-x.acc,0,'','da Prima nota, categoria “Versamento imposte sul reddito”')}${f.crediti?row('− Crediti d’imposta',-x.cred):''}
+    ${row(x.saldo>=0?'Imposte ancora da versare':'Credito d’imposta',Math.abs(x.saldo),1,x.saldo>0?'bad':'ok')}</tbody></table></div></div>
+  ${x.cap?`<div class="tw" style="padding:12px 16px;margin-bottom:16px"><b>Utile netto ${eur2(x.net)}</b>${f.dist?` · distribuito ai soci ${f.dist}% = ${eur2(x.dist)}, ritenuta ${f.ritDiv}% sui dividendi ${eur2(x.ritDiv)}, netto ai soci <b>${eur2(r2(x.dist-x.ritDiv))}</b>`:' · imposta la quota distribuita in Impostazioni per vedere i dividendi netti ai soci'}</div>`:
+  `<h3 style="margin:0 0 6px">Soci e titolare: IRPEF e contributi previdenziali</h3><div class="tw"><table><thead><tr><th>Socio</th><th class="n">Quota</th><th class="n">Reddito attribuito</th><th class="n">Contributi fissi</th><th class="n">Contributi sulla parte eccedente</th><th class="n">IRPEF</th><th class="n">Addizionali</th><th class="n">Netto</th></tr></thead><tbody>
+   ${x.soci.map(z=>`<tr><td><b>${esc(z.s.n)}</b>${z.s.inps&&z.s.inps!='no'?` <small class="mut">${z.s.inps=='com'?'commerciante':'artigiano'}</small>`:' <small class="mut">senza INPS</small>'}</td><td class="n">${fN(z.s.q)}%</td><td class="n">${eur2(z.base)}</td><td class="n">${eur2(z.fisso)}</td><td class="n">${eur2(z.ecc)}</td><td class="n">${eur2(z.inc)}</td><td class="n">${eur2(z.ad)}</td><td class="n"><b>${eur2(z.net)}</b></td></tr>`).join('')}
+   <tr style="font-weight:700"><td>Totale</td><td class="n">${fN(x.soci.reduce((t,z)=>t+(+z.s.q||0),0))}%</td><td class="n">${eur2(r2(x.soci.reduce((t,z)=>t+z.base,0)))}</td><td class="n">${eur2(r2(x.soci.reduce((t,z)=>t+z.fisso,0)))}</td><td class="n">${eur2(r2(x.soci.reduce((t,z)=>t+z.ecc,0)))}</td><td class="n">${eur2(r2(x.soci.reduce((t,z)=>t+z.inc,0)))}</td><td class="n">${eur2(r2(x.soci.reduce((t,z)=>t+z.ad,0)))}</td><td class="n">${eur2(r2(x.soci.reduce((t,z)=>t+z.net,0)))}</td></tr></tbody></table></div>
+   <p class="mut" style="font-size:12px">I contributi fissi si pagano anche se il reddito è sotto il minimale; sulla parte che supera il minimale si pagano i contributi eccedenti. I contributi sono deducibili dall’IRPEF. L’IRPEF è quella che grava sull’attività: i redditi del socio indicati in Impostazioni servono solo a trovare lo scaglione giusto.</p>`}
+  <h3 style="margin:18px 0 6px">Elenco dei ricavi · ${nR} voci · ${eur2(x.R)}</h3><div class="tw"><table><thead><tr><th>Data</th><th>Documento</th><th>Cliente / controparte</th><th class="n">Importo</th><th class="n">Ritenuta subita</th></tr></thead><tbody>${grp(x.ric,0)||''}${nR?'':'<tr><td colspan="5" class="empty">Nessun ricavo nel '+x.y+'.</td></tr>'}</tbody></table></div>
+  <h3 style="margin:18px 0 6px">Elenco dei costi · ${nC} voci · ${eur2(x.C)}</h3><div class="tw"><table><thead><tr><th>Data</th><th>Documento</th><th>Fornitore / controparte</th><th class="n">Importo</th><th class="n">Ded.</th><th class="n">Deducibile</th></tr></thead><tbody>${grp(x.cos,1)||''}${nC?'':'<tr><td colspan="6" class="empty">Nessun costo nel '+x.y+'.</td></tr>'}</tbody></table></div>
+  <p class="mut" style="font-size:12px">La percentuale di deducibilità si imposta per conto (Impostazioni › Piano dei conti), per cespite o per singola fattura ricevuta. Clic su una voce per aprire il documento.</p>
+  <h3 style="margin:18px 0 6px">Andamento mese per mese</h3><div class="tw"><table><thead><tr><th>Mese</th><th class="n">Ricavi</th><th class="n">Costi</th><th class="n">Risultato</th><th class="n">Progressivo</th></tr></thead><tbody>
+   ${x.months.map((m,k)=>{cum=r2(cum+m.r-m.c);return `<tr><td>${mo[k]}</td><td class="n">${m.r?eur2(m.r):''}</td><td class="n">${m.c?eur2(m.c):''}</td><td class="n">${m.r||m.c?eur2(r2(m.r-m.c)):''}</td><td class="n">${m.r||m.c||cum?eur2(cum):''}</td></tr>`}).join('')}</tbody></table></div>
+  <p class="mut" style="font-size:12px">Simulazione indicativa per orientarsi: usa le caratteristiche fiscali impostate in Contabilità › Impostazioni e non considera tutte le variabili reali (deduzioni e detrazioni particolari, ACE, IVA indetraibile, ritenute su dividendi già subite, studi di settore, ecc.). Per le decisioni fiscali confrontati con il commercialista.</p>`;
+}
+const sum2=l=>r2(l.reduce((t,r)=>t+r.net,0));
+function pdfSim(){
+  if(!pdfReady())return;const x=fxCalc(),f=x.f,doc=pdfDoc('Simulazione del reddito '+x.y,(FORME[f.forma]||'')+'   |   Generato il '+today()+'   |   Stima indicativa',true);
+  const L=(l,v,b)=>b?[pB(l),pB(pe(v))]:[l,pe(v)],b=[L('Ricavi',x.R),L('Costi',-x.C),L('Risultato prima delle imposte',x.ris,1),L('+ Costi non deducibili',x.indeduc),L('Reddito fiscale',x.redFisc,1)];
+  if(x.offs)b.push(L('− Perdite precedenti utilizzate',-x.offs));b.push(L('Reddito imponibile',x.imponibile,1));
+  if(x.cap)b.push(L('IRES ('+f.ires+'%)',x.ires));b.push(L('IRAP ('+f.irap+'%)',x.irap));if(!x.cap)b.push(L('IRPEF e addizionali dei soci',r2(x.impRed-x.irap)));
+  b.push(L('Totale imposte sul reddito',x.tot,1),L('− Ritenute d’acconto subite',-x.ritSub),L('− Acconti versati',-x.acc));if(x.cred)b.push(L('− Crediti d’imposta',-x.cred));
+  b.push(L(x.saldo>=0?'Imposte ancora da versare':'Credito d’imposta',Math.abs(x.saldo),1));if(!x.cap)b.push(L('Contributi previdenziali',x.contrib));b.push(L(x.net>=0?'UTILE NETTO':'PERDITA',x.net,1));
+  pdfTbl(doc,['Prospetto','Importo'],b,aRO([1]));
+  if(!x.cap)pdfTbl(doc,['Socio','Quota','Reddito','Contr. fissi','Contr. eccedenti','IRPEF','Addizionali','Netto'],x.soci.map(z=>[z.s.n,fN(z.s.q)+'%',pe(z.base),pe(z.fisso),pe(z.ecc),pe(z.inc),pe(z.ad),pe(z.net)]),aRO([1,2,3,4,5,6,7]));
+  const gr=(l,costi)=>{const m=new Map();l.sort((a,b)=>a.p.code.localeCompare(b.p.code)||a.date.localeCompare(b.date)).forEach(z=>{if(!m.has(z.p.code))m.set(z.p.code,{p:z.p,l:[]});m.get(z.p.code).l.push(z)});
+    const o=[];m.forEach(g=>{o.push([{content:g.p.code+' · '+g.p.name+' · '+pe(g.l.reduce((s,z)=>s+z.v,0)),colSpan:costi?6:4,styles:{fontStyle:'bold',fillColor:[240,240,240]}}]);g.l.forEach(z=>o.push(costi?[dt(z.date),z.desc,z.name,pe(z.v),fN(z.ded)+'%',pe(z.v*z.ded/100)]:[dt(z.date),z.desc,z.name,pe(z.v)]))});return o};
+  pdfTbl(doc,['Ricavi · data','Documento','Cliente','Importo'],gr([...x.ric],0),aRO([3]));
+  pdfTbl(doc,['Costi · data','Documento','Fornitore','Importo','Ded.','Deducibile'],gr([...x.cos],1),aRO([3,4,5]));
+  pdfSave(doc,'Simulazione_reddito_'+x.y+'.pdf');
+}
+// ---- caratteristiche fiscali (Impostazioni)
+function cImpFisc(){
+  const f=FX(),cap=fxCap(f),I=f.inps,num=(l,v,on,st)=>`<label>${l}<input type="number" step="${st||'any'}" min="0" value="${v}" onchange="${on}"></label>`;
+  const tq=r2(f.soci.reduce((t,s)=>t+(+s.q||0),0));
+  return cscard('Caratteristiche fiscali della società','Servono alla pagina “Simulazione reddito”. I valori di partenza sono indicativi (aliquote e soglie cambiano ogni anno): confermali con il commercialista.',
+   `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px"><label>Forma giuridica<select onchange="fxSet('forma',this.value)">${Object.entries(FORME).map(([k,v])=>`<option value="${k}" ${f.forma==k?'selected':''}>${v}</option>`).join('')}</select></label>
+   ${cap?num('Aliquota IRES (%)',f.ires,"fxSet('ires',+this.value||0)"):''}${num('Aliquota IRAP (%)',f.irap,"fxSet('irap',+this.value||0)")}${num('Deduzioni IRAP aggiuntive (€)',f.irapDed,"fxSet('irapDed',+this.value||0)")}
+   ${num('Perdite fiscali degli anni precedenti (€)',f.perdite,"fxSet('perdite',+this.value||0)")}${num('Crediti d’imposta da usare (€)',f.crediti,"fxSet('crediti',+this.value||0)")}
+   ${cap?num('Quota di utile distribuita ai soci (%)',f.dist,"fxSet('dist',+this.value||0)")+num('Ritenuta sui dividendi (%)',f.ritDiv,"fxSet('ritDiv',+this.value||0)"):num('Addizionale regionale IRPEF (%)',f.reg,"fxSet('reg',+this.value||0)")+num('Addizionale comunale IRPEF (%)',f.com,"fxSet('com',+this.value||0)")}</div>
+   <div class="mut" style="margin-top:8px;font-size:12px">Le ritenute d’acconto subite si indicano sulle singole fatture emesse; gli acconti d’imposta versati si leggono dalla Prima nota (categoria “Versamento imposte sul reddito”). La percentuale di deducibilità dei costi si imposta per conto nel piano dei conti.</div>`)+
+  (cap?'':cscard('Soci o titolare','Il reddito della società si attribuisce ai soci in base alla quota ed è tassato con IRPEF a scaglioni, più i contributi previdenziali di ciascuno. Per una ditta individuale resta un solo titolare al 100%. “Altri redditi” serve a trovare lo scaglione corretto.',
+   `<div class="tw"><table style="min-width:0"><thead><tr><th>Nome</th><th class="n">Quota %</th><th class="n">Altri redditi (€)</th><th class="n">Oneri deducibili (€)</th><th class="n">Detrazioni (€)</th><th>Contributi INPS</th><th></th></tr></thead><tbody>
+   ${f.soci.map((s,i)=>`<tr><td><input value="${esc(s.n)}" style="width:100%" onchange="fxSocio(${i},'n',this.value)"></td>${['q','altri','oneri','detr'].map(k=>`<td class="n"><input type="number" step="any" min="0" value="${s[k]}" style="width:110px;text-align:right" onchange="fxSocio(${i},'${k}',this.value)"></td>`).join('')}
+    <td><select onchange="fxSocio(${i},'inps',this.value)"><option value="art" ${s.inps=='art'?'selected':''}>Artigiano</option><option value="com" ${s.inps=='com'?'selected':''}>Commerciante</option><option value="no" ${s.inps=='no'?'selected':''}>Nessuno</option></select></td><td><button class="b dng" onclick="fxSocioDel(${i})">Elimina</button></td></tr>`).join('')}</tbody></table></div>
+   ${csrow(`<button class="b pri" onclick="fxSocioAdd()">Aggiungi socio</button>${Math.abs(tq-100)>0.005&&f.forma!='ditta'?`<span class="tag late">le quote sommano ${fN(tq)}%: dovrebbero fare 100%</span>`:''}`)}`)+
+   cscard('Contributi previdenziali INPS (artigiani e commercianti)','Contributo fisso sul reddito minimale, più una percentuale sulla parte di reddito che lo supera, fino al massimale. Sopra la soglia indicata si aggiunge una percentuale in più. Valori indicativi, da aggiornare ogni anno.',
+   `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">${num('Aliquota artigiani (%)',I.art,"fxInps('art',this.value)")}${num('Aliquota commercianti (%)',I.com,"fxInps('com',this.value)")}${num('Reddito minimale (€)',I.min,"fxInps('min',this.value)")}${num('Massimale di reddito (€)',I.max,"fxInps('max',this.value)")}${num('Soglia dell’aliquota aggiuntiva (€)',I.soglia,"fxInps('soglia',this.value)")}${num('Aliquota aggiuntiva oltre la soglia (%)',I.extra,"fxInps('extra',this.value)")}</div>`)+
+   cscard('Scaglioni IRPEF','Si usano per i soci e il titolare.',csrow(f.sc.map((s,i)=>`<span>fino a <input type="number" min="0" style="width:110px" value="${s[0]>=1e12?'':s[0]}" ${i==f.sc.length-1?'placeholder="oltre" disabled':''} onchange="fxSc(${i},0,this.value)"> €</span><span>aliquota <input type="number" step="any" min="0" style="width:70px" value="${s[1]}" onchange="fxSc(${i},1,this.value)"> %</span>`).join('<span class="mut">·</span>'))));
+}
+
+// ===================== CESPITI E AMMORTAMENTI =====================
+// D.ces = cespiti (beni ammortizzabili). Le categorie con le aliquote stanno in CS().ces (impostazioni).
+// Gli ammortamenti diventano scritture automatiche (dare Ammortamenti / avere Fondo) al 31/12 di ogni anno fino all'anno in corso.
+const CES_CAT_DEF=()=>[
+ {n:'Fabbricati e costruzioni',pct:3,conto:'180',fondo:'250',amm:'580'},{n:'Costruzioni leggere',pct:10,conto:'180',fondo:'250',amm:'580'},
+ {n:'Impianti e macchinari',pct:15,conto:'170',fondo:'250',amm:'580'},{n:'Attrezzature industriali',pct:25,conto:'171',fondo:'250',amm:'580'},
+ {n:'Mobili e arredi',pct:12,conto:'172',fondo:'250',amm:'580'},{n:'Macchine d’ufficio elettroniche',pct:20,conto:'173',fondo:'250',amm:'580'},
+ {n:'Automezzi e autocarri',pct:20,conto:'175',fondo:'250',amm:'580'},{n:'Autovetture',pct:25,conto:'176',fondo:'250',amm:'580',ded:20}];
+const CES_PDC=[['171','Attrezzature industriali','A'],['172','Mobili e arredi','A'],['173','Macchine d’ufficio elettroniche','A'],['176','Autovetture','A'],['180','Fabbricati e costruzioni','A']];
+const cesCats=()=>CS().ces||[];
+const cesCat=a=>cesCats().find(c=>c.n==a.cat)||{n:a.cat||'',pct:+a.pct||0,conto:'170',fondo:'250',amm:'580'};
+function cesPiano(a){
+  const cost=r2(a.cost),rate=(+a.pct||0)/100,out=[];if(!(cost>0)||!(rate>0)||!a.date)return out;
+  const y0=+a.date.slice(0,4),yE=a.dis?+a.dis.slice(0,4):9999;let cum=0;
+  for(let y=y0;y<=y0+100&&cum<cost-0.005&&y<=yE;y++){let q=cost*rate;if(y==y0&&a.half)q/=2;q=Math.min(r2(q),r2(cost-cum));cum=r2(cum+q);out.push({y,q,fondo:cum,res:r2(cost-cum)})}
+  return out;
+}
+const cesQ=(a,y)=>(cesPiano(a).find(p=>p.y==y)||{q:0}).q;
+function cesAt(a,y){const pi=cesPiano(a),pr=pi.filter(p=>p.y<=y).pop(),on=!!a.date&&+a.date.slice(0,4)<=y;return{on,q:(pi.find(p=>p.y==y)||{q:0}).q,fondo:pr?pr.fondo:0,cost:on?r2(a.cost):0,res:on?r2(a.cost-(pr?pr.fondo:0)):0}}
+function invCcOpts(E_,cur){
+  if(E_)return pdcOpts(['R'],cur);
+  const cc=new Set(cesCats().map(c=>c.conto)),o=pdcOpts(['C'],cur),seen=new Set(o.map(x=>x.v));
+  D.pdc.filter(p=>cc.has(p.code)&&!seen.has(p.code)).forEach(p=>o.push({v:p.code,t:p.code+' · '+p.name+' (cespite)'}));
+  return o.sort((a,b)=>a.v.localeCompare(b.v));
+}
+// ---- elenco
+function cCes(){
+  accEnsure();const y=+(cYr||new Date().getFullYear()),L=D.ces.map(a=>({a,...cesAt(a,y)})).sort((p,q)=>(p.a.date||'').localeCompare(q.a.date||''));
+  const T=k=>r2(L.reduce((t,x)=>t+x[k],0));
+  return `<div class="tools"><b style="align-self:center">Situazione al 31/12/${y}</b>${aYSel().replace('<option value="" '+(cYr?'':'selected')+'>Tutti gli anni</option>','')}<span style="flex:1"></span><button class="b" onclick="pdfCes()">Esporta PDF</button><button class="b pri" onclick="cesEdit(0)">Nuovo cespite</button></div>
+  <div class="kpis"><div class="kpi"><span>Valore storico dei beni</span><b>${eur(T('cost'))}</b><span>${L.filter(x=>x.on).length} cespiti</span></div><div class="kpi"><span>Fondo ammortamento</span><b>${eur(T('fondo'))}</b><span>ammortizzato finora</span></div>
+   <div class="kpi acc"><span>Valore residuo</span><b>${eur(T('res'))}</b><span>ancora da ammortizzare</span></div><div class="kpi"><span>Quota ammortamento ${y}</span><b>${eur(T('q'))}</b><span>costo dell’anno</span></div></div>
+  <div class="tw"><table><thead><tr><th>Descrizione</th><th>Categoria</th><th>In uso dal</th><th class="n">Costo</th><th class="n">Aliquota</th><th class="n">Quota ${y}</th><th class="n">Fondo</th><th class="n">Residuo</th><th>Stato</th></tr></thead><tbody>
+  ${L.length?L.map(x=>`<tr class="row" onclick="cesEdit(${x.a.id})"><td><b>${esc(x.a.desc)}</b>${x.a.note?`<br><small class="mut">${esc(x.a.note.slice(0,60))}</small>`:''}</td><td>${esc(x.a.cat||'-')}</td><td>${x.a.date?dt(x.a.date):'-'}</td><td class="n">${eur2(x.a.cost)}</td><td class="n">${fN(x.a.pct)}%${x.a.half?' <small class="mut" title="primo anno al 50%">½</small>':''}</td><td class="n">${x.on?eur2(x.q):''}</td><td class="n">${x.on?eur2(x.fondo):''}</td><td class="n">${x.on?eur2(x.res):''}</td><td>${!x.on?'<span class="tag">non ancora acquistato</span>':x.a.dis&&x.a.dis.slice(0,4)<=String(y)?'<span class="tag">dismesso</span>':x.res<0.005?'<span class="tag ok">ammortizzato</span>':'<span class="tag">in uso</span>'}</td></tr>`).join('')+`<tr style="font-weight:700"><td colspan="3">Totale</td><td class="n">${eur2(T('cost'))}</td><td></td><td class="n">${eur2(T('q'))}</td><td class="n">${eur2(T('fondo'))}</td><td class="n">${eur2(T('res'))}</td><td></td></tr>`:'<tr><td colspan="9" class="empty">Nessun cespite. Aggiungi macchinari, attrezzature, automezzi… e il programma calcola da solo gli ammortamenti.</td></tr>'}</tbody></table></div>
+  <p class="mut" style="font-size:12px">Gli ammortamenti diventano scritture in partita doppia al 31/12 di ogni anno (dare Ammortamenti, avere Fondo ammortamento) e finiscono nel bilancio e nella simulazione del reddito. Le aliquote si impostano per categoria in Impostazioni e si possono cambiare bene per bene.</p>`;
+}
+let CESR=null;
+function cesEdit(id){
+  const a=id?D.ces.find(x=>x.id==id):null,c0=cesCats()[0]||{n:'',pct:10};
+  CESR=a?{...a}:{id:0,desc:'',cat:c0.n,date:TODAY,cost:'',pct:c0.pct,half:1,orig:'ini',inv:0,dis:'',note:''};
+  const d=$('#dlg');d.classList.add('wide');
+  const invs=D.inv.filter(i=>i.dir=='R').sort((x,y)=>(y.date||'').localeCompare(x.date||''));
+  d.innerHTML=`<div class="dh"><h2>${id?'Cespite · '+esc(a.desc):'Nuovo cespite'}</h2></div><div class="db">
+   <label class="full">Descrizione<input id="cDesc" value="${esc(CESR.desc)}" placeholder="es. Piegatrice idraulica 100 t"></label>
+   ${S('cCat','Categoria',cesCats().map(c=>({v:c.n,t:c.n+' · '+fN(c.pct)+'%'})),CESR.cat)}${F('cDate','In uso dal (data di acquisto)',CESR.date,'date')}${F('cCost','Costo da ammortizzare (€)',CESR.cost,'number')}
+   ${F('cPct','Aliquota di ammortamento annua (%)',CESR.pct,'number')}
+   <label style="flex-direction:row;align-items:center;gap:8px;display:flex"><input type="checkbox" id="cHalf" ${CESR.half?'checked':''}> Primo anno ridotto al 50%</label>${F('cDis','Dismesso il (facoltativo)',CESR.dis||'','date')}${F('cDed','Deducibilità fiscale (%): vuoto = come la categoria',CESR.ded==null?'':CESR.ded,'number')}
+   ${S('cOri','Come entra in contabilità',[{v:'ini',t:'Già posseduto: registra il valore a patrimonio (contropartita Capitale e riserve)'},{v:'fat',t:'Acquistato con una fattura già registrata (nessuna scrittura di apertura)'}],CESR.orig)}
+   <label>Fattura di acquisto (facoltativa)<select id="cInv"><option value="0">— nessuna —</option>${invs.map(i=>`<option value="${i.id}" ${i.id==CESR.inv?'selected':''}>${esc((i.num||'-')+' · '+aParty(i)+' · '+eur2(aNet(i)))}</option>`).join('')}</select></label>
+   <label class="full">Note (matricola, ubicazione…)<input id="cNote" value="${esc(CESR.note||'')}"></label>
+   <div class="full"><div class="mut" style="margin-bottom:4px">Piano di ammortamento</div><div id="cPlan"></div></div></div>
+  <div class="df">${id?`<button class="b dng l" onclick="cesDel(${id})">Elimina</button>`:''}<button class="b" onclick="$('#dlg').close()">Annulla</button><button class="b pri" onclick="cesSave()">Salva</button></div>`;
+  d.oninput=cesPrev;
+  d.showModal();cesPrev();
+  $('#cCat').onchange=()=>{const k=cesCats().find(c=>c.n==$('#cCat').value);if(k){$('#cPct').value=k.pct;cesPrev()}};
+  $('#cInv').onchange=()=>{const i=D.inv.find(x=>x.id==+$('#cInv').value);if(!i)return;if(!$('#cDesc').value)$('#cDesc').value=i.desc||'';$('#cCost').value=aNet(i);$('#cDate').value=i.date;$('#cOri').value='fat';cesPrev()};
+}
+const cesForm=()=>({desc:$('#cDesc').value.trim(),cat:$('#cCat').value,date:$('#cDate').value,cost:r2($('#cCost').value),pct:+$('#cPct').value||0,half:$('#cHalf').checked?1:0,dis:$('#cDis').value||'',ded:$('#cDed').value===''?null:+$('#cDed').value,orig:$('#cOri').value,inv:+$('#cInv').value||0,note:$('#cNote').value.trim()});
+function cesPrev(){
+  if(!$('#cPlan'))return;const a=cesForm(),p=cesPiano(a);
+  $('#cPlan').innerHTML=p.length?`<div class="tw" style="max-height:220px;overflow:auto"><table style="min-width:0"><thead><tr><th>Anno</th><th class="n">Quota</th><th class="n">Fondo</th><th class="n">Residuo</th></tr></thead><tbody>${p.map(x=>`<tr><td>${x.y}</td><td class="n">${eur2(x.q)}</td><td class="n">${eur2(x.fondo)}</td><td class="n">${eur2(x.res)}</td></tr>`).join('')}</tbody></table></div>`:'<span class="mut">Inserisci data, costo e aliquota per vedere il piano.</span>';
+}
+function cesSave(){
+  const f=cesForm();if(!f.desc){alert('Scrivi la descrizione del bene.');return}if(!f.date){alert('Inserisci la data di acquisto.');return}if(!(f.cost>0)){alert('Inserisci il costo del bene.');return}if(f.pct<0||f.pct>100){alert('L’aliquota deve essere tra 0 e 100.');return}
+  const a=CESR.id?D.ces.find(x=>x.id==CESR.id):{id:aId()};Object.assign(a,f);if(!CESR.id)D.ces.push(a);save();$('#dlg').close();render();
+}
+function cesDel(id){askConfirm('Eliminare questo cespite? Spariscono anche le sue scritture di ammortamento.',()=>{D.ces=D.ces.filter(x=>x.id!=id);save();$('#dlg').close();render()})}
+function pdfCes(){
+  const y=+(cYr||new Date().getFullYear()),L=D.ces.map(a=>({a,...cesAt(a,y)})).filter(x=>x.on).sort((p,q)=>(p.a.date||'').localeCompare(q.a.date||'')),T=k=>r2(L.reduce((t,x)=>t+x[k],0));
+  aPdf('Registro dei cespiti','Situazione al 31/12/'+y+'   |   Generato il '+today(),['Descrizione','Categoria','In uso dal','Costo','Aliq.','Quota '+y,'Fondo','Residuo'],
+   [...L.map(x=>[x.a.desc,x.a.cat||'',dt(x.a.date),pe(x.a.cost),fN(x.a.pct)+'%',pe(x.q),pe(x.fondo),pe(x.res)]),[{content:'Totale',colSpan:3,styles:{fontStyle:'bold'}},pB(pe(T('cost'))),'',pB(pe(T('q'))),pB(pe(T('fondo'))),pB(pe(T('res')))]],'Registro_cespiti',aRO([3,4,5,6,7]));
+}
+// ---- impostazioni: categorie e aliquote
+function cImpCes(){
+  const cats=cesCats(),use=n=>D.ces.filter(a=>a.cat==n).length;
+  return cscard('Cespiti: categorie e aliquote di ammortamento','Ogni categoria ha la sua aliquota annua e i conti da usare nelle scritture. L’aliquota si può comunque cambiare bene per bene. I valori di partenza sono indicativi: controlla con il commercialista quelli validi per la tua attività. Una categoria con cespiti non si può eliminare.',
+   `<div class="tw"><table style="min-width:0"><thead><tr><th>Categoria</th><th class="n">Aliquota %</th><th class="n">Deducibile %</th><th>Conto del bene</th><th>Conto fondo</th><th>Conto ammortamento</th><th class="n">Beni</th><th></th></tr></thead><tbody>
+   ${cats.map((c,i)=>`<tr><td><input value="${esc(c.n)}" style="width:100%" onchange="cesCatSet(${i},'n',this.value)"></td><td class="n"><input type="number" step="any" min="0" max="100" value="${c.pct}" style="width:80px;text-align:right" onchange="cesCatSet(${i},'pct',+this.value||0)"></td><td class="n"><input type="number" step="any" min="0" max="100" value="${c.ded==null?100:c.ded}" style="width:80px;text-align:right" onchange="cesCatSet(${i},'ded',+this.value)"></td>
+    <td>${cSel(pdcOpts(['A'],c.conto),c.conto,`cesCatSet(${i},'conto',this.value)`)}</td><td>${cSel(pdcOpts(['P','A'],c.fondo),c.fondo,`cesCatSet(${i},'fondo',this.value)`)}</td><td>${cSel(pdcOpts(['C'],c.amm),c.amm,`cesCatSet(${i},'amm',this.value)`)}</td><td class="n">${use(c.n)||''}</td><td><button class="b dng" onclick="cesCatDel(${i})">Elimina</button></td></tr>`).join('')}</tbody></table></div>`+
+   csrow(`<input id="cescn" placeholder="Nuova categoria (es. Software)" style="flex:1;min-width:200px"><input id="cescp" type="number" step="any" min="0" placeholder="Aliquota %" style="width:110px"><button class="b pri" onclick="cesCatAdd()">Aggiungi</button>`));
+}
+function cesCatSet(i,k,v){const c=cesCats()[i];if(!c)return;if(k=='n'){v=String(v).trim();if(!v||v==c.n)return;if(cesCats().some(x=>x.n==v)){alert('Esiste già una categoria con questo nome.');render();return}D.ces.forEach(a=>{if(a.cat==c.n)a.cat=v})}c[k]=v;csSave()}
+function cesCatDel(i){const c=cesCats()[i];if(D.ces.some(a=>a.cat==c.n)){alert('Ci sono cespiti in questa categoria: non si può eliminare.');return}cesCats().splice(i,1);csSave()}
+function cesCatAdd(){const n=$('#cescn').value.trim();if(!n)return;if(cesCats().some(x=>x.n==n)){alert('Esiste già.');return}cesCats().push({n,pct:+$('#cescp').value||0,conto:'170',fondo:'250',amm:'580'});csSave()}
+
+
+// ===================== MASTRINI (partitari) =====================
+// Suddividono i conti di controllo: Clienti, Fornitori e, per costi e ricavi, ogni conto per controparte.
+const aPKey=i=>i.party?(i.dir=='E'?'c':'s')+i.party:(i.pname?'n:'+i.pname:'');
+const aPKName=k=>!k?'(senza intestatario)':k[0]=='c'&&/^c\d/.test(k)?nm('cl',+k.slice(1)):k[0]=='s'&&/^s\d/.test(k)?nm('sup',+k.slice(1)):k.slice(2);
+function miniData(kind){
+  const M=CS().map,out=new Map(),y=cYr;
+  jrnl().forEach(e=>e.righe.forEach(r=>{
+    const p=pdcBy(r.c);if(!p)return;let sg=0;
+    if(kind=='cli'&&r.c==M.cli)sg=1;else if(kind=='for'&&r.c==M.for)sg=-1;else if(kind=='cr'&&(p.type=='R'||p.type=='C'))sg=accSegno(p.type);
+    if(!sg)return;
+    const pk=e.pk||'',key=kind=='cr'?r.c+'|'+pk:pk;
+    if(!out.has(key))out.set(key,{key,name:aPKName(pk),p,op:0,lines:[],d:0,a:0,s:0});
+    const g=out.get(key),yy=e.date.slice(0,4);
+    if(y&&yy<y&&kind!='cr'){g.op+=sg*(r.d-r.a);return}
+    if(y&&yy!=y)return;
+    g.lines.push({e,r,v:sg*(r.d-r.a)});g.d+=r.d;g.a+=r.a;
+  }));
+  out.forEach(g=>{let s=r2(g.op);g.lines.forEach(l=>{s=r2(s+l.v);l.s=s});g.s=s;g.d=r2(g.d);g.a=r2(g.a);g.op=r2(g.op)});
+  return[...out.values()].filter(g=>g.lines.length||Math.abs(g.op)>0.004).sort((x,y2)=>x.p.code.localeCompare(y2.p.code)||x.name.localeCompare(y2.name,'it'));
+}
+function cMini(){
+  const L=miniData(cMT),k=cMT,sel=L.find(g=>g.key==cMP)||L[0];
+  const tt=L.reduce((t,g)=>({d:t.d+g.d,a:t.a+g.a,s:t.s+g.s}),{d:0,a:0,s:0});
+  const f=(v,l)=>`<button class="b ${cMT==v?'pri':''}" onclick="cMT='${v}';cMP='';render()">${l}</button>`;
+  const head=k=='cli'?'Cliente':k=='for'?'Fornitore':'Controparte';
+  let body='',last='';
+  body=L.length?L.map((g,gi)=>{const grp=k=='cr'&&g.p.code!=last?(last=g.p.code,`<tr class="grp"><td colspan="4">${esc(g.p.code)} · ${esc(g.p.name)}<small>${PDC_T[g.p.type]}</small></td></tr>`):'';
+    return grp+`<tr class="row" onclick="cMPs(${gi})" ${sel&&g.key==sel.key?'style="background:var(--soft)"':''}><td><b>${esc(g.name)}</b></td><td class="n">${eur2(g.d)}</td><td class="n">${eur2(g.a)}</td><td class="n"><b>${eur2(g.s)}</b></td></tr>`}).join('')
+   +(k=='cr'?'':`<tr style="font-weight:700"><td>Totale</td><td class="n">${eur2(r2(tt.d))}</td><td class="n">${eur2(r2(tt.a))}</td><td class="n">${eur2(r2(tt.s))}</td></tr>`):'<tr><td colspan="4" class="empty">Nessuna registrazione.</td></tr>';
+  const det=sel?`<h3 style="margin:18px 0 6px">${esc(sel.name)}${k=='cr'?' · '+esc(sel.p.code+' '+sel.p.name):''}</h3><div class="tw"><table><thead><tr><th>Data</th><th>N.</th><th>Descrizione</th><th class="n">Dare</th><th class="n">Avere</th><th class="n">Saldo</th></tr></thead><tbody>
+   ${cYr&&sel.op&&k!='cr'?`<tr><td colspan="5"><i>Saldo riportato dagli anni precedenti</i></td><td class="n">${eur2(sel.op)}</td></tr>`:''}
+   ${sel.lines.map(l=>`<tr class="row" onclick="regOpenSrc('${l.e.src.t}',${l.e.src.id})"><td>${dt(l.e.date)}</td><td>${l.e.n}</td><td>${esc(l.e.desc)}</td><td class="n">${l.r.d?eur2(l.r.d):''}</td><td class="n">${l.r.a?eur2(l.r.a):''}</td><td class="n"><b>${eur2(l.s)}</b></td></tr>`).join('')}
+   <tr style="font-weight:700"><td colspan="3">Totale · saldo ${eur2(sel.s)}</td><td class="n">${eur2(sel.d)}</td><td class="n">${eur2(sel.a)}</td><td></td></tr></tbody></table></div>`:'';
+  return `<div class="tools"><button class="b" onclick="cMM='mas';render()">Mastro dei conti</button><button class="b pri">Mastrini</button><span style="width:10px"></span>${f('cli','Clienti')}${f('for','Fornitori')}${f('cr','Altri costi e ricavi')}${aYSel()}<span style="flex:1"></span><button class="b" onclick="pdfMini(0)">PDF riepilogo</button>${sel?'<button class="b" onclick="pdfMini(1)">PDF mastrino</button>':''}</div>
+  <div class="tw"><table><thead><tr><th>${head}</th><th class="n">Dare</th><th class="n">Avere</th><th class="n">Saldo</th></tr></thead><tbody>${body}</tbody></table></div>
+  <p class="mut" style="font-size:12px">${k=='cli'?'Il saldo è ciò che il cliente deve ancora pagare (fatture meno incassi).':k=='for'?'Il saldo è ciò che resta da pagare al fornitore (fatture meno pagamenti).':'Per ogni conto di costo o di ricavo vedi le registrazioni divise per controparte (il fornitore della fattura, o il nome scritto nel movimento).'} Clic su una riga per aprire il dettaglio, e su una registrazione per aprire il documento.</p>${det}`;
+}
+function pdfMini(det){
+  const L=miniData(cMT),sel=L.find(g=>g.key==cMP)||L[0],tit={cli:'Clienti',for:'Fornitori',cr:'Altri costi e ricavi'}[cMT],sub=(cYr?'Anno '+cYr+'   |   ':'')+'Generato il '+today();
+  if(det&&sel){aPdf('Mastrino · '+sel.name,sub,['Data','N.','Descrizione','Dare','Avere','Saldo'],sel.lines.map(l=>[dt(l.e.date),String(l.e.n),l.e.desc,l.r.d?pe(l.r.d):'',l.r.a?pe(l.r.a):'',pe(l.s)]),'Mastrino',aRO([3,4,5]));return}
+  aPdf('Mastrini · '+tit,sub,[cMT=='cr'?'Conto / controparte':'Intestatario','Dare','Avere','Saldo'],L.map(g=>[(cMT=='cr'?g.p.code+' '+g.p.name+' · ':'')+g.name,pe(g.d),pe(g.a),pe(g.s)]),'Mastrini_'+cMT,aRO([1,2,3]));
+}
+
+const cMPs=i=>{const g=miniData(cMT)[i];if(g){cMP=g.key;render()}};
+
+
+// ===================== IMPORTAZIONE FATTURE XML (FatturaPA) =====================
+let xmlList=[],xmlDir='E';
+const xKids=(e,n)=>e?[...e.children].filter(c=>c.localName==n):[];
+const xA=(e,p)=>p.split('/').reduce((l,n)=>l.flatMap(x=>xKids(x,n)),[e].filter(Boolean));
+const xQ=(e,p)=>xA(e,p)[0]||null;
+const xT=(e,p)=>{const n=xQ(e,p);return n?n.textContent.trim():''};
+const xNum=s=>{const v=parseFloat(String(s||'').replace(',','.'));return isNaN(v)?0:v};
+function xmlText(buf){
+  const u=new Uint8Array(buf);let lat='';for(let k=0;k<u.length;k+=8192)lat+=String.fromCharCode.apply(null,u.subarray(k,k+8192));
+  let a=lat.search(/<\?xml/),m=lat.match(/<(\w+:)?FatturaElettronica[\s>][\s\S]*<\/(\w+:)?FatturaElettronica>/);
+  if(!m)throw new Error('non è una fattura elettronica');
+  const st=a>=0&&a<=m.index?a:m.index,en=m.index+m[0].length;
+  return new TextDecoder('utf-8').decode(u.subarray(st,en));
+}
+function xmlParse(txt,fname){
+  const doc=new DOMParser().parseFromString(txt,'application/xml');
+  if(doc.querySelector('parsererror'))throw new Error('XML non valido');
+  const root=doc.documentElement,hd=xQ(root,'FatturaElettronicaHeader'),out=[];
+  const party=(p)=>{const an=xQ(p,'DatiAnagrafici/Anagrafica');
+    const nome=an?(xT(an,'Denominazione')||[xT(an,'Nome'),xT(an,'Cognome')].filter(Boolean).join(' ')):'';
+    return{name:nome,piva:xT(p,'DatiAnagrafici/IdFiscaleIVA/IdCodice'),cf:xT(p,'DatiAnagrafici/CodiceFiscale')}};
+  const ced=party(xQ(hd,'CedentePrestatore')),ces=party(xQ(hd,'CessionarioCommittente'));
+  xA(root,'FatturaElettronicaBody').forEach(b=>{
+    const g=xQ(b,'DatiGenerali/DatiGeneraliDocumento');if(!g)return;
+    const td=xT(g,'TipoDocumento'),riep=xA(b,'DatiBeniServizi/DatiRiepilogo');
+    let imp=0,iva=0;riep.forEach(r=>{imp+=xNum(xT(r,'ImponibileImporto'));iva+=xNum(xT(r,'Imposta'))});
+    imp=r2(imp);iva=r2(iva);
+    const rates=[...new Set(riep.map(r=>xNum(xT(r,'AliquotaIVA'))))];
+    const vat=imp?r2(iva/imp*100):(rates[0]||0);
+    const rit=xQ(g,'DatiRitenuta'),ritA=rit?xNum(xT(rit,'AliquotaRitenuta')):0,ritI=rit?xNum(xT(rit,'ImportoRitenuta')):0;
+    const ritb=ritA&&imp?Math.min(100,r2(ritI/(ritA/100)/imp*100)):100;
+    const lines=xA(b,'DatiBeniServizi/DettaglioLinee'),pays=xA(b,'DatiPagamento/DettaglioPagamento').map(p=>xT(p,'DataScadenzaPagamento')).filter(Boolean).sort();
+    const causale=xA(g,'Causale').map(c=>c.textContent.trim()).join(' ');
+    const d1=lines[0]?xT(lines[0],'Descrizione'):'';
+    out.push({file:fname,td,nc:(td=='TD04'||td=='TD08')?1:0,num:xT(g,'Numero'),date:xT(g,'Data'),net:imp,vat,rates,rit:ritA,ritb,
+      due:pays.length?pays[pays.length-1]:'',tot:xNum(xT(g,'ImportoTotaleDocumento')),
+      desc:(d1||causale)+(lines.length>1?' (+'+(lines.length-1)+(lines.length==2?' riga)':' righe)'):''),
+      split:riep.some(r=>xT(r,'EsigibilitaIVA')=='S'),ced,ces});
+  });
+  return out;
+}
+function xFind(p,col){
+  const n=s=>String(s||'').replace(/^IT/i,'').replace(/\s/g,'').toUpperCase(),a=n(p.piva)||n(p.cf);
+  let f=a&&D[col].find(x=>n(x.iva)&&(n(x.iva)==a||n(x.iva)==n(p.cf)));
+  if(!f&&p.name)f=D[col].find(x=>!x.man&&(x.n||'').trim().toLowerCase()==p.name.trim().toLowerCase());
+  return f||null;
+}
+function xmlOpen(dir){
+  xmlDir=dir;let f=$('#xmlin');if(!f){f=document.createElement('input');f.type='file';f.id='xmlin';f.accept='.xml,.p7m,.XML,.P7M';f.multiple=true;f.hidden=true;document.body.appendChild(f)}
+  f.value='';f.onchange=()=>xmlRead(f.files);f.click();
+}
+async function xmlRead(files){
+  const col=xmlDir=='E'?'cl':'sup',list=[],errs=[];
+  for(const f of files){
+    try{const rows=xmlParse(xmlText(await f.arrayBuffer()),f.name);if(!rows.length)throw new Error('nessuna fattura trovata');rows.forEach(r=>list.push(r))}
+    catch(e){errs.push(f.name+': '+e.message)}
+  }
+  list.forEach(r=>{
+    r.p=xmlDir=='E'?r.ces:r.ced;r.other=xmlDir=='E'?r.ced:r.ces;
+    r.match=xFind(r.p,col);
+    const my=String(D.co&&D.co.piva||'').replace(/^IT/i,'').replace(/\s/g,'');
+    r.warn=my&&String(r.other.piva||'').replace(/^IT/i,'')!=my?(xmlDir=='E'?'Chi emette non sembra la tua azienda: forse è una fattura ricevuta.':'Chi riceve non sembra la tua azienda: forse è una fattura emessa.'):'';
+    r.dup=D.inv.some(x=>x.dir==xmlDir&&x.num==r.num&&(x.date||'').slice(0,4)==(r.date||'').slice(0,4)&&(r.match?x.party==r.match.id:(x.pname||'').toLowerCase()==r.p.name.toLowerCase()));
+  });
+  xmlList=list;xmlShow(errs);
+}
+function xmlShow(errs){
+  const E_=xmlDir=='E',d=$('#dlg');d.oninput=null;d.classList.add('wide');
+  const rows=xmlList.map((r,k)=>`<tr><td><input type="checkbox" class="xI" value="${k}" ${r.dup?'':'checked'}></td><td><b>${esc(r.num)}</b>${r.nc?' <span class="tag">nota di credito</span>':''}${r.dup?' <span class="tag late">già presente</span>':''}</td><td>${r.date?dt(r.date):'-'}</td>
+   <td>${esc(r.p.name)}<br><small class="mut">${r.match?'in anagrafica':'nuovo · '+esc(r.p.piva||r.p.cf||'senza P.IVA')}</small></td><td>${esc((r.desc||'').slice(0,60))}</td><td class="n">${eur2(r.net)}</td><td class="n">${fN(r.vat)}%${r.rates.length>1?'<br><small class="mut">aliquote miste</small>':''}</td><td class="n">${r.rit?fN(r.rit)+'%':''}</td><td>${r.due?dt(r.due):'-'}</td></tr>
+   ${r.warn?`<tr><td></td><td colspan="8"><small style="color:var(--bad,#b00020)">${esc(r.warn)}</small></td></tr>`:''}${r.split?`<tr><td></td><td colspan="8"><small class="mut">Scissione dei pagamenti (split payment): l’IVA non viene versata al fornitore, controlla il residuo.</small></td></tr>`:''}`).join('');
+  d.innerHTML=`<div class="dh"><h2>Importa fatture ${E_?'emesse':'ricevute'} da XML</h2></div><div class="db" style="display:block">
+   ${errs&&errs.length?`<div class="rvn" style="margin-bottom:8px">File non letti:<br>${errs.map(esc).join('<br>')}</div>`:''}
+   ${xmlList.length?`<div class="tw"><table style="min-width:0"><thead><tr><th><input type="checkbox" checked onchange="document.querySelectorAll('.xI').forEach(c=>c.checked=this.checked)"></th><th>Numero</th><th>Data</th><th>${E_?'Cliente':'Fornitore'}</th><th>Descrizione</th><th class="n">Imponibile</th><th class="n">IVA</th><th class="n">Ritenuta</th><th>Scadenza</th></tr></thead><tbody>${rows}</tbody></table></div>
+   <div class="tools" style="margin-top:10px"><label style="display:flex;flex-direction:row;gap:6px;align-items:center;font-size:13px;width:auto"><input type="checkbox" id="xNew" checked style="width:auto"> Crea in anagrafica i ${E_?'clienti':'fornitori'} nuovi</label>
+   ${S('xCc',E_?'Conto di ricavo':'Conto di costo',invCcOpts(E_,''),CS().map[E_?'ricavi':'costi'])}</div>
+   <p class="mut" style="font-size:12px">Il programma legge numero, data, controparte, imponibile, IVA, ritenuta d’acconto e scadenza dal file. Le fatture già presenti (stesso numero, anno e controparte) non sono spuntate. Dopo l’importazione puoi aprire la fattura per collegarla a una commessa o correggere i dati.</p>`:'<div class="empty">Nessuna fattura leggibile nei file scelti.</div>'}
+  </div><div class="df"><button class="b" onclick="$('#dlg').close()">Chiudi</button><button class="b" onclick="xmlOpen('${xmlDir}')">Scegli altri file</button>${xmlList.length?'<button class="b pri" onclick="xmlGo()">Importa le fatture spuntate</button>':''}</div>`;
+  if(!d.open)d.showModal();
+}
+function xmlGo(){
+  const col=xmlDir=='E'?'cl':'sup',sel=[...document.querySelectorAll('.xI:checked')].map(c=>+c.value),mk=$('#xNew').checked,cc=$('#xCc').value;let n=0,np=0;
+  sel.forEach((k,j)=>{const r=xmlList[k];if(!r)return;let p=r.match;
+    if(!p&&mk&&r.p.name){p={id:aId()+j+500,n:r.p.name,iva:r.p.piva||r.p.cf||'',ref:'',tel:''};if(col=='sup')p.cat='';D[col].push(p);r.match=p;np++}
+    const dd=r.date||TODAY,pid=p?p.id:0;
+    D.inv.push({id:aId()+j,dir:xmlDir,nc:r.nc,num:r.num,date:dd,party:pid,pname:pid?'':r.p.name,job:0,jobs:[],desc:r.desc,net:r.net,vat:r.vat,due:r.due||aAdd(dd,aDays(col,pid)),cc,rit:r.rit||0,ritb:r.ritb,ded:null,ords:[],xml:1});n++});
+  if(!n){$('#dlg').close();return}
+  addLog('Contabilità: importate '+n+' fatture '+(xmlDir=='E'?'emesse':'ricevute')+' da XML');save();$('#dlg').close();
+  toast(n+(n==1?' fattura importata':' fatture importate')+(np?' · '+np+(np==1?' nuova anagrafica':' nuove anagrafiche'):'')+'.');render();
+}
+
 // ---------- avvio
 (function(){AUTH_READY=true;authInit();let sid=null;try{sid=+sessionStorage.getItem('carp_sess')}catch(e){}
   const u=D.users.find(x=>x.id==sid&&x.on);
@@ -4748,7 +5610,7 @@ document.addEventListener('keydown',e=>{if(e.key=='Escape'&&BS.ids.size&&!docume
 (function(){
 const C=window.GC_CLOUD;if(!C)return;
 const API=C.url.replace(/\/+$/,''),PK=C.key,SK='gc_cloud_session',DOM='@gc-gremo.app';
-const COLL=['cl','sup','items','jobs','quotes','orders','moves','hours','rcv','xsheets','sl','nt'];
+const COLL=['cl','sup','items','jobs','quotes','orders','moves','hours','rcv','xsheets','sl','nt','inv','cmov','cset','pdc','reg','ces'];
 const NOCONF=new Set([...COLL,'users','roles','log']);
 let SES=null,SYNC={},CONFV=null,WM='',PEND=[],pushing=0,again=0,pushT=null,pollT=null,authT=null,online=true,errCnt=0,LOADED=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
