@@ -205,7 +205,7 @@ body.lock #sb,body.lock #rb{display:none}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;try{t.hidePopover()}catch(e){}try{t.showPopover()}catch(e){}clearTimeout(t._t);t._t=setTimeout(()=>{try{t.hidePopover()}catch(e){}},7000)}
 window.alert=toast;
 function askConfirm(msg,yes){const d=document.getElementById('cfm');document.getElementById('cfmm').textContent=msg;document.getElementById('cfmy').onclick=()=>{d.close();yes()};d.showModal()}
-const APP_VER='1.5.1', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
+const APP_VER='1.6.0', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
 const OLDPH=['Taglio','Saldatura','Assemblaggio','Verniciatura/zincatura','Collaudo','Montaggio'], PHMAP=[0,0,0,1,0,2];
 const V28=['In produzione','Verniciatura/zincatura','Montaggio'];
 const PH=['Produzione','Zincatura/Verniciatura','Montaggio'];
@@ -222,7 +222,7 @@ function applyCfg(c){
 }
 // EMPTY_START = true: il programma parte senza dati (solo impostazioni di base); false: parte con dati di esempio
 const EMPTY_START=true;
-const emptyData=()=>({rates:{c:32,s:42,cc:22,cs:30},sl:[],cl:[],sup:[],items:[],jobs:[],quotes:[],orders:[],moves:[],hours:[],rcv:[],inv:[],cmov:[],cset:[],pdc:[],reg:[],ces:[]});
+const emptyData=()=>({rates:{c:32,s:42,cc:22,cs:30},sl:[],cl:[],sup:[],items:[],jobs:[],quotes:[],orders:[],moves:[],hours:[],rcv:[],inv:[],cmov:[],cset:[],pdc:[],reg:[],ces:[],hre:[],hrd:[]});
 const seed=()=>{
  if(EMPTY_START)return emptyData();
  const H=(job,op,ph,h,date)=>({job,op,phase:PH[PHMAP[ph]],h,date}), M=(job,item,qty,date)=>({job,item,qty,date});
@@ -4001,7 +4001,7 @@ function authInit(){
 const roleOf=id=>id=='admin'?ADM:D.roles.find(r=>r.id==id);
 const roleName=id=>(roleOf(id)||{name:'(ruolo eliminato)'}).name;
 const ROLE=()=>(ME&&roleOf(ME.role))||{perm:{}};
-const lv=v=>!ME?0:ME.role=='admin'?2:v=='usr'?0:((ROLE().perm||{})[v=='sheets'?'jobs':['cdash','cinv','cscad','cpn','cgio','cmas','cbil','cces','civa','csim','cimp'].includes(v)?'cont':v]||0);
+const lv=v=>!ME?0:ME.role=='admin'?2:v=='usr'?0:((ROLE().perm||{})[v=='sheets'?'jobs':['cdash','cinv','cscad','cpn','cgio','cmas','cbil','cces','civa','csim','cimp','chr'].includes(v)?'cont':v]||0);
 const canDel=()=>!!ME&&(ME.role=='admin'||!!ROLE().del), canPdf=()=>!!ME&&(ME.role=='admin'||!!ROLE().pdf);
 const isAdm=()=>!!ME&&ME.role=='admin';
 const hx=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
@@ -4838,8 +4838,8 @@ function srtDir(){const L=srtTables(),{st}=srtState(L);SRT[view]={k:st.k,d:-st.d
 // ===================== MODULO CONTABILITÀ =====================
 // Dati propri: D.inv (fatture emesse/ricevute) e D.cmov (prima nota: movimenti di cassa e banca).
 // Dialoga con la produzione tramite: anagrafica clienti/fornitori, commesse (fatturazione, ore) e ordini ricevuti.
-const CV=['cdash','cinv','cscad','cpn','cgio','cmas','cbil','cces','civa','csim','cimp'];
-const tabsC=[['cdash','Cruscotto'],['cinv','Fatture'],['cscad','Scadenziario'],{g:'reg',l:'Registrazioni',it:[['cpn','Prima nota'],['cces','Cespiti'],['cgio','Libro giornale'],['cmas','Mastro e mastrini'],['cbil','Bilancio']]},['civa','IVA'],['csim','Simulazione reddito'],['cimp','Impostazioni']];
+const CV=['cdash','cinv','cscad','cpn','cgio','cmas','cbil','cces','civa','csim','cimp','chr'];
+const tabsC=[['cdash','Cruscotto'],['cinv','Fatture'],['cscad','Scadenziario'],{g:'reg',l:'Registrazioni',it:[['cpn','Prima nota'],['cces','Cespiti'],['cgio','Libro giornale'],['cmas','Mastro e mastrini'],['cbil','Bilancio']]},['chr','Personale'],['civa','IVA'],['csim','Simulazione reddito'],['cimp','Impostazioni']];
 let MOD='prod',cDir='E',cQ='',cYr=String(new Date().getFullYear()),cScad='tutte',cAcc='',cMese='',cPQ='',cIvaP='a',cOnlyOpen=false,cGC='',cMC='',cBT='ver',cMM='mas',cMT='cli',cMP='';
 let _aIdL=0;const aId=()=>{let v=Date.now()*10+Math.floor(Math.random()*10);if(v<=_aIdL)v=_aIdL+1;_aIdL=v;return v}; // sempre crescente: nessun identificativo ripetuto
 const aAdd=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
@@ -4856,7 +4856,7 @@ const aDays=(c,id)=>+((D[c].find(x=>x.id==id)||{}).pay)||CS().pay||0;
 const aJobs=i=>[...new Set([...(i.jobs||[]),...(i.job?[i.job]:[])])];
 const aJobTxt=i=>aJobs(i).map(id=>esc(jb(id))).join(', ')||'<span class="mut">-</span>';
 const aInYr=d=>!cYr||(d||'').slice(0,4)==cYr;
-function accInit(){D.inv=D.inv||[];D.cmov=D.cmov||[];D.cset=D.cset||[];D.pdc=D.pdc||[];D.reg=D.reg||[];D.ces=D.ces||[]}
+function accInit(){D.inv=D.inv||[];D.cmov=D.cmov||[];D.cset=D.cset||[];D.pdc=D.pdc||[];D.reg=D.reg||[];D.ces=D.ces||[];D.hre=D.hre||[];D.hrd=D.hrd||[]}
 function accModFix(){const pv=tabs.some(t=>(t.g?t.it:[t]).some(i=>lv(i[0])>0));if(MOD=='cont'&&lv('cont')<1)MOD='prod';if(MOD=='prod'&&!pv&&lv('cont')>0)MOD='cont'}
 function accSync(v){if(!ME)return;const w=CV.includes(v)?'cont':'prod';if(MOD!=w){MOD=w;buildNav()}}
 function accMod(m){MOD=m;buildNav();view=firstView();render()}
@@ -4887,7 +4887,7 @@ function aNext(){
 }
 // ---- vista principale
 function accView(){
-  accEnsure();return view=='cdash'?cDash():view=='cinv'?cInv():view=='cscad'?cScadV():view=='cpn'?cPn():view=='cgio'?cGio():view=='cmas'?cMas():view=='cbil'?cBil():view=='cimp'?cImp():view=='cces'?cCes():view=='csim'?cSim():cIva();
+  accEnsure();return view=='cdash'?cDash():view=='cinv'?cInv():view=='cscad'?cScadV():view=='cpn'?cPn():view=='cgio'?cGio():view=='cmas'?cMas():view=='cbil'?cBil():view=='cimp'?cImp():view=='chr'?cHr():view=='cces'?cCes():view=='csim'?cSim():cIva();
 }
 function cDash(){
   const E_=D.inv.filter(i=>i.dir=='E'&&aSt(i)!='ok'),R_=D.inv.filter(i=>i.dir=='R'&&aSt(i)!='ok');
@@ -6016,6 +6016,205 @@ function ecGo(){
 }
 
 
+// ===================== PERSONALE: ORE, FERIE, PERMESSI E CEDOLINO =====================
+// Dati: D.hre (dipendenti) e D.hrd (una riga per dipendente e giorno con le ore per voce).
+// Il prospetto mensile è un riepilogo delle ore: non calcola contributi e imposte e non sostituisce il cedolino del consulente del lavoro.
+const HRK=[['ord','Ordinarie'],['str','Straordinario'],['fer','Ferie'],['per','Permessi'],['rol','ROL'],['mal','Malattia'],['fes','Festività'],['ass','Assenza']];
+const HRS={ord:'Ord.',str:'Straord.',fer:'Ferie',per:'Perm.',rol:'ROL',mal:'Malat.',fes:'Festiv.',ass:'Assenza'};
+const HR_DN=['Dom','Lun','Mar','Mer','Gio','Ven','Sab'],HR_MN=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+let hrT='pres',hrE=0,hrM=new Date().toISOString().slice(0,7);
+const hrF=h=>(!h||Math.abs(h)<.005)?'':String(r2(h)).replace('.',',');
+const hrF0=h=>String(r2(h||0)).replace('.',',');
+const hrMese=ym=>HR_MN[+ym.slice(5,7)-1]+' '+ym.slice(0,4);
+const hrHd=e=>(+e.hw||40)/((e.wd||[]).length||5);
+const _hrH={};
+function hrHol(y){ // festività nazionali italiane (con Pasquetta)
+  if(_hrH[y])return _hrH[y];
+  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),
+    mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1,pa=y+'-'+String(mo).padStart(2,'0')+'-'+String(da).padStart(2,'0');
+  const s=new Set(['01-01','01-06','04-25','05-01','06-02','08-15','11-01','12-08','12-25','12-26'].map(x=>y+'-'+x));s.add(aAdd(pa,1));return _hrH[y]=s;
+}
+function hrDays(ym){const y=+ym.slice(0,4),m=+ym.slice(5,7),n=new Date(y,m,0).getDate(),o=[];for(let d=1;d<=n;d++)o.push(ym+'-'+String(d).padStart(2,'0'));return o}
+const hrDow=d=>new Date(d+'T12:00:00').getDay();
+const hrActive=(e,d)=>(!e.from||d>=e.from)&&(!e.to||d<=e.to);
+const hrIsHol=d=>hrHol(+d.slice(0,4)).has(d);
+const hrWork=(e,d)=>hrActive(e,d)&&(e.wd||[]).includes(hrDow(d))&&!hrIsHol(d);
+const hrIdx=()=>{const x={};D.hrd.forEach(r=>x[r.emp+'|'+r.date]=r);return x};
+const hrZero=()=>Object.fromEntries(HRK.map(([k])=>[k,0]));
+function hrVal(e,d,ix){const r=ix[e.id+'|'+d];
+  if(r){const z=hrZero();HRK.forEach(([k])=>z[k]=+r[k]||0);return{...z,note:r.note||'',rec:r}}
+  const z=hrZero();if(hrActive(e,d)&&(e.wd||[]).includes(hrDow(d))&&hrIsHol(d)){z.fes=hrHd(e);z.auto=1}
+  return{...z,note:'',rec:null};
+}
+function hrBal(e,Y,M,k){ // ferie (ore) o ROL (ore): residuo iniziale + maturato - goduto
+  const hd=hrHd(e),ann=k=='fer'?(+e.fer||0)*hd:(+e.rol||0),r0=e.r0||{};
+  let y0=r0.y?+r0.y:Y;if(y0>Y)y0=Y;if(y0<Y-15)y0=Y-15;
+  let open=(+r0.y==y0)?(+r0[k]||0):0,out={open:0,accr:0,used:0,res:0};const rs=D.hrd.filter(r=>r.emp==e.id);
+  for(let y=y0;y<=Y;y++){
+    const mm=y==Y?M:12;let n=0;
+    for(let m=1;m<=mm;m++){const st=y+'-'+String(m).padStart(2,'0')+'-01',en=y+'-'+String(m).padStart(2,'0')+'-'+new Date(y,m,0).getDate();if((!e.from||en>=e.from)&&(!e.to||st<=e.to))n++}
+    const accr=ann/12*n,used=rs.filter(r=>+r.date.slice(0,4)==y&&+r.date.slice(5,7)<=mm).reduce((t,r)=>t+(+r[k]||0),0),res=open+accr-used;
+    if(y==Y)out={open:r2(open),accr:r2(accr),used:r2(used),res:r2(res)};
+    open=res;
+  }
+  return out;
+}
+const hrSameOp=(op,e)=>{const a=String(op||'').trim().toLowerCase(),b=String(e.n||'').trim().toLowerCase();return !!a&&(a==b||b.startsWith(a+' '))};
+function hrSlip(e,ym,ix){
+  ix=ix||hrIdx();const rows=hrDays(ym).map(d=>({d,dow:hrDow(d),hol:hrIsHol(d),w:hrWork(e,d),v:hrVal(e,d,ix)}));
+  const t=hrZero();rows.forEach(r=>HRK.forEach(([k])=>t[k]+=r.v[k]));HRK.forEach(([k])=>t[k]=r2(t[k]));
+  const p=+e.paga||0,imp={ord:t.ord*p,str:t.str*p*(1+(+e.strp||0)/100),fer:t.fer*p,per:t.per*p,rol:t.rol*p,mal:t.mal*p*((e.malp==null||e.malp==='')?100:+e.malp)/100,fes:t.fes*p,ass:0};
+  Object.keys(imp).forEach(k=>imp[k]=r2(imp[k]));
+  const Y=+ym.slice(0,4),M=+ym.slice(5,7);
+  return{e,ym,rows,t,imp,lordo:r2(Object.values(imp).reduce((a,b)=>a+b,0)),th:r2(rows.filter(r=>r.w).length*hrHd(e)),
+    comm:r2(D.hours.filter(h=>(h.date||'').slice(0,7)==ym&&hrSameOp(h.op,e)).reduce((a,h)=>a+(+h.h||0),0)),
+    fer:hrBal(e,Y,M,'fer'),rol:hrBal(e,Y,M,'rol'),worked:r2(t.ord+t.str),paid:r2(t.ord+t.fer+t.per+t.rol+t.mal+t.fes)};
+}
+const hrEmps=()=>D.hre.slice().sort((a,b)=>(a.off?1:0)-(b.off?1:0)||(a.n||'').localeCompare(b.n||''));
+function hrCur(){let e=D.hre.find(x=>x.id==hrE);if(!e){e=hrEmps().find(x=>!x.off)||hrEmps()[0];hrE=e?e.id:0}return e||null}
+// ---- vista
+function cHr(){
+  accEnsure();
+  const tb=[['pres','Presenze'],['emp','Dipendenti'],['ced','Cedolino']].map(([k,l])=>`<button class="b ${hrT==k?'pri':''}" onclick="hrT='${k}';render()">${l}</button>`).join('');
+  return `<div class="tools">${tb}<span class="mut" style="flex:1"></span>${hrT=='emp'?'<button class="b pri" onclick="hrEdit(0)">Nuovo dipendente</button>':''}</div>`+(hrT=='emp'?hrEmpV():hrT=='ced'?hrCedV():hrPresV());
+}
+function hrNoEmp(){return `<div class="empty">Non ci sono ancora dipendenti. <button class="b pri" onclick="hrEdit(0)">Aggiungi il primo dipendente</button></div>`}
+function hrEmpV(){
+  const L=hrEmps();if(!L.length)return hrNoEmp();
+  return `<div class="tw"><table><thead><tr><th>Nome</th><th>Qualifica</th><th class="n">Ore settimanali</th><th class="n">Paga oraria lorda</th><th>Assunzione</th><th>Stato</th></tr></thead><tbody>
+  ${L.map(e=>`<tr class="row" onclick="hrEdit(${e.id})"><td><b>${esc(e.n)}</b>${e.mat?'<br><small class="mut">matr. '+esc(e.mat)+'</small>':''}</td><td>${esc(e.qual||'')}${e.liv?' · '+esc(e.liv):''}</td><td class="n">${hrF0(e.hw)}</td><td class="n">${e.paga?eur2(e.paga):'-'}</td><td>${e.from?dt(e.from):'-'}</td><td>${e.off||(e.to&&e.to<TODAY)?'<span class="tag">non in forza</span>':'<span class="tag ok">in forza</span>'}</td></tr>`).join('')}
+  </tbody></table></div><p class="mut" style="font-size:12px">Per collegare le ore alle commesse, scrivi il nome come compare nelle ore di produzione (anche solo il nome di battesimo).</p>`;
+}
+function hrEdit(id){
+  const g=id?D.hre.find(x=>x.id==id):null,e=g?JSON.parse(JSON.stringify(g)):{n:'',mat:'',cf:'',qual:'Operaio',liv:'',hw:40,wd:[1,2,3,4,5],paga:0,strp:25,malp:100,fer:20,rol:104,from:'',to:'',r0:{y:+TODAY.slice(0,4),fer:0,rol:0},note:'',off:0};
+  const d=$('#dlg');d.oninput=null;d.classList.add('wide');const I=(i,l,v,t,x)=>`<label>${l}<input id="${i}" type="${t||'text'}" ${t=='number'?'step="any"':''} value="${esc(v??'')}" ${x||''}></label>`;
+  d.innerHTML=`<div class="dh"><h2>${id?'Dipendente':'Nuovo dipendente'}</h2></div><div class="db">
+   ${I('hN','Nome e cognome',e.n)}${I('hMat','Matricola',e.mat)}${I('hCf','Codice fiscale',e.cf)}${I('hQ','Qualifica',e.qual)}${I('hLiv','Livello',e.liv)}
+   ${I('hFrom','Data di assunzione',e.from,'date')}${I('hTo','Data di cessazione (se non più in forza)',e.to,'date')}
+   ${I('hHw','Ore settimanali da contratto',e.hw,'number')}
+   <label>Giorni lavorativi<span style="display:flex;gap:10px;flex-wrap:wrap;padding-top:6px">${[1,2,3,4,5,6,0].map(k=>`<label style="flex-direction:row;gap:4px;align-items:center;width:auto;font-size:13px"><input type="checkbox" class="hWd" value="${k}" ${(e.wd||[]).includes(k)?'checked':''} style="width:auto"> ${HR_DN[k]}</label>`).join('')}</span></label>
+   ${I('hPaga','Paga oraria lorda (€)',e.paga,'number')}${I('hStrp','Maggiorazione straordinario (%)',e.strp,'number')}${I('hMalp','Malattia retribuita al (%)',e.malp,'number')}
+   ${I('hFer','Giorni di ferie all’anno',e.fer,'number')}${I('hRol','Ore di ROL / permessi all’anno',e.rol,'number')}
+   ${I('hRy','Residui iniziali: anno di riferimento',(e.r0||{}).y,'number')}${I('hRf','Ferie residue al 1° gennaio (ore)',(e.r0||{}).fer,'number')}${I('hRr','ROL residui al 1° gennaio (ore)',(e.r0||{}).rol,'number')}
+   <label class="full">Note<input id="hNote" value="${esc(e.note||'')}"></label></div>
+   <div class="df">${id?`<button class="b dng l" onclick="hrDel(${id})">Elimina</button>`:''}<button class="b" onclick="$('#dlg').close()">Annulla</button><button class="b pri" onclick="hrSave(${id})">Salva</button></div>`;
+  d.showModal();
+}
+function hrSave(id){
+  const n=$('#hN').value.trim();if(!n){alert('Scrivi il nome del dipendente.');return}
+  const wd=[...document.querySelectorAll('.hWd:checked')].map(c=>+c.value);if(!wd.length){alert('Scegli almeno un giorno lavorativo.');return}
+  const hw=parseFloat($('#hHw').value)||0;if(hw<=0){alert('Inserisci le ore settimanali.');return}
+  const num=i=>parseFloat(String($(i).value).replace(',','.'))||0;
+  const f={n,mat:$('#hMat').value.trim(),cf:$('#hCf').value.trim().toUpperCase(),qual:$('#hQ').value.trim(),liv:$('#hLiv').value.trim(),from:$('#hFrom').value||'',to:$('#hTo').value||'',hw,wd,paga:num('#hPaga'),strp:num('#hStrp'),malp:$('#hMalp').value===''?100:num('#hMalp'),fer:num('#hFer'),rol:num('#hRol'),r0:{y:+$('#hRy').value||+TODAY.slice(0,4),fer:num('#hRf'),rol:num('#hRr')},note:$('#hNote').value.trim()};
+  const g=id?D.hre.find(x=>x.id==id):{id:aId(),off:0};Object.assign(g,f);if(!id){D.hre.push(g);hrE=g.id}
+  addLog('Personale: '+(id?'modificato':'aggiunto')+' dipendente '+n);save();$('#dlg').close();render();
+}
+function hrDel(id){const e=D.hre.find(x=>x.id==id);if(!e)return;
+  askConfirm('Eliminare '+e.n+' e tutte le sue presenze registrate? L’operazione non si può annullare. Se è solo cessato, inserisci la data di cessazione.',()=>{
+    D.hre=D.hre.filter(x=>x.id!=id);D.hrd=D.hrd.filter(r=>r.emp!=id);if(hrE==id)hrE=0;addLog('Personale: eliminato dipendente '+e.n);save();$('#dlg').close();render()})}
+// ---- presenze
+function hrPresV(){
+  const e=hrCur();if(!e)return hrNoEmp();
+  const emps=hrEmps().map(x=>`<option value="${x.id}" ${x.id==e.id?'selected':''}>${esc(x.n)}${x.off?' (non in forza)':''}</option>`).join('');
+  const s=hrSlip(e,hrM),hd=hrHd(e);
+  const head=HRK.map(([k])=>`<th class="n">${HRS[k]}</th>`).join('');
+  const rows=s.rows.map(r=>{const we=!(e.wd||[]).includes(r.dow),act=hrActive(e,r.d),dis=!act?'disabled':'',bg=r.hol?'background:#fdf3e1':(we?'background:var(--soft)':'');
+    return `<tr style="${bg}"><td style="white-space:nowrap"><b>${HR_DN[r.dow]}</b> ${r.d.slice(8)}${r.hol?' <span class="tag">festivo</span>':''}</td>
+    ${HRK.map(([k])=>`<td class="n"><input type="number" step="0.25" min="0" ${dis} data-d="${r.d}" data-k="${k}" value="${hrF(r.v[k])}" onchange="hrSet(${e.id},'${r.d}','${k}',this.value)" style="width:68px;text-align:right;padding:4px 6px;${r.v.auto&&k=='fes'?'color:#8a6d3b;font-style:italic':''}"></td>`).join('')}
+    <td class="n" id="hrt${r.d}"><b>${hrF(r.v.ord+r.v.str+r.v.fer+r.v.per+r.v.rol+r.v.mal+r.v.fes)||'-'}</b></td>
+    <td><select ${dis} onchange="hrQuick(${e.id},'${r.d}',this.value)" style="width:100px;padding:3px"><option value="">Rapido…</option><option value="ord">Giornata</option><option value="fer">Ferie</option><option value="mal">Malattia</option><option value="fes">Festività</option><option value="ass">Assenza</option><option value="x">Azzera</option></select></td>
+    <td><input ${dis} value="${esc(r.v.note)}" onchange="hrNote(${e.id},'${r.d}',this.value)" style="min-width:140px;padding:4px 6px"></td></tr>`}).join('');
+  return `<div class="tools"><select onchange="hrE=+this.value;render()">${emps}</select>
+   <button class="b" onclick="hrNav(-1)">◀</button><input type="month" value="${hrM}" onchange="hrM=this.value||hrM;render()" style="width:auto"><button class="b" onclick="hrNav(1)">▶</button>
+   <button class="b" onclick="hrFill()" title="Inserisce ${hrF0(hd)} ore ordinarie nei giorni lavorativi ancora vuoti">Precompila il mese</button><button class="b" onclick="hrPer()">Periodo (ferie, malattia…)</button><button class="b dng" onclick="hrClear()">Svuota il mese</button><button class="b" onclick="hrPdf(${e.id})">Cedolino PDF</button></div>
+   <div class="tw"><table style="min-width:0"><thead><tr><th>Giorno</th>${head}<th class="n">Totale</th><th></th><th>Note</th></tr></thead><tbody>${rows}</tbody><tfoot id="hrfoot">${hrFoot(s)}</tfoot></table></div>
+   <p class="mut" style="font-size:12px">Orario di ${esc(e.n)}: ${hrF0(e.hw)} ore settimanali, ${hrF0(hd)} ore al giorno. Le festività cadute in un giorno lavorativo sono inserite in automatico. Le ore si salvano appena le scrivi.</p>`;
+}
+function hrFoot(s){const t=s.t,tot=r2(t.ord+t.str+t.fer+t.per+t.rol+t.mal+t.fes);
+  return `<tr style="font-weight:700"><td>Totale mese</td>${HRK.map(([k])=>`<td class="n">${hrF(t[k])||'-'}</td>`).join('')}<td class="n">${hrF0(tot)}</td><td colspan="2" class="mut" style="font-weight:400">ore teoriche del mese: ${hrF0(s.th)}${s.comm?' · ore su commesse: '+hrF0(s.comm):''}</td></tr>`}
+function hrRefresh(){const e=hrCur();if(!e)return;const s=hrSlip(e,hrM);
+  s.rows.forEach(r=>{const c=document.getElementById('hrt'+r.d);if(c)c.innerHTML='<b>'+(hrF(r.v.ord+r.v.str+r.v.fer+r.v.per+r.v.rol+r.v.mal+r.v.fes)||'-')+'</b>'});
+  const f=document.getElementById('hrfoot');if(f)f.innerHTML=hrFoot(s)}
+function hrNav(n){const y=+hrM.slice(0,4),m=+hrM.slice(5,7)-1+n,d=new Date(y,m,1);hrM=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');render()}
+function hrRec(e,d,ix){ix=ix||hrIdx();let r=ix[e.id+'|'+d];
+  if(!r){const cur=hrVal(e,d,ix);r={id:aId(),emp:e.id,date:d,note:''};HRK.forEach(([k])=>r[k]=cur[k]);D.hrd.push(r)}return r}
+function hrTidy(e,r){
+  if(HRK.every(([k])=>!(+r[k]))&&!r.note){const auto=hrActive(e,r.date)&&(e.wd||[]).includes(hrDow(r.date))&&hrIsHol(r.date);if(auto)r.x=1;else D.hrd=D.hrd.filter(z=>z!==r)}else delete r.x}
+function hrSet(eid,d,k,v){const e=D.hre.find(x=>x.id==eid);if(!e)return;
+  const n=Math.max(0,parseFloat(String(v).replace(',','.'))||0);if(n>24){toast('Un giorno non può avere più di 24 ore.');render();return}
+  const r=hrRec(e,d);r[k]=n;
+  hrTidy(e,r);save();hrRefresh()}
+function hrNote(eid,d,v){const e=D.hre.find(x=>x.id==eid);if(!e)return;const r=hrRec(e,d);r.note=v.trim();hrTidy(e,r);save()}
+function hrQuick(eid,d,v){const e=D.hre.find(x=>x.id==eid);if(!e||!v)return;const r=hrRec(e,d);
+  HRK.forEach(([k])=>r[k]=0);delete r.x;if(v!='x')r[v]=hrHd(e);hrTidy(e,r);save();render()}
+function hrFill(){const e=hrCur();if(!e)return;const ix=hrIdx();let n=0;
+  hrDays(hrM).forEach(d=>{if(hrWork(e,d)&&!ix[e.id+'|'+d]){const r={id:aId(),emp:e.id,date:d,note:''};HRK.forEach(([k])=>r[k]=0);r.ord=hrHd(e);D.hrd.push(r);n++}});
+  save();render();toast(n?n+' giorni precompilati con '+hrF0(hrHd(e))+' ore.':'Nessun giorno da precompilare.')}
+function hrClear(){const e=hrCur();if(!e)return;
+  askConfirm('Svuotare tutte le ore di '+e.n+' per '+hrMese(hrM)+'?',()=>{D.hrd=D.hrd.filter(r=>!(r.emp==e.id&&r.date.slice(0,7)==hrM));save();render()})}
+function hrPer(){const e=hrCur();if(!e)return;const d=$('#dlg');d.oninput=null;d.classList.remove('wide');
+  d.innerHTML=`<div class="dh"><h2>Periodo di assenza · ${esc(e.n)}</h2></div><div class="db">
+   <label>Dal<input id="pF" type="date" value="${hrM}-01"></label><label>Al<input id="pT" type="date" value="${hrM}-01"></label>
+   <label class="full">Tipo<select id="pK"><option value="fer">Ferie</option><option value="mal">Malattia</option><option value="rol">ROL</option><option value="per">Permesso</option><option value="ass">Assenza non retribuita</option><option value="ord">Ore ordinarie</option></select></label>
+   <p class="mut full" style="font-size:12px">Viene compilata una giornata intera nei soli giorni lavorativi del periodo (esclusi festivi e giorni di riposo). Le ore già scritte in quei giorni vengono sostituite.</p></div>
+   <div class="df"><button class="b" onclick="$('#dlg').close()">Annulla</button><button class="b pri" onclick="hrPerGo()">Applica</button></div>`;d.showModal()}
+function hrPerGo(){const e=hrCur(),a=$('#pF').value,b=$('#pT').value,k=$('#pK').value;if(!e||!a||!b||b<a){alert('Controlla le date del periodo.');return}
+  const ix=hrIdx();let n=0;for(let d=a;d<=b&&n<400;d=aAdd(d,1)){if(!hrWork(e,d))continue;const r=hrRec(e,d,ix);ix[e.id+'|'+d]=r;HRK.forEach(([q])=>r[q]=0);r[k]=hrHd(e);delete r.x;n++}
+  if(!n){alert('Nel periodo scelto non ci sono giorni lavorativi.');return}
+  hrM=a.slice(0,7);save();$('#dlg').close();render();toast(n+(n==1?' giorno registrato.':' giorni registrati.'))}
+// ---- cedolino
+function hrCedV(){
+  const L=hrEmps().filter(x=>!x.off);if(!D.hre.length)return hrNoEmp();
+  const sel=hrE==-1?-1:(hrCur()||{}).id,emps=`<option value="-1" ${sel==-1?'selected':''}>Tutti i dipendenti</option>`+hrEmps().map(x=>`<option value="${x.id}" ${x.id==sel?'selected':''}>${esc(x.n)}</option>`).join('');
+  const bar=`<div class="tools"><select onchange="hrE=+this.value;render()">${emps}</select><button class="b" onclick="hrNav(-1)">◀</button><input type="month" value="${hrM}" onchange="hrM=this.value||hrM;render()" style="width:auto"><button class="b" onclick="hrNav(1)">▶</button>
+   <button class="b" onclick="hrPdf(${sel})">PDF</button><button class="b" onclick="hrCsv(${sel})">Esporta CSV</button></div>`;
+  const note=`<p class="mut" style="font-size:12px">Prospetto riepilogativo delle ore del mese con importi lordi indicativi (ore × paga oraria). Non calcola contributi, imposte e altre voci di paga: per il cedolino ufficiale servono i dati al consulente del lavoro.</p>`;
+  if(sel==-1){const ix=hrIdx(),S=hrEmps().filter(e=>!e.off||e.from).map(e=>hrSlip(e,hrM,ix)).filter(s=>s.paid+s.t.ass+s.t.str>0||!s.e.off);
+    return bar+`<div class="tw"><table><thead><tr><th>Dipendente</th>${HRK.map(([k])=>`<th class="n">${HRS[k]}</th>`).join('')}<th class="n">Lordo indicativo</th></tr></thead><tbody>
+    ${S.map(s=>`<tr class="row" onclick="hrE=${s.e.id};render()"><td><b>${esc(s.e.n)}</b></td>${HRK.map(([k])=>`<td class="n">${hrF(s.t[k])||'-'}</td>`).join('')}<td class="n">${eur2(s.lordo)}</td></tr>`).join('')||`<tr><td colspan="10" class="mut">Nessun dato nel mese.</td></tr>`}
+    <tr style="font-weight:700"><td>Totale</td>${HRK.map(([k])=>`<td class="n">${hrF(r2(S.reduce((t,s)=>t+s.t[k],0)))||'-'}</td>`).join('')}<td class="n">${eur2(S.reduce((t,s)=>t+s.lordo,0))}</td></tr></tbody></table></div>`+note;}
+  const e=hrCur();if(!e)return hrNoEmp();const s=hrSlip(e,hrM),co=D.co||{},hd=hrHd(e);
+  const row=([k,l])=>{const h=s.t[k];return h||k=='ord'?`<tr><td>${l}${k=='str'&&e.strp?` <small class="mut">+${hrF0(e.strp)}%</small>`:''}${k=='mal'&&e.malp!=null&&+e.malp!=100?` <small class="mut">al ${hrF0(e.malp)}%</small>`:''}</td><td class="n">${hrF0(h)}</td><td class="n">${k=='ass'?'-':eur2(s.imp[k])}</td></tr>`:''};
+  const bal=(b,u)=>`<tr><td>${u=='fer'?'Ferie':'ROL / permessi'}</td><td class="n">${hrF0(b.open)}</td><td class="n">${hrF0(b.accr)}</td><td class="n">${hrF0(b.used)}</td><td class="n"><b>${hrF0(b.res)}</b>${u=='fer'&&hd?'<br><small class="mut">'+hrF0(r2(b.res/hd))+' giorni</small>':''}</td></tr>`;
+  return bar+`<div class="tw" style="padding:16px 18px;max-width:820px">
+   <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><h3 style="margin:0">Prospetto ore · ${esc(hrMese(hrM))}</h3><div class="mut">${esc(co.name||'')}</div></div>
+   <div style="text-align:right"><b>${esc(e.n)}</b><br><span class="mut">${esc([e.qual,e.liv,e.mat?'matr. '+e.mat:'',e.cf].filter(Boolean).join(' · '))}</span></div></div>
+   <table style="min-width:0;margin-top:12px"><thead><tr><th>Voce</th><th class="n">Ore</th><th class="n">Importo lordo</th></tr></thead><tbody>${HRK.map(row).join('')}
+    <tr style="font-weight:700"><td>Totale</td><td class="n">${hrF0(r2(s.paid+s.t.str+s.t.ass))}</td><td class="n">${eur2(s.lordo)}</td></tr></tbody></table>
+   <p class="mut" style="margin:8px 0">Ore teoriche del mese: <b>${hrF0(s.th)}</b> · ore lavorate: <b>${hrF0(s.worked)}</b>${s.comm?' · ore imputate alle commesse: <b>'+hrF0(s.comm)+'</b>':''}</p>
+   <h4 style="margin:14px 0 6px">Ferie e permessi (ore) · situazione a fine mese</h4>
+   <table style="min-width:0"><thead><tr><th></th><th class="n">Residuo 1° gen.</th><th class="n">Maturate</th><th class="n">Godute</th><th class="n">Residuo</th></tr></thead><tbody>${bal(s.fer,'fer')}${bal(s.rol,'rol')}</tbody></table></div>`+note;
+}
+function hrSlipPdf(doc,s,first){
+  const e=s.e,co=D.co||{};if(!first){doc.addPage();doc.y=18}
+  pdfSec(doc,e.n+' · '+hrMese(s.ym));
+  pdfNote(doc,[e.qual,e.liv,e.mat?'Matricola '+e.mat:'',e.cf?'CF '+e.cf:'',hrF0(e.hw)+' ore settimanali'].filter(Boolean).join('   ·   '));
+  pdfTbl(doc,['Voce','Ore','Importo lordo'],[...HRK.filter(([k])=>s.t[k]||k=='ord').map(([k,l])=>[l+(k=='str'&&e.strp?' (+'+hrF0(e.strp)+'%)':''),hrF0(s.t[k]),k=='ass'?'-':pe(s.imp[k])]),[pB('Totale'),pB(hrF0(r2(s.paid+s.t.str+s.t.ass))),pB(pe(s.lordo))]],aRO([1,2]));
+  pdfNote(doc,'Ore teoriche del mese: '+hrF0(s.th)+'   ·   ore lavorate: '+hrF0(s.worked)+(s.comm?'   ·   ore imputate alle commesse: '+hrF0(s.comm):''));
+  const hd=hrHd(e),b=(x,l,g)=>[l,hrF0(x.open),hrF0(x.accr),hrF0(x.used),hrF0(x.res)+(g&&hd?' ('+hrF0(r2(x.res/hd))+' gg)':'')];
+  pdfTbl(doc,['Ferie e permessi (ore)','Residuo 1° gen.','Maturate','Godute','Residuo'],[b(s.fer,'Ferie',1),b(s.rol,'ROL / permessi',0)],aRO([1,2,3,4]));
+  const det=s.rows.filter(r=>HRK.some(([k])=>r.v[k])||r.v.note);
+  if(det.length){pdfSec(doc,'Dettaglio giornaliero');pdfTbl(doc,['Giorno',...HRK.map(([k])=>HRS[k]),'Note'],det.map(r=>[HR_DN[r.dow]+' '+r.d.slice(8),...HRK.map(([k])=>hrF(r.v[k])),r.v.note]),{...aRO([1,2,3,4,5,6,7,8]),styles:{fontSize:8,cellPadding:1.5}})}
+}
+async function hrPdf(id){
+  if(!pdfReady())return;
+  if(id==-1||!id){const ix=hrIdx(),S=hrEmps().filter(e=>!e.off||e.from).map(e=>hrSlip(e,hrM,ix));
+    if(!S.length){toast('Nessun dipendente.');return}
+    const doc=pdfDoc('Ore del personale · '+hrMese(hrM),'Generato il '+today(),true);
+    pdfTbl(doc,['Dipendente',...HRK.map(([k])=>HRS[k]),'Lordo indicativo'],[...S.map(s=>[s.e.n,...HRK.map(([k])=>hrF(s.t[k])),pe(s.lordo)]),[pB('Totale'),...HRK.map(([k])=>pB(hrF(r2(S.reduce((t,s)=>t+s.t[k],0))))),pB(pe(S.reduce((t,s)=>t+s.lordo,0)))]],aRO([1,2,3,4,5,6,7,8,9]));
+    pdfNote(doc,'Prospetto riepilogativo: importi lordi indicativi, senza contributi e imposte.');
+    await pdfSave(doc,'Ore_personale_'+hrM+'.pdf');return}
+  const e=D.hre.find(x=>x.id==id);if(!e)return;
+  const doc=pdfDoc('Prospetto ore del personale','Mese di '+hrMese(hrM)+'   |   Generato il '+today(),false);
+  hrSlipPdf(doc,hrSlip(e,hrM),true);pdfNote(doc,'Prospetto riepilogativo delle ore con importi lordi indicativi (ore × paga oraria). Non calcola contributi e imposte e non sostituisce il cedolino del consulente del lavoro.');
+  await pdfSave(doc,'Ore_'+e.n.replace(/\s+/g,'_')+'_'+hrM+'.pdf');
+}
+function hrCsv(id){
+  const emps=(id==-1||!id)?hrEmps().filter(e=>!e.off||e.from):[D.hre.find(x=>x.id==id)].filter(Boolean),ix=hrIdx();
+  aCsv('Ore_personale_'+hrM,['Dipendente','Matricola',...HRK.map(([,l])=>l),'Ore teoriche','Lordo indicativo'],emps.map(e=>{const s=hrSlip(e,hrM,ix);return[e.n,e.mat||'',...HRK.map(([k])=>aF(s.t[k])),aF(s.th),aF(s.lordo)]}));
+}
+
+
 // ---------- avvio
 (function(){AUTH_READY=true;authInit();let sid=null;try{sid=+sessionStorage.getItem('carp_sess')}catch(e){}
   const u=D.users.find(x=>x.id==sid&&x.on);
@@ -6027,7 +6226,7 @@ function ecGo(){
 (function(){
 const C=window.GC_CLOUD;if(!C)return;
 const API=C.url.replace(/\/+$/,''),PK=C.key,SK='gc_cloud_session',DOM='@gc-gremo.app';
-const COLL=['cl','sup','items','jobs','quotes','orders','moves','hours','rcv','xsheets','sl','nt','inv','cmov','cset','pdc','reg','ces'];
+const COLL=['cl','sup','items','jobs','quotes','orders','moves','hours','rcv','xsheets','sl','nt','inv','cmov','cset','pdc','reg','ces','hre','hrd'];
 const NOCONF=new Set([...COLL,'users','roles','log']);
 let SES=null,SYNC={},CONFV=null,WM='',PEND=[],pushing=0,again=0,pushT=null,pollT=null,authT=null,online=true,errCnt=0,LOADED=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -6476,9 +6675,9 @@ setInterval(()=>{if(ME)stat()},4000);
 <script>
 /* ===== VARIANTE UFFICIO · barra multifunzione, barra di stato, scorciatoie ===== */
 (function(){
-const IC={dash:'M3 12l9-8 9 8M5 10v10h14V10',jobs:'M4 6h16M4 12h16M4 18h10',quotes:'M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6',ordc:'M5 4h14v16H5zM9 9h6M9 13h6',sheets:'M4 4h16v16H4zM4 12h16M12 4v16',fatt:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',items:'M3 8l9-5 9 5v12H3zM9 20v-7h6v7',prod:'M12 3l9 5v8l-9 5-9-5V8zM12 12l9-4M12 12v9M12 12L3 8',orders:'M3 5h3l2 11h10l2-8H7',hours:'M12 7v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z',cl:'M16 11a4 4 0 10-8 0 4 4 0 008 0zM4 21c1-4 4-6 8-6s7 2 8 6',sup:'M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',imp:'M12 15a3 3 0 100-6 3 3 0 000 6zM12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1',usr:'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',nuovo:'M12 5v14M5 12h14',pdf:'M6 3h9l4 4v14H6zM14 3v5h5',stats:'M4 20V10M10 20V4M16 20v-8M22 20H2',cdash:'M4 20V10M10 20V4M16 20v-8M22 20H2',cinv:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',cscad:'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',cpn:'M5 4h14v16H5zM9 9h6M9 13h6M9 17h4',cces:'M3 8l9-5 9 5v12H3zM9 20v-7h6v7',cgio:'M5 4h12a2 2 0 012 2v14H7a2 2 0 01-2-2zM9 9h6M9 13h6',cmas:'M4 4h16v16H4zM4 12h16M12 4v16',cbil:'M4 20V4M4 20h16M8 16v-5M12 16V8M16 16v-3',civa:'M5 19L19 5M7 8a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',csim:'M4 4h16v16H4zM8 8h8M8 12h3M13 12h3M8 16h3M13 16h3',cimp:'M12 15a3 3 0 100-6 3 3 0 000 6zM12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1',cerca:'M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-4-4'};
+const IC={dash:'M3 12l9-8 9 8M5 10v10h14V10',jobs:'M4 6h16M4 12h16M4 18h10',quotes:'M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6',ordc:'M5 4h14v16H5zM9 9h6M9 13h6',sheets:'M4 4h16v16H4zM4 12h16M12 4v16',fatt:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',items:'M3 8l9-5 9 5v12H3zM9 20v-7h6v7',prod:'M12 3l9 5v8l-9 5-9-5V8zM12 12l9-4M12 12v9M12 12L3 8',orders:'M3 5h3l2 11h10l2-8H7',hours:'M12 7v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z',cl:'M16 11a4 4 0 10-8 0 4 4 0 008 0zM4 21c1-4 4-6 8-6s7 2 8 6',sup:'M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',imp:'M12 15a3 3 0 100-6 3 3 0 000 6zM12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1',usr:'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',nuovo:'M12 5v14M5 12h14',pdf:'M6 3h9l4 4v14H6zM14 3v5h5',stats:'M4 20V10M10 20V4M16 20v-8M22 20H2',cdash:'M4 20V10M10 20V4M16 20v-8M22 20H2',cinv:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',cscad:'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',cpn:'M5 4h14v16H5zM9 9h6M9 13h6M9 17h4',cces:'M3 8l9-5 9 5v12H3zM9 20v-7h6v7',cgio:'M5 4h12a2 2 0 012 2v14H7a2 2 0 01-2-2zM9 9h6M9 13h6',chr:'M12 11a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0',cmas:'M4 4h16v16H4zM4 12h16M12 4v16',cbil:'M4 20V4M4 20h16M8 16v-5M12 16V8M16 16v-3',civa:'M5 19L19 5M7 8a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',csim:'M4 4h16v16H4zM8 8h8M8 12h3M13 12h3M8 16h3M13 16h3',cimp:'M12 15a3 3 0 100-6 3 3 0 000 6zM12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1',cerca:'M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-4-4'};
 const G=[['Cruscotto',[['dash','Cruscotto'],['stats','Statistiche']]],['Commesse',[['jobs','Commesse'],['sheets','Schede'],['quotes','Preventivi'],['ordc','Ordini cl.'],['fatt','Fattura']]],['Magazzino',[['items','Inventario'],['prod','Prodotti'],['orders','Ordini']]],['Personale',[['hours','Ore']]],['Anagrafica',[['cl','Clienti'],['sup','Fornitori']]]];
-const GC=[['Contabilità',[['cdash','Cruscotto'],['cinv','Fatture'],['cscad','Scadenze']]],['Registrazioni',[['cpn','Prima nota'],['cces','Cespiti'],['cgio','Giornale'],['cmas','Mastro'],['cbil','Bilancio']]],['Fiscale',[['civa','IVA'],['csim','Simulazione']]]];
+const GC=[['Contabilità',[['cdash','Cruscotto'],['cinv','Fatture'],['cscad','Scadenze']]],['Personale',[['chr','Personale']]],['Registrazioni',[['cpn','Prima nota'],['cces','Cespiti'],['cgio','Giornale'],['cmas','Mastro'],['cbil','Bilancio']]],['Fiscale',[['civa','IVA'],['csim','Simulazione']]]];
 const ico=(d,c)=>`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
 function first(sel,rx){const l=[...document.querySelectorAll(sel)];return rx?l.find(b=>rx.test(b.textContent)):l[0]}
 function nuovo(){const b=first('#main button.pri')||first('#main .tools button.b',/^\s*(\+|Nuov|Aggiung|Registra|Crea)/i);if(b)b.click();else if(typeof toast=='function')toast('In questa schermata non c’è nulla da creare.')}
