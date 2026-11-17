@@ -205,7 +205,7 @@ body.lock #sb,body.lock #rb{display:none}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;try{t.hidePopover()}catch(e){}try{t.showPopover()}catch(e){}clearTimeout(t._t);t._t=setTimeout(()=>{try{t.hidePopover()}catch(e){}},7000)}
 window.alert=toast;
 function askConfirm(msg,yes){const d=document.getElementById('cfm');document.getElementById('cfmm').textContent=msg;document.getElementById('cfmy').onclick=()=>{d.close();yes()};d.showModal()}
-const APP_VER='1.5.0', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
+const APP_VER='1.5.1', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
 const OLDPH=['Taglio','Saldatura','Assemblaggio','Verniciatura/zincatura','Collaudo','Montaggio'], PHMAP=[0,0,0,1,0,2];
 const V28=['In produzione','Verniciatura/zincatura','Montaggio'];
 const PH=['Produzione','Zincatura/Verniciatura','Montaggio'];
@@ -4679,7 +4679,7 @@ function bsId(r){
   const c=BSV[view];if(!c)return null;
   if(c.data)return r.dataset&&r.dataset.id?r.dataset.id:null;
   if(!r.classList.contains('row')||(r.dataset&&r.dataset.c))return null;
-  const m=c.re.exec((r.getAttribute('onclick')||'').trim());return m?m[1]:null;
+  const m=c.re.exec((r.getAttribute('onclick')||'').trim());return m?(m[2]?m[1]+':'+m[2]:m[1]):null;
 }
 function bsInject(){
   if(!bsOk()){if(BS.ids.size){BS.ids=new Set()}bsBar();return}
@@ -4753,7 +4753,7 @@ Object.assign(BSV,{
   cscad:{re:/^invEdit\((\d+)\)/,n:['fattura','fatture'],warn:'Vengono eliminate le fatture e gli incassi o pagamenti registrati su di esse.'},
   cpn:{re:/^pnEdit\((\d+)\)/,n:['movimento','movimenti'],warn:'Lo stato delle fatture collegate si aggiorna. I giroconti vengono eliminati su entrambi i conti.'},
   cces:{re:/^cesEdit\((\d+)\)/,n:['cespite','cespiti'],warn:'Spariscono anche le scritture di ammortamento.'},
-  cgio:{re:/^regOpenSrc\('reg',(\d+)\)/,n:['scrittura manuale','scritture manuali'],warn:'Si eliminano solo le scritture inserite a mano: le registrazioni automatiche nascono da fatture, prima nota e cespiti.'}
+  cgio:{re:/^regOpenSrc\('(reg|inv|mov|ces)',(\d+)\)/,n:['scrittura','scritture'],warn:'Le scritture automatiche nascono da fatture, movimenti di prima nota e cespiti: eliminandole si elimina anche la fattura (con gli incassi e i pagamenti registrati), il movimento o il cespite da cui nascono.'}
 });
 const _bsd0=bsDelOne;
 bsDelOne=async function(id){
@@ -4761,7 +4761,12 @@ bsDelOne=async function(id){
     case 'cinv':case 'cscad':{const i=D.inv.find(x=>x.id==id);if(!i)return 0;D.cmov=D.cmov.filter(m=>m.inv!=id);D.inv=D.inv.filter(x=>x.id!=id);return 1}
     case 'cpn':{const m=D.cmov.find(x=>x.id==id);if(!m)return 0;D.cmov=m.giro?D.cmov.filter(x=>x.giro!=m.giro):D.cmov.filter(x=>x.id!=id);return 1}
     case 'cces':{if(!D.ces.some(x=>x.id==id))return 0;D.ces=D.ces.filter(x=>x.id!=id);return 1}
-    case 'cgio':{if(!D.reg.some(x=>x.id==id))return 0;D.reg=D.reg.filter(x=>x.id!=id);return 1}
+    case 'cgio':{const [t,n]=String(id).split(':');
+      if(t=='reg')D.reg=D.reg.filter(x=>x.id!=n);
+      else if(t=='inv'){D.cmov=D.cmov.filter(m=>m.inv!=n);D.inv=D.inv.filter(x=>x.id!=n)}
+      else if(t=='mov'){const m=D.cmov.find(x=>x.id==n);if(m)D.cmov=m.giro?D.cmov.filter(x=>x.giro!=m.giro):D.cmov.filter(x=>x.id!=n)}
+      else if(t=='ces')D.ces=D.ces.filter(x=>x.id!=n);
+      return 1}
   }
   return _bsd0.apply(this,arguments);
 };
@@ -5923,22 +5928,49 @@ function ecFromPn(){
   ecMatch(ecRows,false);ecRows.forEach(r=>{if(r.act=='x')r.tag='nessuna fattura trovata'});
   const d=$('#dlg');d.oninput=null;d.classList.add('wide');ecShow();
 }
+// fatture aperte del soggetto riconosciuto dalla descrizione banca (nome in anagrafica, alias imparato o fattura già proposta)
+function ecSubjIds(r,dir){
+  const col=dir=='E'?'cl':'sup',ids=new Set(),dt=ecTok((r.desc||'')+' '+(r.cpt||'')),ck=ecN(r.cpt).slice(0,28);
+  D[col].forEach(p=>{if((p.bk&&ck.length>=5&&p.bk.includes(ck))||ecPartyScore(dt,p.n)>=0.6)ids.add(p.id)});
+  (r.cands||[]).forEach(c=>c.forEach(id=>{const i=D.inv.find(x=>x.id==id);if(i&&i.party)ids.add(i.party)}));
+  return ids;
+}
+// restituisce il filtro sulle fatture (null = tutte): soggetto scelto a mano, altrimenti quello riconosciuto dal testo
+function ecSubjFilter(r,dir){
+  if(r.sj=='all')return null;
+  if(r.sj&&r.sj!='auto')return i=>i.party==r.sj;
+  const ids=ecSubjIds(r,dir),dt=ecTok((r.desc||'')+' '+(r.cpt||''));
+  return ids.size?(i=>i.party?ids.has(i.party):ecPartyScore(dt,i.pname||'')>=0.6):null;
+}
+function ecSjSel(r,k){
+  const dir=r.amt>0?'E':'R',col=dir=='E'?'cl':'sup',ids=ecSubjIds(r,dir),cur=r.sj||'auto',
+    nm_=[...ids].map(id=>(D[col].find(x=>x.id==id)||{}).n).filter(Boolean).join(', ');
+  const o=[['auto',ids.size?'Soggetto riconosciuto: '+nm_:'Soggetto non riconosciuto: scegli o mostra tutti'],['all','Tutti i soggetti']].concat(D[col].slice().sort((x,y)=>(x.n||'').localeCompare(y.n||'')).map(p=>[String(p.id),p.n]));
+  return `<select id="ecs${k}" onchange="ecSj(${k},this.value)" style="width:100%;min-width:300px;margin-top:4px;font-size:12px">${o.map(x=>`<option value="${esc(x[0])}" ${x[0]==cur?'selected':''}>${esc(x[1])}</option>`).join('')}</select>`;
+}
+function ecSj(k,v){const r=ecRows[k];r.sj=v;const e=$('#eca'+k);if(e){r.full=1;e.innerHTML=ecOpts(r,k,true);e.value=r.act}}
 function ecOpts(r,k,full){
-  const dir=r.amt>0?'E':'R',sel=r.act,ops=[['x','Ignora (non registrare)']];
+  const dir=r.amt>0?'E':'R',sel=(r.act=='n'&&r.cat)?'c:'+r.cat:r.act,ops=[['x','Ignora (non registrare)']];
   r.cands.forEach(c=>ops.push(['i:'+c.join(','),(c.length>1?'✓ Fatture ':'✓ Fattura ')+c.map(id=>{const i=D.inv.find(x=>x.id==id);return i?(i.num||'-'):''}).join(' + ')+' · '+(D.inv.find(x=>x.id==c[0])?aParty(D.inv.find(x=>x.id==c[0])):'')]));
   if(ecSrc=='pdf')ops.push(['n','Solo prima nota (senza fattura)']);
-  if(full||sel.slice(0,2)!='x'&&0)ecInvOpen(dir).slice(0,400).forEach(i=>{const v='i:'+i.id;if(!ops.some(o=>o[0]==v))ops.push([v,'Fattura '+ecIL(i)])});
-  if(!ops.some(o=>o[0]==sel))ops.push([sel,sel]);
+  catOpts(r.amt<0).forEach(c=>ops.push(['c:'+c,(ecSrc=='pdf'?'Registra come: ':'Classifica come: ')+c]));
+  let sub=false;
+  if(full){let L=ecInvOpen(dir);
+    const f=ecSubjFilter(r,dir);if(f)L=L.filter(f);
+    L.slice(0,400).forEach(i=>{const v='i:'+i.id;if(!ops.some(o=>o[0]==v))ops.push([v,'Fattura '+ecIL(i)])})}
+  if(!ops.some(o=>o[0]==sel)){const ii=sel.slice(0,2)=='i:'?sel.slice(2).split(',').map(id=>D.inv.find(x=>x.id==id)).filter(Boolean):[];ops.push([sel,ii.length?'Fattura '+ii.map(ecIL).join(' + '):sel])}
+
   return ops.map(o=>`<option value="${esc(o[0])}" ${o[0]==sel?'selected':''}>${esc(o[1])}</option>`).join('');
 }
 function ecShow(){
   const d=$('#dlg'),pdf=ecSrc=='pdf';
   const rows=ecRows.map((r,k)=>{const out=r.amt<0;if(ecF=='do'&&r.act=='x'||ecF=='no'&&r.act!='x'||ecF=='chk'&&!(r.conf=='b'&&!/già/.test(r.tag)))return'';return `<tr><td style="white-space:nowrap">${dt(r.date)}</td><td style="min-width:280px">${r.cpt?`<b style="font-size:12px">${esc(r.cpt.slice(0,60))}</b><br>`:''}<small>${esc(r.desc.slice(0,260))}</small>${r.tag?`<br><span style="display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;${/già|nessuna|classificare|non presente/.test(r.tag)?'background:#eceff1;color:#455a64':r.conf=='a'?'background:#e3f3e7;color:#1e6b34':r.conf=='m'?'background:#f1f8e1;color:#4d6b1e':'background:#fff3e0;color:#b45309'}">${esc(r.tag)}</span>`:''}${r.flag=='dir'?` <button class="b" title="Direzione incerta: inverti" onclick="ecFlip(${k})">⇄ direzione?</button>`:''}</td>
    <td class="n">${r.amt>0?eur2(r.amt):''}</td><td class="n">${out?eur2(-r.amt):''}</td>
-   <td><select id="eca${k}" onchange="ecAct(${k},this.value)" onfocus="ecFill(${k})" onmousedown="ecFill(${k})" style="width:100%;min-width:300px">${ecOpts(r,k,false)}</select>${pdf?`<select id="ecc${k}" style="${r.act=='n'?'':'display:none'};margin-top:4px" onchange="ecRows[${k}].cat=this.value">${[''].concat(catOpts(out)).map(c=>`<option ${c==r.cat?'selected':''}>${esc(c)}</option>`).join('')}</select>`:''}</td></tr>`}).join('');
+   <td><select id="eca${k}" onchange="ecAct(${k},this.value)" onfocus="ecFill(${k})" onmousedown="ecFill(${k})" style="width:100%;min-width:300px">${ecOpts(r,k,false)}</select>${ecSjSel(r,k)}${pdf?`<select id="ecc${k}" style="${r.act=='n'&&!r.cat?'':'display:none'};margin-top:4px" onchange="ecRows[${k}].cat=this.value;ecRows[${k}].act=this.value?'c:'+this.value:'n';ecShow()">${[''].concat(catOpts(out)).map(c=>`<option ${c==r.cat?'selected':''}>${esc(c)}</option>`).join('')}</select>`:''}</td>
+   <td><button class="b dng" title="${pdf?'Elimina questa voce dall’elenco':'Elimina questo movimento dalla prima nota'}" onclick="ecDel(${k})">Elimina</button></td></tr>`}).join('');
   d.innerHTML=`<div class="dh"><h2>${pdf?'Importa estratto conto':'Riconcilia prima nota'}</h2></div><div class="db" style="display:block">
    <div class="tools">${pdf?S('ecAcc','Conto di prima nota',accNames(),ecAcc).replace('<label','<label style="width:auto"'):''}<span class="mut" style="flex:1">${esc(ecInfo)}</span><select onchange="ecF=this.value;ecShow()" style="width:auto;min-width:0;height:34px;font-size:13px"><option value="all" ${ecF=='all'?'selected':''}>Mostra tutti</option><option value="do" ${ecF=='do'?'selected':''}>Solo da registrare</option><option value="chk" ${ecF=='chk'?'selected':''}>Solo da verificare</option><option value="no" ${ecF=='no'?'selected':''}>Solo ignorati / non abbinati</option></select></div>
-   ${ecRows.length?`<div class="tw"><table style="min-width:0"><thead><tr><th>Data</th><th>Descrizione banca</th><th class="n">Entrate</th><th class="n">Uscite</th><th>Riconciliazione</th></tr></thead><tbody>${rows}</tbody></table></div>
+   ${ecRows.length?`<div class="tw"><table style="min-width:0"><thead><tr><th>Data</th><th>Descrizione banca</th><th class="n">Entrate</th><th class="n">Uscite</th><th>Riconciliazione</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
    <p id="ecSum" class="mut" style="font-size:12px"></p>`:'<div class="empty">Nessun movimento riconosciuto nel file.</div>'}
    ${ecRaw?`<details style="margin-top:8px"><summary class="mut" style="cursor:pointer">Testo letto dal PDF (per controllare la lettura)</summary><pre style="max-height:200px;overflow:auto;font-size:11px;white-space:pre-wrap">${esc(ecRaw.slice(0,8000))}</pre></details>`:''}
   </div><div class="df"><button class="b" onclick="$('#dlg').close()">Chiudi</button>${ecRows.length?'<button class="b pri" onclick="ecGo()">Registra</button>':''}</div>`;
@@ -5948,12 +5980,22 @@ function ecShow(){
 function ecSum(){const e=$('#ecSum');if(!e)return;const n=ecRows.filter(r=>r.act!='x').length,f=ecRows.filter(r=>/^i:/.test(r.act)).length;
   const a=ecRows.filter(r=>/^i:/.test(r.act)&&r.conf=='a').length,v=ecRows.filter(r=>r.act!='x'&&r.conf=='b'&&!/già/.test(r.tag)).length;e.textContent=ecRows.length+' movimenti · '+f+' abbinati a fatture ('+a+' affidabili) · '+(n-f)+' solo in prima nota · '+(ecRows.length-n)+' ignorati · '+v+' da verificare. Le proposte automatiche sono sempre modificabili dal menu.'}
 function ecFill(k){const r=ecRows[k],e=$('#eca'+k);if(!e||r.full)return;r.full=1;const v=e.value;r.act=v;e.innerHTML=ecOpts(r,k,true)}
-function ecAct(k,v){ecRows[k].act=v;const c=$('#ecc'+k);if(c)c.style.display=v=='n'?'':'none';ecSum()}
+function ecAct(k,v){const r=ecRows[k];r.act=v;if(v.slice(0,2)=='c:')r.cat=v.slice(2);else if(v=='n')r.cat='';const c=$('#ecc'+k);if(c)c.style.display=v=='n'?'':'none';ecSum()}
+function ecDel(k){const r=ecRows[k];if(!r)return;
+  if(ecSrc=='pdf'){ecRows.splice(k,1);ecShow();return}
+  askConfirm('Eliminare dalla prima nota il movimento del '+dt(r.date)+' di '+eur2(Math.abs(r.amt))+'? L’operazione non si può annullare.',()=>{
+    D.cmov=D.cmov.filter(m=>m.id!=r.cm);ecRows.splice(k,1);addLog('Contabilità: eliminato movimento di prima nota da riconciliazione');save();ecShow();render()})}
 function ecFlip(k){const r=ecRows[k];r.amt=-r.amt;r.flag='';r.cm=null;ecMatch(ecRows,ecSrc=='pdf');ecShow()}
 function ecGo(){
   let nI=0,nN=0,nL=0;const tag=ecSrc=='pdf';
+  let nC=0;
   ecRows.forEach((r,k)=>{
-    if(r.act=='x')return;const sg=r.amt>0?1:-1,A=Math.abs(r.amt),key=tag?ecKey(r):'';
+    if(r.act=='x')return;
+    if(r.act.slice(0,2)=='c:'){const cat=r.act.slice(2);
+      if(r.cm){const ex=D.cmov.find(m=>m.id==r.cm);if(ex&&!ex.inv){ex.cat=cat;nC++}}
+      else{D.cmov.push({id:aId(),date:r.date,acc:ecAcc,amt:r.amt,cat,desc:'Estratto conto: '+(r.desc||'').slice(0,120),pname:r.pn||(r.cpt||'').slice(0,50),ec:tag?ecKey(r):''});nN++}
+      if(tag){const c=CS();c.ecRules=c.ecRules||{};c.ecRules[ecRuleKey(r)]=cat}return}
+    const sg=r.amt>0?1:-1,A=Math.abs(r.amt),key=tag?ecKey(r):'';
     const short=(r.desc||'').slice(0,120);
     if(r.act=='n'){if(r.cm)return;D.cmov.push({id:aId(),date:r.date,acc:ecAcc,amt:r.amt,cat:r.cat||'',desc:'Estratto conto: '+short,pname:r.pn||(r.cpt||'').slice(0,50),ec:key});nN++;if(r.cat&&tag){const c=CS();c.ecRules=c.ecRules||{};c.ecRules[ecRuleKey(r)]=r.cat}return}
     if(r.act.slice(0,2)!='i:')return;
@@ -5968,9 +6010,9 @@ function ecGo(){
       else{D.cmov.push({id:aId(),date:r.date,acc:ex?ex.acc:ecAcc,amt:sg*r2(p),cat,desc,inv:i.id,party:i.party||0,pname:i.pname||'',ec:key});nI++}
     });
   });
-  if(!(nI+nN+nL)){$('#dlg').close();toast('Nessun movimento da registrare.');return}
+  if(!(nI+nN+nL+nC)){$('#dlg').close();toast('Nessun movimento da registrare.');return}
   addLog('Contabilità: riconciliazione '+(tag?'estratto conto':'prima nota')+' ('+(nI+nL)+' abbinati a fatture, '+nN+' in prima nota)');save();$('#dlg').close();
-  toast((nI+nL)+' movimenti abbinati a fatture'+(nN?' · '+nN+' in prima nota':'')+'.');render();
+  toast((nI+nL)+' movimenti abbinati a fatture'+(nN?' · '+nN+' in prima nota':'')+(nC?' · '+nC+' riclassificati':'')+'.');render();
 }
 
 
