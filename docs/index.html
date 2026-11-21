@@ -86,6 +86,7 @@ dialog.wide{width:min(1180px,96vw)}
 .bl label.cb{grid-column:1/-1}.bl label.cb input,.rvf>label.cb input{width:auto}
 .rvf>label.cb{display:flex;font-size:13px}
 @media(max-width:820px){.rv{grid-template-columns:1fr}.rvp{max-height:34vh}.rvf{max-height:none}}
+#toast:not(.on),#toast:empty{display:none!important}
 #toast{position:fixed;inset:auto auto 24px 50%;transform:translateX(-50%);margin:0;border:0;border-left:5px solid var(--acc);background:var(--steel);color:#fff;padding:12px 18px;border-radius:6px;max-width:min(560px,92vw);box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:14px}
 footer{max-width:1100px;margin:0 auto;padding:0 20px 24px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 #me{position:absolute;right:20px;top:14px;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.mut2{color:#aebcc6}
@@ -210,10 +211,10 @@ body.lock #bb{display:none}
 <script>window.GC_CLOUD={url:'https://bywcgdkzwkhygeinzdwt.supabase.co',key:'sb_publishable_J6Uo_jG1IQo6bs9ab6j9og_ZbKKYOcT'};</script>
 <script>
 // avvisi e conferme dentro la pagina (i popup del browser possono essere bloccati)
-function toast(m){const t=document.getElementById('toast');t.textContent=m;try{t.hidePopover()}catch(e){}try{t.showPopover()}catch(e){}clearTimeout(t._t);t._t=setTimeout(()=>{try{t.hidePopover()}catch(e){}},7000)}
+function toast(m){const t=document.getElementById('toast');m=(m==null?'':String(m)).trim();clearTimeout(t._t);try{t.hidePopover()}catch(e){}t.classList.remove('on');if(!m){t.textContent='';return}t.textContent=m;t.classList.add('on');try{t.showPopover()}catch(e){}t._t=setTimeout(()=>{try{t.hidePopover()}catch(e){}t.classList.remove('on')},7000)}
 window.alert=toast;
 function askConfirm(msg,yes){const d=document.getElementById('cfm');document.getElementById('cfmm').textContent=msg;document.getElementById('cfmy').onclick=()=>{d.close();yes()};d.showModal()}
-const APP_VER='1.6.0', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
+const APP_VER='1.6.1', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
 const OLDPH=['Taglio','Saldatura','Assemblaggio','Verniciatura/zincatura','Collaudo','Montaggio'], PHMAP=[0,0,0,1,0,2];
 const V28=['In produzione','Verniciatura/zincatura','Montaggio'];
 const PH=['Produzione','Zincatura/Verniciatura','Montaggio'];
@@ -2345,14 +2346,71 @@ function pdfFoot(doc){
     doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...PC.mu);
     doc.text((coInfo().name?coInfo().name+' - ':'')+APP,14,h-6.5);doc.text('Pagina '+i+' di '+n,doc.pw-14,h-6.5,{align:'right'})}
 }
+// ---------- anteprima PDF: ogni PDF si apre prima in una finestra dove puoi guardarlo, stamparlo o salvarlo sul PC
+let PV=null;
 async function pdfSave(doc,name,nf){
   if(!nf)pdfFoot(doc);
-  const buf=doc.output('arraybuffer');
+  PV={doc,name,buf:doc.output('arraybuffer'),pdf:null,pg:[]};pvOpen();
+}
+function pvCss(){if(document.getElementById('pvcss'))return;const s=document.createElement('style');s.id='pvcss';
+  s.textContent='dialog#pvd{width:min(96vw,1080px);height:94vh;max-height:94vh;padding:0;border:0;border-radius:6px;overflow:hidden;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.5)}dialog#pvd[open]{display:flex}'+
+  '.pvh{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid #c8ccd0;background:#fff}.pvh b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:46%}'+
+  '.pvb{flex:1;overflow:auto;background:#7b8590;padding:16px}.pvb canvas{display:block;margin:0 auto 14px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.4);max-width:100%;height:auto}.pvb iframe{width:100%;height:100%;border:0;background:#fff}'+
+  '#pvprint{display:none}@media print{body>*:not(#pvprint){display:none!important}#pvprint{display:block!important}#pvprint img{display:block;width:100%;height:auto;page-break-after:always;break-after:page}#pvprint img:last-child{page-break-after:auto;break-after:auto}}';
+  document.head.appendChild(s)}
+async function pvJs(){
+  if(!window.pdfjsLib){for(const u of ['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js','https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js']){
+    await new Promise(ok=>{const sc=document.createElement('script');sc.src=u;sc.onload=sc.onerror=()=>ok();document.head.appendChild(sc);setTimeout(ok,8000)});if(window.pdfjsLib)break}}
+  if(!window.pdfjsLib)return false;pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_WORKER;return true;
+}
+async function pvOpen(){
+  pvCss();let d=document.getElementById('pvd');
+  if(!d){d=document.createElement('dialog');d.id='pvd';d.dataset.nox='1';document.body.appendChild(d);d.addEventListener('close',pvClose)}
+  d.innerHTML=`<div class="pvh"><b title="${esc(PV.name)}">${esc(PV.name)}</b><span style="flex:1"></span><button class="b pri" onclick="pvPrint()">Stampa</button><button class="b" onclick="pvSave()">Salva sul PC</button><button class="b" onclick="document.getElementById('pvd').close()">Chiudi</button></div>
+   <div class="pvb" id="pvb"><div style="padding:40px;text-align:center;color:#fff">Preparo l’anteprima…</div></div>`;
+  d.showModal();const my=PV;
+  try{
+    if(!await pvJs())throw new Error('lettore non disponibile');
+    const pdf=await pdfjsLib.getDocument({data:new Uint8Array(my.buf.slice(0))}).promise;if(PV!==my)return;my.pdf=pdf;
+    const b=document.getElementById('pvb');b.innerHTML='';
+    const io=new IntersectionObserver(es=>es.forEach(en=>{if(en.isIntersecting&&!en.target._d){en.target._d=1;pvDraw(my,en.target)}}),{root:b,rootMargin:'800px'});
+    for(let n=1;n<=pdf.numPages;n++){const pg=await pdf.getPage(n),v1=pg.getViewport({scale:1}),v=pg.getViewport({scale:1.5});
+      if(n==1)my.size=[v1.width*25.4/72,v1.height*25.4/72];
+      const c=document.createElement('canvas');c.width=Math.ceil(v.width);c.height=Math.ceil(v.height);c.dataset.n=n;b.appendChild(c);io.observe(c)}
+  }catch(e){
+    const b=document.getElementById('pvb');if(b&&PV===my){b.innerHTML='';const f=document.createElement('iframe');my.url=URL.createObjectURL(new Blob([my.buf],{type:'application/pdf'}));f.src=my.url;b.appendChild(f);
+      const m=document.createElement('div');m.style.cssText='color:#fff;font-size:12px;padding:6px 0';m.textContent='Anteprima semplificata (il lettore PDF non si carica). Puoi comunque stampare o salvare.';b.insertBefore(m,f)}
+  }
+}
+async function pvDraw(my,c){try{const pg=await my.pdf.getPage(+c.dataset.n),v=pg.getViewport({scale:1.5});await pg.render({canvasContext:c.getContext('2d'),viewport:v}).promise}catch(e){}}
+function pvClose(){const b=document.getElementById('pvb');if(b)b.innerHTML='';if(PV){if(PV.url)URL.revokeObjectURL(PV.url);try{PV.pdf&&PV.pdf.destroy()}catch(e){}}PV=null;const p=document.getElementById('pvprint');if(p)p.remove()}
+async function pvSave(){
+  if(!PV)return;const{doc,name,buf}=PV;
   let dl=null;try{dl=(window.claude&&claude.use)?await claude.use('downloads'):null}catch(e){}
-  if(!dl){doc.save(name);return}
-  try{await dl.save({filename:name,data:buf})}
+  if(!dl){doc.save(name);toast('PDF salvato: '+name);return}
+  try{await dl.save({filename:name,data:buf});toast('PDF salvato: '+name)}
   catch(e){if(e&&e.code=='declined')return;alert('Non è stato possibile salvare il PDF in questa vista'+(e&&e.code?' ('+e.code+')':'')+'.')}
 }
+async function pvPrint(){
+  if(!PV)return;const my=PV;
+  if(my.pdf&&my.pdf.numPages<=30){
+    toast('Preparo la stampa…');
+    try{
+      const old=document.getElementById('pvprint');if(old)old.remove();const box=document.createElement('div');box.id='pvprint';
+      for(let n=1;n<=my.pdf.numPages;n++){const pg=await my.pdf.getPage(n),v=pg.getViewport({scale:2.2}),c=document.createElement('canvas');c.width=Math.ceil(v.width);c.height=Math.ceil(v.height);
+        await pg.render({canvasContext:c.getContext('2d'),viewport:v}).promise;const im=new Image();im.src=c.toDataURL('image/jpeg',.92);box.appendChild(im)}
+      let ps=document.getElementById('pvpage');if(!ps){ps=document.createElement('style');ps.id='pvpage';document.head.appendChild(ps)}
+      const sz=my.size||[210,297];ps.textContent='@media print{@page{size:'+sz[0].toFixed(1)+'mm '+sz[1].toFixed(1)+'mm;margin:0}}';
+      document.body.appendChild(box);await new Promise(r=>setTimeout(r,150));
+      const done=()=>{const p=document.getElementById('pvprint');if(p)p.remove()};window.addEventListener('afterprint',done,{once:true});window.print();setTimeout(done,120000);return;
+    }catch(e){}
+  }
+  const f=document.createElement('iframe');f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  const u=URL.createObjectURL(new Blob([my.buf],{type:'application/pdf'}));f.src=u;
+  f.onload=()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(e){toast('Non riesco ad avviare la stampa: salva il PDF e stampalo dal PC.')}setTimeout(()=>{f.remove();URL.revokeObjectURL(u)},120000)};
+  document.body.appendChild(f);
+}
+
 const today=()=>new Date().toLocaleDateString('it-IT');
 async function pdfJob(id){
   const j=D.jobs.find(x=>x.id==id); if(!j||!pdfReady())return;
@@ -4852,7 +4910,11 @@ let MOD='prod',cDir='E',cQ='',cYr=String(new Date().getFullYear()),cScad='tutte'
 let _aIdL=0;const aId=()=>{let v=Date.now()*10+Math.floor(Math.random()*10);if(v<=_aIdL)v=_aIdL+1;_aIdL=v;return v}; // sempre crescente: nessun identificativo ripetuto
 const aAdd=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
 const aSg=i=>i.nc?-1:1;
-const aNet=i=>aSg(i)*r2(i.net), aIva=i=>aSg(i)*r2((+i.net||0)*(+i.vat||0)/100), aTot=i=>aNet(i)+aIva(i);
+// una fattura può avere più righe con aliquote IVA diverse (i.rig = [{net,vat}]); i.net è sempre l'imponibile totale
+const aRows=i=>(i.rig&&i.rig.length>1)?i.rig.map(x=>({net:r2(x.net),vat:+x.vat||0})):[{net:r2(i.net),vat:+i.vat||0}];
+const aIvaRaw=i=>r2(aRows(i).reduce((t,x)=>t+r2(x.net*x.vat/100),0));
+const aVatLbl=i=>[...new Set(aRows(i).map(x=>fN(x.vat)))].join(' / ')+'%';
+const aNet=i=>aSg(i)*r2(i.net), aIva=i=>aSg(i)*aIvaRaw(i), aTot=i=>aNet(i)+aIva(i);
 const aRit=i=>aSg(i)*r2(r2(i.net)*((i.ritb==null||i.ritb==='')?100:+i.ritb)/100*(+i.rit||0)/100);
 const aPaid=i=>r2(D.cmov.filter(m=>m.inv==i.id).reduce((t,m)=>t+(+m.amt||0),0)*(i.dir=='E'?1:-1));
 const aOpen=i=>r2(aTot(i)-aRit(i)-aPaid(i));
@@ -4942,6 +5004,10 @@ function cInv(){
   ${a.length?`<tr style="font-weight:700"><td colspan="4">Totale (${a.length})</td>${aN(tn)}${aN(ti)}<td class="n">${eur2(tn+ti)}</td><td colspan="3"></td></tr>`:''}
   </tbody></table></div>`;
 }
+const invRowHtml=(x,k)=>`<div class="rg" style="display:flex;gap:8px;align-items:flex-end;margin-bottom:6px"><label style="flex:1">${k?'Imponibile (€)':'Imponibile (€)'}<input class="rgN" ${k?'':'id="iNet"'} type="number" step="any" min="0" value="${esc(x.net)}"></label><label style="width:120px">IVA %<input class="rgV" ${k?'':'id="iVat"'} type="number" step="any" min="0" list="vatlist" value="${esc(x.vat)}"></label>${k?'<button class="b" type="button" onclick="invRowDel(this)" title="Toglie questa riga">×</button>':'<span style="width:34px"></span>'}</div>`;
+function invRowAdd(){const b=$('#iRows');const t=document.createElement('div');t.innerHTML=invRowHtml({net:'',vat:CS().vatDef},1);b.appendChild(t.firstChild);if(window._invTot)_invTot()}
+function invRowDel(btn){btn.closest('.rg').remove();if(window._invTot)_invTot()}
+function invRowsGet(){return [...document.querySelectorAll('#iRows .rg')].map(r=>({n:r.querySelector('.rgN').value,net:+r.querySelector('.rgN').value||0,vat:+r.querySelector('.rgV').value||0}))}
 function invEdit(id,dir){
   const n=!id,i=n?{dir:dir||cDir,num:(dir||cDir)=='E'?aNext():'',date:TODAY,vat:CS().vatDef,net:'',party:0,pname:'',job:0,desc:'',due:'',nc:0,ords:[]}:D.inv.find(x=>x.id==id);if(!i)return;
   const E_=i.dir=='E',col=aCol(i);
@@ -4953,7 +5019,7 @@ function invEdit(id,dir){
    ${S('iParty',E_?'Cliente':'Fornitore',[{v:0,t:'— altro / non in anagrafica —'},...D[col].filter(x=>!x.man).map(x=>({v:x.id,t:x.n}))],i.party||0)}
    ${F('iPname','Nome (se non in anagrafica)',i.pname||'')}${S('iJob','Commessa collegata',[{v:0,t:'Nessuna (spesa generale)'},...D.jobs.map(j=>({v:j.id,t:j.code+' · '+cn(j.client)}))],i.job||0)}
    <label class="full">Descrizione<input id="iDesc" value="${esc(i.desc||'')}"></label>
-   ${S('iCc',E_?'Conto di ricavo':'Conto di costo',invCcOpts(E_,i.cc||''),i.cc||CS().map[E_?'ricavi':'costi'])}${F('iNet','Imponibile (€)',i.net,'number')}<label>IVA %<input id="iVat" type="number" step="any" min="0" list="vatlist" value="${esc(i.vat)}"><datalist id="vatlist">${CS().vat.map(v=>`<option value="${v}">`).join('')}</datalist></label>${F('iDue','Scadenza pagamento',i.due||'','date')}${F('iRit','Ritenuta d’acconto (%)',i.rit||'','number')}${F('iRitb','Base della ritenuta (% dell’imponibile)',(i.ritb==null||i.ritb==='')?100:i.ritb,'number')}${E_?'':F('iDed','Deducibilità del costo (%): vuoto = come il conto',i.ded==null?'':i.ded,'number')}
+   ${S('iCc',E_?'Conto di ricavo':'Conto di costo',invCcOpts(E_,i.cc||''),i.cc||CS().map[E_?'ricavi':'costi'])}<div class="full"><div class="mut" style="margin-bottom:4px">Imponibile e IVA: se la fattura ha aliquote diverse, aggiungi una riga per ciascuna</div><div id="iRows">${aRows(i).map((x,k)=>invRowHtml(n?{net:'',vat:i.vat}:x,k)).join('')}</div><datalist id="vatlist">${CS().vat.map(v=>`<option value="${v}">`).join('')}</datalist><button class="b" type="button" onclick="invRowAdd()" style="margin-top:6px">+ Aggiungi aliquota</button><div class="mut" id="iBrk" style="margin-top:6px"></div></div>${F('iDue','Scadenza pagamento',i.due||'','date')}${F('iRit','Ritenuta d’acconto (%)',i.rit||'','number')}${F('iRitb','Base della ritenuta (% dell’imponibile)',(i.ritb==null||i.ritb==='')?100:i.ritb,'number')}${E_?'':F('iDed','Deducibilità del costo (%): vuoto = come il conto',i.ded==null?'':i.ded,'number')}
    <div class="bt">Totale fattura<b id="iTot">-</b></div>
    ${E_?'':'<div class="full" id="iOrds"></div>'}
    ${n?'':`<div class="full"><div class="mut" style="margin-bottom:4px">${E_?'Incassi':'Pagamenti'} registrati</div>${pays.length?`<div class="tw"><table style="min-width:0"><tbody>${pays.map(m=>`<tr class="row" onclick="pnEdit(${m.id})"><td>${dt(m.date)}</td><td>${esc(m.acc)}</td><td class="n">${eur2(Math.abs(m.amt))}</td><td>${esc(m.desc||'')}</td></tr>`).join('')}</tbody></table></div>`:'<span class="mut">Nessuno.</span>'}</div>
@@ -4961,25 +5027,29 @@ function invEdit(id,dir){
   </div>
   <div class="df">${n?'':`<button class="b dng l" onclick="invDel(${i.id})">Elimina</button>`}<button class="b" onclick="$('#dlg').close()">Chiudi</button>${n||aSt(i)=='ok'?'':`<button class="b" onclick="$('#dlg').close();payOpen(${i.id})">${E_?'Registra incasso':'Registra pagamento'}</button>`}<button class="b pri" onclick="invSave(${n?0:i.id},'${i.dir}')">Salva</button></div>`;
   d.showModal();
-  const tot=()=>{const nt=+$('#iNet').value||0,t=r2(nt*(1+(+$('#iVat').value||0)/100)),rt=r2(nt*((+$('#iRitb').value===0&&$('#iRitb').value==='')?100:(+$('#iRitb').value||0))/100*(+$('#iRit').value||0)/100);$('#iTot').textContent=eur2(t)+(rt?' · ritenuta '+eur2(rt)+' · netto '+eur2(r2(t-rt)):'')};
+  const tot=()=>{const R=invRowsGet(),nt=r2(R.reduce((a,x)=>a+x.net,0)),iv=r2(R.reduce((a,x)=>a+r2(x.net*x.vat/100),0)),t=r2(nt+iv),rt=r2(nt*((+$('#iRitb').value===0&&$('#iRitb').value==='')?100:(+$('#iRitb').value||0))/100*(+$('#iRit').value||0)/100);
+    $('#iTot').textContent=eur2(t)+(rt?' · ritenuta '+eur2(rt)+' · netto '+eur2(r2(t-rt)):'');
+    $('#iBrk').textContent=R.length>1?'Imponibile '+eur2(nt)+' · '+R.map(x=>'IVA '+fN(x.vat)+'% su '+eur2(x.net)+' = '+eur2(r2(x.net*x.vat/100))).join(' · '):'';};window._invTot=tot;
   const due=()=>{const p=+$('#iParty').value,dd=$('#iDate').value;if(dd)$('#iDue').value=aAdd(dd,aDays(col,p))};
-  $('#iNet').oninput=tot;$('#iVat').oninput=tot;$('#iRit').oninput=tot;$('#iRitb').oninput=tot;tot();
+  $('#iRows').oninput=tot;$('#iRit').oninput=tot;$('#iRitb').oninput=tot;tot();
   $('#iDate').onchange=()=>{if(n)due()};
   const ords=()=>{if(E_)return;const p=+$('#iParty').value,cur=new Set(i.ords||[]);
     const l=D.orders.filter(o=>o.status=='Ricevuto'&&ordSup(o)==p&&(cur.has(o.id)||aOrdsFree(p).includes(o)));
     $('#iOrds').innerHTML=p?(l.length?`<div class="mut" style="margin-bottom:4px">Ordini ricevuti di questo fornitore: spunta quelli coperti dalla fattura (l'imponibile si compila da solo)</div>${l.map(o=>`<label style="display:flex;gap:8px;align-items:center;padding:3px 0"><input type="checkbox" class="iO" value="${o.id}" data-v="${r2(o.qty*o.price)}" ${cur.has(o.id)?'checked':''}> ${esc(ordName(o))} · ${esc(jb(o.job))} · ${fN(o.qty)} ${esc(ordUm(o))} · <b>${eur2(o.qty*o.price)}</b></label>`).join('')}`:'<span class="mut">Nessun ordine ricevuto da collegare.</span>'):'';
-    document.querySelectorAll('.iO').forEach(c=>c.onchange=()=>{const s=[...document.querySelectorAll('.iO:checked')].reduce((t,x)=>t+(+x.dataset.v),0);if(s>0){$('#iNet').value=r2(s);tot()}})};
+    document.querySelectorAll('.iO').forEach(c=>c.onchange=()=>{const s=[...document.querySelectorAll('.iO:checked')].reduce((t,x)=>t+(+x.dataset.v),0);if(s>0&&document.querySelectorAll('#iRows .rg').length==1){$('#iNet').value=r2(s);tot()}})};
   $('#iParty').onchange=()=>{if(n)due();ords()};ords();
 }
 function invSave(id,dir){
   const i=id?D.inv.find(x=>x.id==id):{id:aId(),dir,jobs:[],ords:[]};if(!i)return;
-  const v=k=>$('#'+k).value,num=v('iNum').trim(),date=v('iDate'),party=+v('iParty')||0,pname=v('iPname').trim(),net=+v('iNet');
+  const v=k=>$('#'+k).value,num=v('iNum').trim(),date=v('iDate'),party=+v('iParty')||0,pname=v('iPname').trim(),R=invRowsGet(),net=r2(R.reduce((a,x)=>a+x.net,0));
   if(!date){alert('Inserisci la data della fattura.');return}
   if(!party&&!pname){alert('Scegli un '+(dir=='E'?'cliente':'fornitore')+' dall’anagrafica oppure scrivi il nome.');return}
-  if(!(net>=0)||v('iNet')===''){alert('Inserisci l’imponibile.');return}
+  if(R.some(x=>!(x.net>=0))||R.some(x=>x.n==='')||!R.length){alert('Inserisci l’imponibile di ogni riga (o togli le righe vuote).');return}
   if(dir=='R'&&!num){alert('Inserisci il numero della fattura del fornitore.');return}
   if(D.inv.some(x=>x.id!=i.id&&x.dir==dir&&num&&x.num==num&&(x.date||'').slice(0,4)==date.slice(0,4)&&(x.party||x.pname)==(party||pname))&&!confirm('Esiste già una fattura con lo stesso numero nello stesso anno per questa controparte. Salvare comunque?'))return;
-  Object.assign(i,{nc:+v('iNc')?1:0,num,date,party,pname:party?'':pname,job:+v('iJob')||0,desc:v('iDesc').trim(),net:r2(net),vat:+v('iVat')||0,due:v('iDue'),cc:v('iCc'),rit:+v('iRit')||0,ritb:v('iRitb')===''?100:+v('iRitb'),ded:(dir=='R'&&v('iDed')!=='')?+v('iDed'):null});
+  Object.assign(i,{nc:+v('iNc')?1:0,num,date,party,pname:party?'':pname,job:+v('iJob')||0,desc:v('iDesc').trim(),net:r2(net),due:v('iDue'),cc:v('iCc'),rit:+v('iRit')||0,ritb:v('iRitb')===''?100:+v('iRitb'),ded:(dir=='R'&&v('iDed')!=='')?+v('iDed'):null});
+  {const m={};R.forEach(x=>{m[x.vat]=r2((m[x.vat]||0)+x.net)});const ks=Object.keys(m).map(Number).sort((a,b)=>m[b]-m[a]);
+   i.vat=ks[0]||0;if(ks.length>1)i.rig=ks.map(k=>({net:m[k],vat:k}));else delete i.rig}
   if(dir=='R')i.ords=[...document.querySelectorAll('.iO:checked')].map(x=>+x.value);
   if(!id)D.inv.push(i);
   save();$('#dlg').close();render();
@@ -5093,7 +5163,7 @@ function ivaRange(){
 }
 function ivaCalc(a,b){
   const inR=i=>i.date>=a&&i.date<=b,V=D.inv.filter(i=>i.dir=='E'&&inR(i)),A=D.inv.filter(i=>i.dir=='R'&&inR(i));
-  const by=l=>{const m={};l.forEach(i=>{const k=+i.vat||0;m[k]=m[k]||{n:0,v:0};m[k].n+=aNet(i);m[k].v+=aIva(i)});return m};
+  const by=l=>{const m={};l.forEach(i=>aRows(i).forEach(x=>{const k=x.vat;m[k]=m[k]||{n:0,v:0};m[k].n+=aSg(i)*x.net;m[k].v+=aSg(i)*r2(x.net*x.vat/100)}));return m};
   const sv=r2(V.reduce((t,i)=>t+aIva(i),0)),sa=r2(A.reduce((t,i)=>t+aIva(i),0));
   return{V,A,bv:by(V),ba:by(A),sv,sa,liq:r2(sv-sa)};
 }
@@ -5102,7 +5172,7 @@ function cIva(){
   const MN=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
   const opts=[['a','Anno intero'],...[1,2,3,4].map(k=>['q'+k,k+'° trimestre']),...MN.map((m,k)=>['m'+(k+1),m])];
   const brk=m=>Object.keys(m).sort((x,y2)=>y2-x).map(k=>`<tr><td>${k}%</td>${aN(m[k].n)}${aN(m[k].v)}</tr>`).join('')||'<tr><td colspan="3" class="empty">-</td></tr>';
-  const reg=(l,t)=>`<h3 style="margin:18px 0 6px">${t}</h3><div class="tw"><table><thead><tr><th>Data</th><th>Numero</th><th>${t.includes('vendite')?'Cliente':'Fornitore'}</th><th class="n">Imponibile</th><th class="n">IVA %</th><th class="n">IVA</th><th class="n">Totale</th></tr></thead><tbody>${l.length?[...l].sort((x,y2)=>x.date.localeCompare(y2.date)).map(i=>`<tr class="row" onclick="invEdit(${i.id})"><td>${dt(i.date)}</td><td>${esc(i.num||'-')}${i.nc?' <span class="tag">NC</span>':''}</td><td>${esc(aParty(i))}</td>${aN(aNet(i))}<td class="n">${fN(i.vat)}%</td>${aN(aIva(i))}${aN(aTot(i))}</tr>`).join(''):'<tr><td colspan="7" class="empty">Nessuna fattura nel periodo.</td></tr>'}</tbody></table></div>`;
+  const reg=(l,t)=>`<h3 style="margin:18px 0 6px">${t}</h3><div class="tw"><table><thead><tr><th>Data</th><th>Numero</th><th>${t.includes('vendite')?'Cliente':'Fornitore'}</th><th class="n">Imponibile</th><th class="n">IVA %</th><th class="n">IVA</th><th class="n">Totale</th></tr></thead><tbody>${l.length?[...l].sort((x,y2)=>x.date.localeCompare(y2.date)).map(i=>`<tr class="row" onclick="invEdit(${i.id})"><td>${dt(i.date)}</td><td>${esc(i.num||'-')}${i.nc?' <span class="tag">NC</span>':''}</td><td>${esc(aParty(i))}</td>${aN(aNet(i))}<td class="n">${aVatLbl(i)}</td>${aN(aIva(i))}${aN(aTot(i))}</tr>`).join(''):'<tr><td colspan="7" class="empty">Nessuna fattura nel periodo.</td></tr>'}</tbody></table></div>`;
   return `<div class="tools">${aYSel().replace('<option value="" '+(cYr?'':'selected')+'>Tutti gli anni</option>','')}<select onchange="cIvaP=this.value;render()">${opts.map(o=>`<option value="${o[0]}" ${o[0]==cIvaP?'selected':''}>${o[1]}</option>`).join('')}</select><span class="mut" style="flex:1">Dal ${dt(a)} al ${dt(b)} · calcolo per data fattura (competenza)</span><button class="b" onclick="pdfIva()">Esporta PDF</button></div>
   <div class="kpis"><div class="kpi"><span>IVA sulle vendite</span><b>${eur2(c.sv)}</b></div><div class="kpi"><span>IVA sugli acquisti</span><b>${eur2(c.sa)}</b></div><div class="kpi ${c.liq>0?'late':'acc'}"><span>${c.liq>=0?'IVA a debito (da versare)':'IVA a credito'}</span><b>${eur2(Math.abs(c.liq))}</b></div></div>
   <div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))"><div class="tw"><table style="min-width:0"><thead><tr><th>Vendite · aliquota</th><th class="n">Imponibile</th><th class="n">IVA</th></tr></thead><tbody>${brk(c.bv)}</tbody></table></div>
@@ -5128,7 +5198,7 @@ function pdfPn(){
   aPdf('Prima nota',(cAcc||'Tutti i conti')+(cMese?' · '+cMese:'')+'   |   Generato il '+today(),['Data','Conto','Descrizione','Categoria','Entrate','Uscite'],a.map(m=>[dt(m.date),m.acc,m.desc||'',m.cat||'',m.amt>0?pe(m.amt):'',m.amt<0?pe(-m.amt):'']),'Prima_nota',aRO([4,5]));
 }
 function pdfIva(){
-  const[a,b]=ivaRange(),c=ivaCalc(a,b),row=i=>[dt(i.date),i.num||'-',aParty(i),pe(aNet(i)),fN(i.vat)+'%',pe(aIva(i)),pe(aTot(i))],h=['Data','Numero','Controparte','Imponibile','IVA %','IVA','Totale'];
+  const[a,b]=ivaRange(),c=ivaCalc(a,b),row=i=>[dt(i.date),i.num||'-',aParty(i),pe(aNet(i)),aVatLbl(i),pe(aIva(i)),pe(aTot(i))],h=['Data','Numero','Controparte','Imponibile','IVA %','IVA','Totale'];
   aPdf('Registri IVA','Dal '+dt(a)+' al '+dt(b)+'   |   IVA vendite '+pe(c.sv)+' · IVA acquisti '+pe(c.sa)+' · '+(c.liq>=0?'a debito ':'a credito ')+pe(Math.abs(c.liq)),h,
    [[{content:'REGISTRO VENDITE',colSpan:7,styles:{fontStyle:'bold'}}],...c.V.sort((x,y)=>x.date.localeCompare(y.date)).map(row),[{content:'REGISTRO ACQUISTI',colSpan:7,styles:{fontStyle:'bold'}}],...c.A.sort((x,y)=>x.date.localeCompare(y.date)).map(row)],'Registri_IVA',aRO([3,4,5,6]));
 }
@@ -5138,7 +5208,7 @@ function aCsv(name,head,rows){
 }
 const aF=n=>String(r2(n)).replace('.',',');
 function csvInv(){const a=D.inv.filter(i=>aInYr(i.date)).sort((x,y)=>(x.date||'').localeCompare(y.date||''));
-  aCsv('Fatture',['Tipo','Numero','Data','Controparte','Commessa','Descrizione','Imponibile','Aliquota IVA','IVA','Totale','Scadenza','Residuo'],a.map(i=>[i.dir=='E'?(i.nc?'Nota credito emessa':'Fattura emessa'):(i.nc?'Nota credito ricevuta':'Fattura ricevuta'),i.num||'',i.date||'',aParty(i),aJobs(i).map(jb).join(' '),i.desc||'',aF(aNet(i)),aF(i.vat),aF(aIva(i)),aF(aTot(i)),i.due||'',aF(aOpen(i))]))}
+  aCsv('Fatture',['Tipo','Numero','Data','Controparte','Commessa','Descrizione','Imponibile','Aliquota IVA','IVA','Totale','Scadenza','Residuo'],a.map(i=>[i.dir=='E'?(i.nc?'Nota credito emessa':'Fattura emessa'):(i.nc?'Nota credito ricevuta':'Fattura ricevuta'),i.num||'',i.date||'',aParty(i),aJobs(i).map(jb).join(' '),i.desc||'',aF(aNet(i)),aRows(i).map(x=>aF(x.vat)).join(' / '),aF(aIva(i)),aF(aTot(i)),i.due||'',aF(aOpen(i))]))}
 function csvPn(){aCsv('Prima_nota',['Data','Conto','Descrizione','Categoria','Controparte','Importo'],pnRows().reverse().map(m=>[m.date,m.acc,m.desc||'',m.cat||'',m.pname||(m.party?nm('cl',m.party)+nm('sup',m.party):''),aF(m.amt)]))}
 document.addEventListener('input',e=>{if(!ME||!CV.includes(view))return;
   if(e.target.id=='cq'){cQ=e.target.value;const p=e.target.selectionStart;render();const x=$('#cq');if(x){x.focus();x.setSelectionRange(p,p)}}
@@ -5185,7 +5255,7 @@ const catConto=(n,isIn)=>{const c=CS().cats.find(x=>x.n==n);return c?c.conto:(is
 // ---- giornale (virtuale + scritture manuali)
 function jrnl(){
   const M=CS().map,out=[],P=(k,date,desc,caus,righe,src,pk)=>{righe=righe.filter(r=>r.c&&(r.d||r.a)).map(r=>({c:r.c,d:r2(r.d||0),a:r2(r.a||0)}));if(righe.length)out.push({k,date,desc,caus,righe,src,pk:pk||''})};
-  D.inv.forEach(i=>{if(!i.date)return;const net=r2(i.net),iva=r2(net*(+i.vat||0)/100),tot=r2(net+iva),E_=i.dir=='E',cc=i.cc||(E_?M.ricavi:M.costi);
+  D.inv.forEach(i=>{if(!i.date)return;const net=r2(i.net),iva=aIvaRaw(i),tot=r2(net+iva),E_=i.dir=='E',cc=i.cc||(E_?M.ricavi:M.costi);
     const rt=r2(Math.abs(aRit(i)));let r=E_?[{c:M.cli,d:r2(tot-rt)},{c:M.ritS||'155',d:rt},{c:cc,a:net},{c:M.ivaV,a:iva}]:[{c:cc,d:net},{c:M.ivaA,d:iva},{c:M.for,a:r2(tot-rt)},{c:M.ritV||'225',a:rt}];
     if(i.nc)r=r.map(x=>({c:x.c,d:x.a,a:x.d}));
     P('i'+i.id,i.date,(E_?(i.nc?'Nota di credito emessa ':'Fattura emessa '):(i.nc?'Nota di credito ricevuta ':'Fattura ricevuta '))+(i.num||'')+' · '+aParty(i),E_?(i.nc?'NCE':'FE'):(i.nc?'NCR':'FR'),r,{t:'inv',id:i.id},aPKey(i))});
@@ -5300,7 +5370,50 @@ function cBil(){
 function pdfGio(){const a=jrnl().filter(e=>aInYr(e.date)),b=[];a.forEach(e=>e.righe.forEach((r,k)=>b.push([k?'':String(e.n),k?'':dt(e.date),k?'':e.desc,pdcName(r.c),r.d?pe(r.d):'',r.a?pe(r.a):''])));aPdf('Libro giornale',a.length+' scritture'+(cYr?' · anno '+cYr:'')+'   |   Generato il '+today(),['N.','Data','Descrizione','Conto','Dare','Avere'],b,'Libro_giornale',aRO([4,5]))}
 function csvGio(){const b=[];jrnl().filter(e=>aInYr(e.date)).forEach(e=>e.righe.forEach(r=>b.push([e.n,e.date,e.desc,r.c,(pdcBy(r.c)||{}).name||'',aF(r.d),aF(r.a)])));aCsv('Libro_giornale',['N.','Data','Descrizione','Codice conto','Conto','Dare','Avere'],b)}
 function pdfMas(){const p=pdcBy(cMC),sg=p?accSegno(p.type):1;let s=0;const b=[];jrnl().forEach(e=>e.righe.forEach(r=>{if(r.c!=cMC)return;s=r2(s+sg*(r.d-r.a));if(aInYr(e.date))b.push([dt(e.date),String(e.n),e.desc,r.d?pe(r.d):'',r.a?pe(r.a):'',pe(s)])}));aPdf('Mastro · '+pdcName(cMC),(cYr?'Anno '+cYr+'   |   ':'')+'Generato il '+today(),['Data','N.','Descrizione','Dare','Avere','Saldo'],b,'Mastro',aRO([3,4,5]))}
-function pdfBil(){const S_=accSaldi(yEnd()),L=Object.values(S_).filter(o=>o.d||o.a).sort((a,b)=>a.p.code.localeCompare(b.p.code));aPdf('Bilancio di verifica',(cYr?'Al 31/12/'+cYr:'Tutti gli anni')+'   |   Generato il '+today(),['Conto','Tipo','Totale dare','Totale avere','Saldo dare','Saldo avere'],L.map(o=>{const s=r2(o.d-o.a);return[o.p.code+' '+o.p.name,PDC_T[o.p.type]||'',pe(o.d),pe(o.a),s>0?pe(s):'',s<0?pe(-s):'']}),'Bilancio_verifica',aRO([2,3,4,5]))}
+// Esporta PDF del bilancio: si sceglie il prospetto e il periodo (dal / al)
+function pdfBil(){
+  accEnsure();const ds=jrnl().map(e=>e.date).sort();let f,to;
+  if(cYr){f=cYr+'-01-01';to=cYr+'-12-31'}else if(ds.length){f=ds[0];to=ds[ds.length-1]}else{const y=new Date().getFullYear();f=y+'-01-01';to=y+'-12-31'}
+  const d=$('#dlg');d.oninput=null;d.classList.remove('wide');
+  d.innerHTML=`<div class="dh"><h2>Esporta bilancio in PDF</h2></div><div class="db">
+  <label class="full">Prospetto<select id="bxT"><option value="ver">Bilancio di verifica</option><option value="ce">Conto economico</option><option value="sp">Stato patrimoniale</option></select></label>
+  ${F('bxF','Dal',f,'date')}${F('bxTo','Al',to,'date')}
+  <p class="mut full" style="font-size:12px;margin:0">Bilancio di verifica e conto economico comprendono solo le scritture del periodo scelto. Lo stato patrimoniale mostra la situazione alla data «Al», con i saldi accumulati dall’inizio e il risultato diviso tra esercizi precedenti e periodo.</p></div>
+  <div class="df"><button class="b" onclick="$('#dlg').close()">Annulla</button><button class="b pri" onclick="bilExp()">Esporta PDF</button></div>`;
+  $('#bxT').value=cBT||'ver';d.showModal();
+}
+async function bilExp(){
+  const t=$('#bxT').value,f=$('#bxF').value,to=$('#bxTo').value;
+  if(!f||!to){alert('Inserisci la data iniziale e quella finale.');return}
+  if(f>to){alert('La data iniziale è successiva a quella finale.');return}
+  if(!pdfReady())return;
+  $('#dlg').close();
+  const per='Dal '+dt(f)+' al '+dt(to),gen='   |   Generato il '+today(),fn=f+'_'+to;
+  const ord=m=>Object.values(m).filter(o=>o.d||o.a).sort((a,b)=>a.p.code.localeCompare(b.p.code));
+  const by=(S,ty)=>{const sg=accSegno(ty);return ord(S).filter(o=>o.p.type==ty).map(o=>({p:o.p,v:r2(sg*(o.d-o.a))}))};
+  const sm=l=>r2(l.reduce((s,x)=>s+x.v,0)),rw=l=>l.length?l.map(x=>[x.p.code+' · '+x.p.name,pe(x.v)]):[['-','']];
+  if(t=='ver'){
+    const L=ord(accSaldi(to,f));let td=0,ta=0,sd=0,sa=0;
+    const body=L.map(o=>{const s=r2(o.d-o.a);td+=o.d;ta+=o.a;if(s>0)sd+=s;else sa-=s;return[o.p.code+' '+o.p.name,PDC_T[o.p.type]||'',pe(o.d),pe(o.a),s>0?pe(s):'',s<0?pe(-s):'']});
+    if(L.length)body.push([pL('Totale'),pL(''),pL(pe(r2(td))),pL(pe(r2(ta))),pL(pe(r2(sd))),pL(pe(r2(sa)))]);
+    return aPdf('Bilancio di verifica',per+gen,['Conto','Tipo','Totale dare','Totale avere','Saldo dare','Saldo avere'],body,'Bilancio_verifica_'+fn,aRO([2,3,4,5]));
+  }
+  if(t=='ce'){
+    const S=accSaldi(to,f),R=by(S,'R'),C=by(S,'C'),ut=r2(sm(R)-sm(C));
+    const doc=pdfDoc('Conto economico',per+gen,false);
+    pdfTbl(doc,['Voce','Importo'],[[pL('RICAVI'),pL('')],...rw(R),[pB('Totale ricavi'),pB(pe(sm(R)))],[pL('COSTI'),pL('')],...rw(C),[pB('Totale costi'),pB(pe(sm(C)))],[pL(ut>=0?'UTILE DEL PERIODO':'PERDITA DEL PERIODO'),pL(pe(Math.abs(ut)))]],aRO([1]));
+    return pdfSave(doc,'Conto_economico_'+fn+'.pdf');
+  }
+  const S=accSaldi(to),A=by(S,'A'),P=by(S,'P'),N=by(S,'N'),res=m=>r2(sm(by(m,'R'))-sm(by(m,'C')));
+  const utT=res(S),utP=res(accSaldi(to,f)),utE=r2(utT-utP),pas=r2(sm(P)+sm(N)+utT),dif=r2(sm(A)-pas);
+  const lab=(v,s)=>(v>=0?'Utile ':'Perdita ')+s;
+  const doc=pdfDoc('Stato patrimoniale','Situazione al '+dt(to)+'   |   Movimenti del periodo: '+per.toLowerCase()+gen,false);
+  const pb=[[pL('PASSIVITÀ E PATRIMONIO NETTO'),pL('')],...(P.length||N.length?rw([...P,...N]):[['-','']])];
+  if(utE)pb.push([lab(utE,'esercizi precedenti'),pe(Math.abs(utE))]);
+  pb.push([lab(utP,'del periodo'),pe(Math.abs(utP))],[pB('Totale passività e patrimonio netto'),pB(pe(pas))]);
+  pdfTbl(doc,['Voce','Importo'],[[pL('ATTIVITÀ'),pL('')],...rw(A),[pB('Totale attività'),pB(pe(sm(A)))],...pb,[pB('Quadratura (attività − passività)'),pB(Math.abs(dif)<0.005?'quadra':pe(dif))]],aRO([1]));
+  return pdfSave(doc,'Stato_patrimoniale_'+to+'.pdf');
+}
 // ---- impostazioni contabilità
 const cscard=(t,note,body)=>`<div class="tw" style="padding:14px 16px;margin-bottom:16px"><h3 style="margin:0 0 4px">${t}</h3><div class="mut" style="margin-bottom:10px">${note}</div>${body}</div>`;
 const csrow=c=>`<div style="display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap">${c}</div>`;
@@ -5633,13 +5746,14 @@ function xmlParse(txt,fname){
     let imp=0,iva=0;riep.forEach(r=>{imp+=xNum(xT(r,'ImponibileImporto'));iva+=xNum(xT(r,'Imposta'))});
     imp=r2(imp);iva=r2(iva);
     const rates=[...new Set(riep.map(r=>xNum(xT(r,'AliquotaIVA'))))];
-    const vat=imp?r2(iva/imp*100):(rates[0]||0);
+    const rig=[];riep.forEach(r=>{const v=xNum(xT(r,'AliquotaIVA')),n=r2(xNum(xT(r,'ImponibileImporto')));const e=rig.find(x=>x.vat==v);if(e)e.net=r2(e.net+n);else rig.push({net:n,vat:v})});
+    rig.sort((a,b)=>b.net-a.net);const vat=rig.length?rig[0].vat:(imp?r2(iva/imp*100):0);
     const rit=xQ(g,'DatiRitenuta'),ritA=rit?xNum(xT(rit,'AliquotaRitenuta')):0,ritI=rit?xNum(xT(rit,'ImportoRitenuta')):0;
     const ritb=ritA&&imp?Math.min(100,r2(ritI/(ritA/100)/imp*100)):100;
     const lines=xA(b,'DatiBeniServizi/DettaglioLinee'),pays=xA(b,'DatiPagamento/DettaglioPagamento').map(p=>xT(p,'DataScadenzaPagamento')).filter(Boolean).sort();
     const causale=xA(g,'Causale').map(c=>c.textContent.trim()).join(' ');
     const d1=lines[0]?xT(lines[0],'Descrizione'):'';
-    out.push({file:fname,td,nc:(td=='TD04'||td=='TD08')?1:0,num:xT(g,'Numero'),date:xT(g,'Data'),net:imp,vat,rates,rit:ritA,ritb,
+    out.push({file:fname,td,nc:(td=='TD04'||td=='TD08')?1:0,num:xT(g,'Numero'),date:xT(g,'Data'),net:imp,vat,rig:rig.length>1?rig:null,rates,rit:ritA,ritb,
       due:pays.length?pays[pays.length-1]:'',tot:xNum(xT(g,'ImportoTotaleDocumento')),
       desc:(d1||causale)+(lines.length>1?' (+'+(lines.length-1)+(lines.length==2?' riga)':' righe)'):''),
       split:riep.some(r=>xT(r,'EsigibilitaIVA')=='S'),ced,ces});
@@ -5699,7 +5813,7 @@ function xmlShow(errs){
   const E_=xmlDir=='E',d=$('#dlg');d.oninput=null;d.classList.add('wide');
   const CO=invCcOpts(E_,'');xmlList.forEach(r=>{r.sg=xmlSug(r,E_,CO)});
   const rows=xmlList.map((r,k)=>`<tr><td><input type="checkbox" class="xI" value="${k}" ${r.dup?'':'checked'}></td><td><b>${esc(r.num)}</b>${r.nc?' <span class="tag">nota di credito</span>':''}${r.dup?' <span class="tag late">già presente</span>':''}</td><td>${r.date?dt(r.date):'-'}</td>
-   <td>${esc(r.p.name)}<br><small class="mut">${r.match?'in anagrafica':'nuovo · '+esc(r.p.piva||r.p.cf||'senza P.IVA')}</small></td><td>${esc((r.desc||'').slice(0,60))}</td><td class="n">${eur2(r.net)}</td><td class="n">${fN(r.vat)}%${r.rates.length>1?'<br><small class="mut">aliquote miste</small>':''}</td><td class="n">${r.rit?fN(r.rit)+'%':''}</td><td>${r.due?dt(r.due):'-'}</td><td><select class="xC" data-k="${k}" style="max-width:200px">${CO.map(o=>`<option value="${esc(o.v)}" ${o.v==r.sg.cc?'selected':''}>${esc(o.t)}</option>`).join('')}</select><br><small class="mut">consigliato: ${esc(r.sg.why)}</small></td></tr>
+   <td>${esc(r.p.name)}<br><small class="mut">${r.match?'in anagrafica':'nuovo · '+esc(r.p.piva||r.p.cf||'senza P.IVA')}</small></td><td>${esc((r.desc||'').slice(0,60))}</td><td class="n">${eur2(r.net)}</td><td class="n">${r.rig?r.rig.map(x=>fN(x.vat)+'%').join(' + ')+'<br><small class="mut">una riga per aliquota</small>':fN(r.vat)+'%'}</td><td class="n">${r.rit?fN(r.rit)+'%':''}</td><td>${r.due?dt(r.due):'-'}</td><td><select class="xC" data-k="${k}" style="max-width:200px">${CO.map(o=>`<option value="${esc(o.v)}" ${o.v==r.sg.cc?'selected':''}>${esc(o.t)}</option>`).join('')}</select><br><small class="mut">consigliato: ${esc(r.sg.why)}</small></td></tr>
    ${r.warn?`<tr><td></td><td colspan="9"><small style="color:var(--bad,#b00020)">${esc(r.warn)}</small></td></tr>`:''}${r.split?`<tr><td></td><td colspan="9"><small class="mut">Scissione dei pagamenti (split payment): l’IVA non viene versata al fornitore, controlla il residuo.</small></td></tr>`:''}`).join('');
   d.innerHTML=`<div class="dh"><h2>Importa fatture ${E_?'emesse':'ricevute'} da XML</h2></div><div class="db" style="display:block">
    ${errs&&errs.length?`<div class="rvn" style="margin-bottom:8px">File non letti:<br>${errs.map(esc).join('<br>')}</div>`:''}
@@ -5715,7 +5829,7 @@ function xmlGo(){
   sel.forEach((k,j)=>{const r=xmlList[k];if(!r)return;let p=r.match;
     if(!p&&mk&&r.p.name){p={id:aId(),n:r.p.name,iva:r.p.piva||r.p.cf||'',ref:'',tel:''};if(col=='sup')p.cat='';D[col].push(p);r.match=p;np++}
     const dd=r.date||TODAY,pid=p?p.id:0,sc=document.querySelector('.xC[data-k="'+k+'"]'),cc=sc?sc.value:(r.sg||{}).cc||'';
-    D.inv.push({id:aId(),dir:xmlDir,nc:r.nc,num:r.num,date:dd,party:pid,pname:pid?'':r.p.name,job:0,jobs:[],desc:r.desc,net:r.net,vat:r.vat,due:r.due||aAdd(dd,aDays(col,pid)),cc,rit:r.rit||0,ritb:r.ritb,ded:null,ords:[],xml:1});n++});
+    D.inv.push({id:aId(),dir:xmlDir,nc:r.nc,num:r.num,date:dd,party:pid,pname:pid?'':r.p.name,job:0,jobs:[],desc:r.desc,net:r.net,vat:r.vat,...(r.rig?{rig:r.rig.map(x=>({...x}))}:{}),due:r.due||aAdd(dd,aDays(col,pid)),cc,rit:r.rit||0,ritb:r.ritb,ded:null,ords:[],xml:1});n++});
   if(!n){$('#dlg').close();return}
   addLog('Contabilità: importate '+n+' fatture '+(xmlDir=='E'?'emesse':'ricevute')+' da XML');save();$('#dlg').close();
   toast(n+(n==1?' fattura importata':' fatture importate')+(np?' · '+np+(np==1?' nuova anagrafica':' nuove anagrafiche'):'')+'.');render();
