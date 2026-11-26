@@ -206,7 +206,7 @@ body.lock #sb,body.lock #rb{display:none}
 function toast(m){const t=document.getElementById('toast');m=(m==null?'':String(m)).trim();clearTimeout(t._t);try{t.hidePopover()}catch(e){}t.classList.remove('on');if(!m){t.textContent='';return}t.textContent=m;t.classList.add('on');try{t.showPopover()}catch(e){}t._t=setTimeout(()=>{try{t.hidePopover()}catch(e){}t.classList.remove('on')},7000)}
 window.alert=toast;
 function askConfirm(msg,yes){const d=document.getElementById('cfm');document.getElementById('cfmm').textContent=msg;document.getElementById('cfmy').onclick=()=>{d.close();yes()};d.showModal()}
-const APP_VER='1.6.1', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
+const APP_VER='1.7.0', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
 const OLDPH=['Taglio','Saldatura','Assemblaggio','Verniciatura/zincatura','Collaudo','Montaggio'], PHMAP=[0,0,0,1,0,2];
 const V28=['In produzione','Verniciatura/zincatura','Montaggio'];
 const PH=['Produzione','Zincatura/Verniciatura','Montaggio'];
@@ -223,7 +223,7 @@ function applyCfg(c){
 }
 // EMPTY_START = true: il programma parte senza dati (solo impostazioni di base); false: parte con dati di esempio
 const EMPTY_START=true;
-const emptyData=()=>({rates:{c:32,s:42,cc:22,cs:30},sl:[],cl:[],sup:[],items:[],jobs:[],quotes:[],orders:[],moves:[],hours:[],rcv:[],inv:[],cmov:[],cset:[],pdc:[],reg:[],ces:[],hre:[],hrd:[]});
+const emptyData=()=>({rates:{c:32,s:42,cc:22,cs:30},sl:[],cl:[],sup:[],items:[],jobs:[],quotes:[],orders:[],moves:[],hours:[],rcv:[],inv:[],cmov:[],cset:[],pdc:[],reg:[],ces:[],hre:[],hrd:[],anf:[]});
 const seed=()=>{
  if(EMPTY_START)return emptyData();
  const H=(job,op,ph,h,date)=>({job,op,phase:PH[PHMAP[ph]],h,date}), M=(job,item,qty,date)=>({job,item,qty,date});
@@ -1976,16 +1976,16 @@ function hrHtml(){
   if(!$('#xHrs'))return;
   $('#xHrs').innerHTML=cur.xHrs.length?cur.xHrs.map((l,i)=>{const rate=l.t=='C'?D.rates.cc:D.rates.cs;return `<div class="bl">
     <div class="bt">Tipo<b>${l.t=='C'?'Operaio comune':'Operaio specializzato'}</b></div>
-    <label>Fase<select onchange="hrSet(${i},'f',this.value)"><option value="P"${l.f!='M'?' selected':''}>Produzione</option><option value="M"${l.f=='M'?' selected':''}>Montaggio</option></select></label>
-    <label class="w2">Descrizione<input id="xh${i}" value="${esc(l.desc)}" placeholder="Es. rifacimento saldature" oninput="hrSet(${i},'desc',this.value)"></label>
-    <label>Ore<input type="number" min="0" step="any" value="${l.hrs}" oninput="hrSet(${i},'hrs',this.value)"></label>
-    <label class="w2">Note<input value="${esc(l.note||'')}" oninput="hrSet(${i},'note',this.value)"></label>
+    <label>Fase<select onchange="xhSet(${i},'f',this.value)"><option value="P"${l.f!='M'?' selected':''}>Produzione</option><option value="M"${l.f=='M'?' selected':''}>Montaggio</option></select></label>
+    <label class="w2">Descrizione<input id="xh${i}" value="${esc(l.desc)}" placeholder="Es. rifacimento saldature" oninput="xhSet(${i},'desc',this.value)"></label>
+    <label>Ore<input type="number" min="0" step="any" value="${l.hrs}" oninput="xhSet(${i},'hrs',this.value)"></label>
+    <label class="w2">Note<input value="${esc(l.note||'')}" oninput="xhSet(${i},'note',this.value)"></label>
     <div class="bt">Totale voce<b id="xht${i}">${eur2(l.hrs*rate)}</b></div>
-    <button class="b dng" onclick="hrDel(${i})">Rimuovi</button></div>`}).join(''):'<div class="empty">Nessuna ora fuori preventivo. Usa i pulsanti qui sotto per aggiungerne.</div>';
+    <button class="b dng" onclick="xhDel(${i})">Rimuovi</button></div>`}).join(''):'<div class="empty">Nessuna ora fuori preventivo. Usa i pulsanti qui sotto per aggiungerne.</div>';
 }
 function hrAdd(t){cur.xHrs.push({t,desc:'',hrs:0,f:'P',note:''});hrHtml();sum();const e=$('#xh'+(cur.xHrs.length-1));if(e){e.scrollIntoView({block:'nearest'});e.focus()}}
-function hrSet(i,f,v){const l=cur.xHrs[i];l[f]=f=='hrs'?(+v||0):v;const e=$('#xht'+i);if(e)e.textContent=eur2(l.hrs*(l.t=='C'?D.rates.cc:D.rates.cs));sum()}
-function hrDel(i){cur.xHrs.splice(i,1);hrHtml();sum();xtTot()}
+function xhSet(i,f,v){const l=cur.xHrs[i];l[f]=f=='hrs'?(+v||0):v;const e=$('#xht'+i);if(e)e.textContent=eur2(l.hrs*(l.t=='C'?D.rates.cc:D.rates.cs));sum()}
+function xhDel(i){cur.xHrs.splice(i,1);hrHtml();sum();xtTot()}
 function extHtml(k){
   if(!$('#'+k))return;
   if(cur.locked&&k=='ext'){
@@ -4059,7 +4059,7 @@ function authInit(){
 const roleOf=id=>id=='admin'?ADM:D.roles.find(r=>r.id==id);
 const roleName=id=>(roleOf(id)||{name:'(ruolo eliminato)'}).name;
 const ROLE=()=>(ME&&roleOf(ME.role))||{perm:{}};
-const lv=v=>!ME?0:ME.role=='admin'?2:v=='usr'?0:((ROLE().perm||{})[v=='sheets'?'jobs':['cdash','cinv','cscad','cpn','cgio','cmas','cbil','cces','civa','csim','cimp','chr'].includes(v)?'cont':v]||0);
+const lv=v=>!ME?0:ME.role=='admin'?2:v=='usr'?0:((ROLE().perm||{})[v=='sheets'?'jobs':['cdash','cinv','cscad','cpn','cgio','cmas','cbil','cces','civa','csim','cimp','chr','canf'].includes(v)?'cont':v]||0);
 const canDel=()=>!!ME&&(ME.role=='admin'||!!ROLE().del), canPdf=()=>!!ME&&(ME.role=='admin'||!!ROLE().pdf);
 const isAdm=()=>!!ME&&ME.role=='admin';
 const hx=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
@@ -4666,7 +4666,7 @@ function anDraw(){
 // ---------- finestre: pulsante X in alto e salvataggio automatico alla chiusura
 // Chiudendo con la X o con Esc una finestra di modifica in cui si è cambiato qualcosa, i dati vengono salvati da soli.
 // «Annulla» resta il modo per chiudere scartando le modifiche. Se i dati non sono validi la finestra resta aperta e un avviso spiega cosa manca.
-const AUTO_SAVE=/^(sv\(|saveJob\(|qSave\([^,]*\)$|oSave\(|hSave\(|jhSave\()/;
+const AUTO_SAVE=/^(sv\(|saveJob\(|qSave\([^,]*\)$|oSave\(|hSave\(|jhSave\(|anSave\()/;
 function dlgPrimary(d){return [...d.querySelectorAll('.df button.pri')].find(b=>AUTO_SAVE.test((b.getAttribute('onclick')||'').trim()))}
 function dlgClose(d){
   const p=d._dirty?dlgPrimary(d):null;
@@ -4896,8 +4896,8 @@ function srtDir(){const L=srtTables(),{st}=srtState(L);SRT[view]={k:st.k,d:-st.d
 // ===================== MODULO CONTABILITÀ =====================
 // Dati propri: D.inv (fatture emesse/ricevute) e D.cmov (prima nota: movimenti di cassa e banca).
 // Dialoga con la produzione tramite: anagrafica clienti/fornitori, commesse (fatturazione, ore) e ordini ricevuti.
-const CV=['cdash','cinv','cscad','cpn','cgio','cmas','cbil','cces','civa','csim','cimp','chr'];
-const tabsC=[['cdash','Cruscotto'],['cinv','Fatture'],['cscad','Scadenziario'],{g:'reg',l:'Registrazioni',it:[['cpn','Prima nota'],['cces','Cespiti'],['cgio','Libro giornale'],['cmas','Mastro e mastrini'],['cbil','Bilancio']]},['chr','Personale'],['civa','IVA'],['csim','Simulazione reddito'],['cimp','Impostazioni']];
+const CV=['cdash','cinv','cscad','canf','cpn','cgio','cmas','cbil','cces','civa','csim','cimp','chr'];
+const tabsC=[['cdash','Cruscotto'],['cinv','Fatture'],['cscad','Scadenziario'],['canf','Anticipo FT'],{g:'reg',l:'Registrazioni',it:[['cpn','Prima nota'],['cces','Cespiti'],['cgio','Libro giornale'],['cmas','Mastro e mastrini'],['cbil','Bilancio']]},['chr','Personale'],['civa','IVA'],['csim','Simulazione reddito'],['cimp','Impostazioni']];
 let MOD='prod',cDir='E',cQ='',cYr=String(new Date().getFullYear()),cScad='tutte',cAcc='',cMese='',cPQ='',cIvaP='a',cOnlyOpen=false,cGC='',cMC='',cBT='ver',cMM='mas',cMT='cli',cMP='';
 let _aIdL=0;const aId=()=>{let v=Date.now()*10+Math.floor(Math.random()*10);if(v<=_aIdL)v=_aIdL+1;_aIdL=v;return v}; // sempre crescente: nessun identificativo ripetuto
 const aAdd=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
@@ -4918,7 +4918,7 @@ const aDays=(c,id)=>+((D[c].find(x=>x.id==id)||{}).pay)||CS().pay||0;
 const aJobs=i=>[...new Set([...(i.jobs||[]),...(i.job?[i.job]:[])])];
 const aJobTxt=i=>aJobs(i).map(id=>esc(jb(id))).join(', ')||'<span class="mut">-</span>';
 const aInYr=d=>!cYr||(d||'').slice(0,4)==cYr;
-function accInit(){D.inv=D.inv||[];D.cmov=D.cmov||[];D.cset=D.cset||[];D.pdc=D.pdc||[];D.reg=D.reg||[];D.ces=D.ces||[];D.hre=D.hre||[];D.hrd=D.hrd||[]}
+function accInit(){D.inv=D.inv||[];D.cmov=D.cmov||[];D.cset=D.cset||[];D.pdc=D.pdc||[];D.reg=D.reg||[];D.ces=D.ces||[];D.hre=D.hre||[];D.hrd=D.hrd||[];D.anf=D.anf||[]}
 function accModFix(){const pv=tabs.some(t=>(t.g?t.it:[t]).some(i=>lv(i[0])>0));if(MOD=='cont'&&lv('cont')<1)MOD='prod';if(MOD=='prod'&&!pv&&lv('cont')>0)MOD='cont'}
 function accSync(v){if(!ME)return;const w=CV.includes(v)?'cont':'prod';if(MOD!=w){MOD=w;buildNav()}}
 function accMod(m){MOD=m;buildNav();view=firstView();render()}
@@ -4949,7 +4949,7 @@ function aNext(){
 }
 // ---- vista principale
 function accView(){
-  accEnsure();return view=='cdash'?cDash():view=='cinv'?cInv():view=='cscad'?cScadV():view=='cpn'?cPn():view=='cgio'?cGio():view=='cmas'?cMas():view=='cbil'?cBil():view=='cimp'?cImp():view=='chr'?cHr():view=='cces'?cCes():view=='csim'?cSim():cIva();
+  accEnsure();return view=='cdash'?cDash():view=='cinv'?cInv():view=='cscad'?cScadV():view=='cpn'?cPn():view=='cgio'?cGio():view=='cmas'?cMas():view=='cbil'?cBil():view=='cimp'?cImp():view=='chr'?cHr():view=='canf'?cAnf():view=='cces'?cCes():view=='csim'?cSim():cIva();
 }
 function cDash(){
   const E_=D.inv.filter(i=>i.dir=='E'&&aSt(i)!='ok'),R_=D.inv.filter(i=>i.dir=='R'&&aSt(i)!='ok');
@@ -6205,7 +6205,7 @@ function hrEdit(id){
   d.innerHTML=`<div class="dh"><h2>${id?'Dipendente':'Nuovo dipendente'}</h2></div><div class="db">
    ${I('hN','Nome e cognome',e.n)}${I('hMat','Matricola',e.mat)}${I('hCf','Codice fiscale',e.cf)}${I('hQ','Qualifica',e.qual)}${I('hLiv','Livello',e.liv)}
    ${I('hFrom','Data di assunzione',e.from,'date')}${I('hTo','Data di cessazione (se non più in forza)',e.to,'date')}
-   ${I('hHw','Ore settimanali da contratto',e.hw,'number')}
+   ${I('hHw','Ore settimanali da contratto',e.hw,'number')}${I('hU','Utente dell’app mobile (nome utente o email)',e.u)}
    <label>Giorni lavorativi<span style="display:flex;gap:10px;flex-wrap:wrap;padding-top:6px">${[1,2,3,4,5,6,0].map(k=>`<label style="flex-direction:row;gap:4px;align-items:center;width:auto;font-size:13px"><input type="checkbox" class="hWd" value="${k}" ${(e.wd||[]).includes(k)?'checked':''} style="width:auto"> ${HR_DN[k]}</label>`).join('')}</span></label>
    ${I('hPaga','Paga oraria lorda (€)',e.paga,'number')}${I('hStrp','Maggiorazione straordinario (%)',e.strp,'number')}${I('hMalp','Malattia retribuita al (%)',e.malp,'number')}
    ${I('hFer','Giorni di ferie all’anno',e.fer,'number')}${I('hRol','Ore di ROL / permessi all’anno',e.rol,'number')}
@@ -6219,7 +6219,7 @@ function hrSave(id){
   const wd=[...document.querySelectorAll('.hWd:checked')].map(c=>+c.value);if(!wd.length){alert('Scegli almeno un giorno lavorativo.');return}
   const hw=parseFloat($('#hHw').value)||0;if(hw<=0){alert('Inserisci le ore settimanali.');return}
   const num=i=>parseFloat(String($(i).value).replace(',','.'))||0;
-  const f={n,mat:$('#hMat').value.trim(),cf:$('#hCf').value.trim().toUpperCase(),qual:$('#hQ').value.trim(),liv:$('#hLiv').value.trim(),from:$('#hFrom').value||'',to:$('#hTo').value||'',hw,wd,paga:num('#hPaga'),strp:num('#hStrp'),malp:$('#hMalp').value===''?100:num('#hMalp'),fer:num('#hFer'),rol:num('#hRol'),r0:{y:+$('#hRy').value||+TODAY.slice(0,4),fer:num('#hRf'),rol:num('#hRr')},note:$('#hNote').value.trim()};
+  const f={n,u:$('#hU').value.trim(),mat:$('#hMat').value.trim(),cf:$('#hCf').value.trim().toUpperCase(),qual:$('#hQ').value.trim(),liv:$('#hLiv').value.trim(),from:$('#hFrom').value||'',to:$('#hTo').value||'',hw,wd,paga:num('#hPaga'),strp:num('#hStrp'),malp:$('#hMalp').value===''?100:num('#hMalp'),fer:num('#hFer'),rol:num('#hRol'),r0:{y:+$('#hRy').value||+TODAY.slice(0,4),fer:num('#hRf'),rol:num('#hRr')},note:$('#hNote').value.trim()};
   const g=id?D.hre.find(x=>x.id==id):{id:aId(),off:0};Object.assign(g,f);if(!id){D.hre.push(g);hrE=g.id}
   addLog('Personale: '+(id?'modificato':'aggiunto')+' dipendente '+n);save();$('#dlg').close();render();
 }
@@ -6329,6 +6329,319 @@ function hrCsv(id){
 }
 
 
+// ---------- Anticipo fatture: modulo "Presentazione FATTURE ITALIA" da compilare ed esportare in PDF
+// Dati: D.anf = distinte salvate; il record con fx:1 contiene i dati fissi (cliente, filiale, rapporto, fido, forma tecnica).
+const ANF_TXT=['Il Cliente resta in attesa di conoscere l’elenco delle fatture accettate dalla Banca ai fini di cui sopra, intendendosi sin d’ora respinte quelle che non figureranno in tale elenco.',
+'In caso di linea di credito per anticipi fatture, il Cliente prende atto e si dichiara sin d’ora d’accordo che l’anticipo che verrà concesso a fronte della presentazione:',
+'1. sarà regolato al tasso di interesse convenuto per tale linea, salvo che la Banca non applichi al medesimo un tasso inferiore',
+'2. potrebbe essere di importo minore rispetto a quello richiesto dal Cliente con questa distinta, atteso che una o più delle fatture presentate potrebbero essere respinte, o in quanto la linea di credito non è utilizzabile per l’importo richiesto.',
+'Il cliente, a cui risultano concessi anticipi fatture, prende atto della circostanza che quando pervengono bonifici in suo favore (inclusi bonifici istantanei o urgenti), le verifiche da effettuare per individuare e/o per concordare eventuali bonifici da estinguere, e in generale l’utilizzo delle somme, potrebbero determinare un ritardo nell’accredito dell’importo di tali bonifici o dell’importo che residua a seguito dell’estinzione o riduzione degli anticipi in questione.',
+'Il Cliente conferma, per i casi di linea di credito per anticipo fatture e di apertura di credito a tassi differenziati a fronte di presentazione di fatture con cessione del credito che deve intendersi ceduto pro-solvendo in favore della Banca, a garanzia dell’anticipo/dell’apc concesso/a al Cliente medesimo, il credito riveniente dalle fatture presentate ed accettate dalla Banca nonché conferito a quest’ultima il mandato irrevocabile a notificare ai debitori ceduti l’intervenuta cessione.',
+'Il Cliente autorizza la Banca a presentare questo documento alla società Poste Italiane SpA e/o altra società del Gruppo Poste Italiane, al fine di acquisire la data certa mediante validazione temporale con sistemi elettronici. Il Cliente prende atto che, ai soli limitati fini della validazione temporale, è previsto il trattamento e la conservazione del medesimo da parte della predetta società.'];
+const ANF_FX=[['den','Denominazione cliente'],['fil','Filiale di'],['port','Rapporto di portafoglio (cat. 3800)'],['fido','Numero fido'],['ft','Forma tecnica'],['not','Notifica']];
+const ANF_MU=[['236','A.F. con cessione del credito fra le parti'],['239','A.F. con cessione perfetta del credito'],['136','A.P.C. a t.d.'],['053','A.F. in monte'],['059','A.F. senza cessione del credito']];
+let ANX=null;
+const anDb=()=>new Promise((ok,ko)=>{try{const r=indexedDB.open('gc_anf',1);r.onupgradeneeded=()=>r.result.createObjectStore('f');r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error)}catch(e){ko(e)}});
+async function anPut(k,buf){const db=await anDb();return new Promise((ok,ko)=>{const t=db.transaction('f','readwrite');t.objectStore('f').put(buf,k);t.oncomplete=()=>ok();t.onerror=()=>ko(t.error)})}
+async function anGet(k){try{const db=await anDb();return await new Promise((ok,ko)=>{const r=db.transaction('f').objectStore('f').get(k);r.onsuccess=()=>ok(r.result||null);r.onerror=()=>ko(r.error)})}catch(e){return null}}
+async function anRm(k){try{const db=await anDb();await new Promise(ok=>{const t=db.transaction('f','readwrite');t.objectStore('f').delete(k);t.oncomplete=t.onerror=()=>ok()})}catch(e){}}
+async function anLib(){
+  if(!window.PDFLib){for(const u of ['https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js','https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js']){
+    await new Promise(ok=>{const sc=document.createElement('script');sc.src=u;sc.onload=sc.onerror=()=>ok();document.head.appendChild(sc);setTimeout(ok,10000)});if(window.PDFLib)break}}
+  return !!window.PDFLib;
+}
+const anFn=f=>{const cl=s=>String(s||'').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim();
+  let n=cl(anDeb(f).split(', ').join(' - '));if(n.length>60)n=n.slice(0,60).trim();
+  return [f.date||TODAY,'AnticipoFT',n,cl(f.num)].filter(Boolean).join('_')+'.pdf'};
+const anNext=d=>{const y=String(d||TODAY).slice(0,4);return 1+Math.max(0,...D.anf.filter(x=>!x.fx&&String(x.date||'').slice(0,4)==y).map(x=>parseInt(x.num)||0))};
+const anKb=n=>n>=1048576?(n/1048576).toFixed(1).replace('.',',')+' MB':Math.max(1,Math.round(n/1024))+' kB';
+const anDeb=x=>x.deb||[...new Set((x.fts||[]).map(id=>D.inv.find(i=>i.id==id)).filter(Boolean).map(aParty))].join(', ');
+const anFx=()=>D.anf.find(x=>x.fx)||{};
+const anNum=v=>{v=String(v==null?'':v).trim();if(!v)return '';if(v.includes(','))v=v.replace(/\./g,'').replace(',','.');const n=parseFloat(v);return isNaN(n)?'':r2(n)};
+const anVal=v=>v===''||v==null?'':String(v).replace('.',',');
+function cAnf(){
+  accEnsure();
+  const L=D.anf.filter(x=>!x.fx).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||b.id-a.id);
+  return `<div class="tools"><button class="b pri" onclick="anEdit(0)">+ Nuova distinta</button><button class="b" onclick="anFixed()">Dati fissi del modulo</button><span class="mut" style="flex:1"></span></div>`+
+  (L.length?`<div class="tw"><table><thead><tr><th>Data</th><th class="n">N.</th><th>Clienti delle fatture</th><th class="n">Fatture</th><th class="n">Importo fatture</th><th class="n">Anticipo richiesto</th><th></th></tr></thead><tbody>
+  ${L.map(x=>`<tr class="row" onclick="anEdit(${x.id})"><td>${x.date?dt(x.date):'-'}</td><td class="n">${esc(x.num||'')}</td><td>${esc(anDeb(x))||'<span class="mut">-</span>'}${(x.all||[]).length?` <span class="mut" title="Allegati PDF">· ${(x.all||[]).length} all.</span>`:''}</td><td class="n">${esc(x.nft||'')}</td><td class="n">${x.imp!==''&&x.imp!=null?eur2(x.imp):'-'}</td><td class="n">${x.antic!==''&&x.antic!=null?eur2(x.antic):'-'}</td>
+  <td style="white-space:nowrap" onclick="event.stopPropagation()"><button class="b" onclick="anPdf(${x.id})">PDF</button> <button class="b" onclick="anDup(${x.id})">Duplica</button> <button class="b dng" onclick="anDel(${x.id})">Elimina</button></td></tr>`).join('')}
+  </tbody></table></div>`:`<div class="empty">Nessuna distinta. Compila il modulo per richiedere un anticipo sulle fatture: <button class="b pri" onclick="anEdit(0)">Nuova distinta</button></div>`)+
+  `<p class="mut" style="font-size:12px">Il modulo è «Presentazione FATTURE ITALIA» (copia per la banca e copia per il cliente). Nei «Dati fissi» scrivi una volta sola i campi che non cambiano mai: li ritrovi già compilati in ogni nuova distinta.</p>`;
+}
+function anFixed(){
+  const f=anFx();ANSIG=f.firma||null;const d=$('#dlg');d.oninput=null;d.classList.remove('wide');
+  d.innerHTML=`<div class="dh"><h2>Dati fissi del modulo</h2></div><div class="db"><p class="mut full" style="margin:0 0 6px">Questi dati vengono proposti automaticamente in ogni nuova distinta (resta possibile modificarli distinta per distinta).</p>
+  ${ANF_FX.map(([k,l])=>`<label class="${k=='den'?'full':''}">${l}<input id="af_${k}" value="${esc(f[k]!=null?f[k]:(k=='den'?(CO().name||''):''))}"></label>`).join('')}
+  <div class="full"><div style="font-size:12px;font-weight:600;margin:6px 0 4px">Firma del cliente</div><div id="afSig">${anSigHtml(f.firma)}</div>
+  <input type="file" id="afFile" accept="image/png,image/jpeg,application/pdf" style="display:none" onchange="anSigLoad(this.files[0]);this.value=''">
+  <div id="afSensBox" style="display:none;margin-top:6px;font-size:12px">Pulizia: meno <input type="range" id="afSens" min="50" max="180" value="100" style="width:180px;vertical-align:middle" onchange="anSigRedo(+this.value)"> più <span class="mut">(alza se restano macchie, abbassa se il tratto è troppo sottile)</span></div>
+  <div style="margin-top:6px"><button class="b" onclick="$('#afFile').click()">Carica la firma (JPG, PNG o PDF)</button> <button class="b dng" onclick="anSigDel()">Rimuovi</button></div>
+  <p class="mut" style="font-size:12px;margin:6px 0 0">Va bene anche una foto o una scansione: il programma toglie sfondo, ombre, righe e macchie e ritaglia il solo tratto della firma. Viene messa sopra la riga «Firma del Cliente» di ogni copia del modulo.</p></div></div>
+  <div class="df"><button class="b" onclick="$('#dlg').close()">Annulla</button><button class="b pri" onclick="anFxSave()">Salva</button></div>`;d.showModal();
+}
+let ANSIG,ANSRC=null;
+function anSigRedo(v){if(!ANSRC)return;const g=anSigFix(ANSRC,v/100);if(g){ANSIG=g;$('#afSig').innerHTML=anSigHtml(g)}}
+const anSigHtml=g=>g&&g.d?`<div style="background:#fff;border:1px dashed #aab;padding:8px;display:inline-block"><img src="${g.d}" style="max-width:260px;max-height:90px;display:block"></div>`:'<span class="mut">Nessuna firma caricata.</span>';
+function anSigDel(){ANSIG=null;$('#afSig').innerHTML=anSigHtml(null)}
+async function anSigLoad(file){
+  if(!file)return;
+  try{
+    let cv=document.createElement('canvas');
+    if(file.type=='application/pdf'||/\.pdf$/i.test(file.name)){
+      if(!(await pvJs())){alert('Il lettore PDF non si carica: serve la connessione a internet. Prova con un file JPG o PNG.');return}
+      const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise,pg=await pdf.getPage(1),vp=pg.getViewport({scale:2.5});
+      cv.width=vp.width;cv.height=vp.height;const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);await pg.render({canvasContext:cx,viewport:vp}).promise;
+    }else{
+      const url=URL.createObjectURL(file);const im=await new Promise((ok,ko)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>ko(new Error('img'));i.src=url});
+      cv.width=im.naturalWidth;cv.height=im.naturalHeight;cv.getContext('2d').drawImage(im,0,0);URL.revokeObjectURL(url);
+    }
+    ANSRC=cv;const g=anSigFix(cv,1);if(!g){alert('Nel file non ho trovato nessuna firma: controlla che il tratto sia ben visibile.');return}
+    ANSIG=g;$('#afSig').innerHTML=anSigHtml(g);$('#afSens').value=100;$('#afSensBox').style.display='block';
+  }catch(e){alert('Non riesco a leggere questo file come immagine o PDF.')}
+}
+// Pulizia della firma: appiattisce lo sfondo, isola il tratto, toglie righe, cornici, puntini e scritte staccate, rende lo sfondo trasparente
+// Pulizia della firma: appiattisce lo sfondo, isola il tratto, toglie righe, cornici, puntini e scritte staccate, rende lo sfondo trasparente
+function anMaxF(src,W,H,r,out){const t=new Float32Array(W*H);
+  for(let y=0;y<H;y++){const o=y*W;for(let x=0;x<W;x++){let m=0;const a=Math.max(0,x-r),b=Math.min(W-1,x+r);for(let k=a;k<=b;k++){const v=src[o+k];if(v>m)m=v}t[o+x]=m}}
+  for(let x=0;x<W;x++){for(let y=0;y<H;y++){let m=0;const a=Math.max(0,y-r),b=Math.min(H-1,y+r);for(let k=a;k<=b;k++){const v=t[k*W+x];if(v>m)m=v}out[y*W+x]=m}}return out}
+function anBox(src,W,H,r){const t=new Float32Array(W*H),o=new Float32Array(W*H);
+  for(let y=0;y<H;y++){let s=0,n=0;const b=y*W;for(let x=0;x<=Math.min(W-1,r);x++){s+=src[b+x];n++}
+    for(let x=0;x<W;x++){t[b+x]=s/n;const a=x+r+1,d=x-r;if(a<W){s+=src[b+a];n++}if(d>=0){s-=src[b+d];n--}}}
+  for(let x=0;x<W;x++){let s=0,n=0;for(let y=0;y<=Math.min(H-1,r);y++){s+=t[y*W+x];n++}
+    for(let y=0;y<H;y++){o[y*W+x]=s/n;const a=y+r+1,d=y-r;if(a<H){s+=t[a*W+x];n++}if(d>=0){s-=t[d*W+x];n--}}}return o}
+function anSigFix(cv0,sens){
+  sens=sens||1;let W=cv0.width,H=cv0.height;if(!W||!H)return null;
+  const k0=Math.min(1,1400/W),cv=document.createElement('canvas');cv.width=Math.max(1,Math.round(W*k0));cv.height=Math.max(1,Math.round(H*k0));
+  const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);cx.drawImage(cv0,0,0,cv.width,cv.height);W=cv.width;H=cv.height;
+  const px=cx.getImageData(0,0,W,H).data,N=W*H,g=new Float32Array(N);
+  for(let i=0;i<N;i++)g[i]=.299*px[i*4]+.587*px[i*4+1]+.114*px[i*4+2];
+  // sfondo locale (toglie ombre e sfumature della carta)
+  const r1=Math.max(3,Math.round(W*.006)),dil=anMaxF(g,W,H,r1,new Float32Array(N)),bg=anBox(anBox(dil,W,H,Math.max(8,Math.round(W*.04))),W,H,Math.max(8,Math.round(W*.04)));
+  const ink=new Float32Array(N);let mx=0;for(let i=0;i<N;i++){const b=Math.max(bg[i],70),v=Math.max(0,(b-g[i])/b);ink[i]=v;if(v>mx)mx=v}
+  if(mx<.15)return null;
+  // soglia di Otsu
+  const hs=new Float64Array(256);for(let i=0;i<N;i++)hs[Math.min(255,Math.round(ink[i]*255))]++;
+  let tot=N,sm=0;for(let i=0;i<256;i++)sm+=i*hs[i];let wB=0,sB=0,best=0,T=60;
+  for(let i=0;i<256;i++){wB+=hs[i];if(!wB)continue;const wF=tot-wB;if(!wF)break;sB+=i*hs[i];const mB=sB/wB,mF=(sm-sB)/wF,v=wB*wF*(mB-mF)*(mB-mF);if(v>best){best=v;T=i}}
+  const t=Math.min(.6,Math.max(.12,T/255*.9))*sens;
+  const mask=new Uint8Array(N);for(let i=0;i<N;i++)mask[i]=ink[i]>t?1:0;
+  // margini e cornici
+  const mg=Math.round(Math.min(W,H)*.012);for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(x<mg||y<mg||x>=W-mg||y>=H-mg)mask[y*W+x]=0;
+  // righe lunghe orizzontali e verticali
+  const LW=Math.round(W*.4),LH=Math.round(H*.55);
+  for(let y=0;y<H;y++){let s=-1;for(let x=0;x<=W;x++){const on=x<W&&mask[y*W+x];if(on&&s<0)s=x;if(!on&&s>=0){if(x-s>=LW)for(let q=s;q<x;q++)mask[y*W+q]=0;s=-1}}}
+  for(let x=0;x<W;x++){let s=-1;for(let y=0;y<=H;y++){const on=y<H&&mask[y*W+x];if(on&&s<0)s=y;if(!on&&s>=0){if(y-s>=LH)for(let q=s;q<y;q++)mask[q*W+x]=0;s=-1}}}
+  // gruppi di tratti vicini; si tiene il gruppo principale e quelli di peso simile
+  const dm=new Float32Array(N);for(let i=0;i<N;i++)dm[i]=mask[i];const dd=anMaxF(dm,W,H,Math.max(2,Math.round(W*.012)),new Float32Array(N));
+  const lab=new Int32Array(N),cnt=[0],bb=[null];let nl=0;const st=new Int32Array(N);
+  for(let i=0;i<N;i++){if(dd[i]<.5||lab[i])continue;nl++;cnt.push(0);bb.push([W,H,0,0]);let sp=0;st[sp++]=i;lab[i]=nl;
+    while(sp){const p=st[--sp],x=p%W,y=(p/W)|0;if(mask[p])cnt[nl]++;const B=bb[nl];if(x<B[0])B[0]=x;if(x>B[2])B[2]=x;if(y<B[1])B[1]=y;if(y>B[3])B[3]=y;
+      if(x>0&&dd[p-1]>=.5&&!lab[p-1]){lab[p-1]=nl;st[sp++]=p-1}if(x<W-1&&dd[p+1]>=.5&&!lab[p+1]){lab[p+1]=nl;st[sp++]=p+1}
+      if(y>0&&dd[p-W]>=.5&&!lab[p-W]){lab[p-W]=nl;st[sp++]=p-W}if(y<H-1&&dd[p+W]>=.5&&!lab[p+W]){lab[p+W]=nl;st[sp++]=p+W}}}
+  let big=0,bigL=0;for(let l=1;l<=nl;l++)if(cnt[l]>big){big=cnt[l];bigL=l}if(big<20)return null;
+  // componenti connesse del tratto: tolgono la polvere e riconoscono le scritte stampate (molte lettere piccole in fila)
+  const cc=new Int32Array(N),ca=[0],cgp=[0];let nc=0;
+  for(let i=0;i<N;i++){if(!mask[i]||cc[i])continue;nc++;ca.push(0);cgp.push(lab[i]);let sp=0;st[sp++]=i;cc[i]=nc;
+    while(sp){const p=st[--sp],x=p%W,y=(p/W)|0;ca[nc]++;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const X=x+dx,Y=y+dy;if(X<0||Y<0||X>=W||Y>=H)continue;const q=Y*W+X;if(mask[q]&&!cc[q]){cc[q]=nc;st[sp++]=q}}}}
+  let bigC=0;for(let c=1;c<=nc;c++)if(ca[c]>bigC)bigC=ca[c];
+  const minA=Math.max(14,bigC*.012),gn=new Int32Array(nl+1);for(let c=1;c<=nc;c++)if(ca[c]>=minA)gn[cgp[c]]++;
+  const bh=bb[bigL][3]-bb[bigL][1]+1;
+  const cOk=new Uint8Array(nc+1);for(let c=1;c<=nc;c++)cOk[c]=ca[c]>=minA?1:0;
+  const keep=new Uint8Array(nl+1);for(let l=1;l<=nl;l++){const B=bb[l],h=B[3]-B[1]+1,w=B[2]-B[0]+1;keep[l]=cnt[l]>=big*.22&&!(h<H*.025&&w>h*6&&cnt[l]<big*.6)&&!(gn[l]>=6&&h<bh*.5&&l!=bigL)?1:0}
+  // trasparenza morbida e colore del tratto
+  const out=document.createElement('canvas');out.width=W;out.height=H;const oc=out.getContext('2d'),im=oc.createImageData(W,H),d=im.data;
+  let x0=W,y0=H,x1=-1,y1=-1,sr=0,sg=0,sb=0,sn=0;
+  for(let i=0;i<N;i++){const l=lab[i];if(!l||!keep[l])continue;if(mask[i]&&!cOk[cc[i]])continue;const a=Math.max(0,Math.min(1,(ink[i]-t*.45)/(t*.9)));if(a<=.02)continue;
+    d[i*4+3]=Math.round(a*255);if(a>.75){sr+=px[i*4];sg+=px[i*4+1];sb+=px[i*4+2];sn++}
+    if(a>.3){const x=i%W,y=(i/W)|0;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}
+  if(x1<0||x1-x0<10||y1-y0<5||!sn)return null;
+  let cr=sr/sn*.5,cg=sg/sn*.5,cb=sb/sn*.55;const lu=.299*cr+.587*cg+.114*cb;if(lu>70){const f=70/lu;cr*=f;cg*=f;cb*=f}
+  for(let i=0;i<N;i++){d[i*4]=cr;d[i*4+1]=cg;d[i*4+2]=cb}
+  oc.putImageData(im,0,0);
+  const p=Math.round(W*.006);x0=Math.max(0,x0-p);y0=Math.max(0,y0-p);x1=Math.min(W-1,x1+p);y1=Math.min(H-1,y1+p);
+  const w=x1-x0+1,h=y1-y0+1,k=Math.min(1,800/w,320/h),o=document.createElement('canvas');o.width=Math.max(1,Math.round(w*k));o.height=Math.max(1,Math.round(h*k));
+  const o2=o.getContext('2d');o2.imageSmoothingQuality='high';o2.drawImage(out,x0,y0,w,h,0,0,o.width,o.height);
+  return{d:o.toDataURL('image/png'),w:o.width,h:o.height};
+}
+function anFxSave(){
+  let r=D.anf.find(x=>x.fx);if(!r){r={id:aId(),fx:1};D.anf.push(r)}
+  if(ANSIG===null)delete r.firma;else if(ANSIG)r.firma=ANSIG;
+  ANF_FX.forEach(([k])=>r[k]=$('#af_'+k).value.trim());
+  addLog('Anticipo fatture: aggiornati i dati fissi del modulo');save();$('#dlg').close();render();toast('Dati fissi salvati.')}
+function anEdit(id){
+  const g=id?D.anf.find(x=>x.id==id):null,fx=anFx();
+  ANX=g?JSON.parse(JSON.stringify(g)):{date:TODAY,pag:'',contr:'',nft:'',imp:'',impon:'',split:0,c1:1,antic:'',mod:'unica',npres:'',c2:0,val:'',mu:[],mux:'',tasso:'',fts:[],deb:'',all:[],sig:1,num:String(anNext(TODAY)),
+    den:fx.den!=null?fx.den:(CO().name||''),fil:fx.fil||'',port:fx.port||'',fido:fx.fido||'',ft:fx.ft||'',not:fx.not||''};
+  const d=$('#dlg');d.oninput=null;d.classList.add('wide');
+  const I=(i,l,v,x,c)=>`<label class="${c||''}">${l}<input id="an_${i}" value="${esc(v==null?'':v)}" ${x||''}></label>`;
+  const ck=(i,l,v)=>`<label style="flex-direction:row;display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" id="an_${i}" ${v?'checked':''} style="width:auto"> ${l}</label>`;
+  const inv=D.inv.filter(i=>i.dir=='E'&&(aOpen(i)>0.005||(ANX.fts||[]).includes(i.id))).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  d.innerHTML=`<div class="dh"><h2>${id?'Distinta di anticipo':'Nuova distinta di anticipo'}</h2></div><div class="db">
+   <h3 class="full" style="margin:0">Intestazione</h3>
+   ${I('date','Data del modulo',ANX.date,'type="date"')}${I('num','Numero distinta (entra nel nome del file)',ANX.num,'maxlength="10"')}${I('pag','Pagine del documento (vuoto = automatico)',ANX.pag,'inputmode="numeric"')}
+   ${I('fil','Filiale di',ANX.fil)}${I('contr','Contrassegno (max 5 caratteri)',ANX.contr,'maxlength="5"')}
+   ${I('den','Denominazione cliente',ANX.den,'','full')}
+   <h3 class="full" style="margin:8px 0 0">Fatture presentate</h3>
+   ${inv.length?`<div class="full tw" style="max-height:190px;overflow:auto"><table><thead><tr><th></th><th>Fattura</th><th>Data</th><th>Cliente</th><th class="n">Imponibile</th><th class="n">Totale</th></tr></thead><tbody>${inv.map(i=>`<tr><td><input type="checkbox" class="an_f" value="${i.id}" ${(ANX.fts||[]).includes(i.id)?'checked':''}></td><td>${esc(i.num||'')}</td><td>${i.date?dt(i.date):''}</td><td>${esc(aParty(i))}</td><td class="n">${eur2(aNet(i))}</td><td class="n">${eur2(aTot(i))}</td></tr>`).join('')}</tbody></table></div>
+   <div class="full"><button class="b" onclick="anPick()">Calcola numero e importi dalle fatture selezionate</button> <span class="mut" style="font-size:12px">Le selezionate vengono anche elencate in un allegato al PDF.</span></div>`:'<p class="mut full" style="margin:0">Non ci sono fatture emesse ancora da incassare: puoi comunque scrivere i dati a mano.</p>'}
+   ${I('deb','Clienti delle fatture presentate (solo per l’elenco: non compare nel modulo)',ANX.deb,'','full')}
+   ${I('nft','N. fatture (max 2 cifre)',ANX.nft,'inputmode="numeric" maxlength="2"')}${I('imp','Importo complessivo (€)',anVal(ANX.imp),'inputmode="decimal"')}
+   ${I('impon','Imponibile (€) — solo se Split Payment',anVal(ANX.impon),'inputmode="decimal"')}<div style="display:flex;align-items:flex-end;padding-bottom:8px">${ck('split','Split Payment',ANX.split)}</div>
+   <h3 class="full" style="margin:8px 0 0">Richiesta</h3>
+   <div class="full">${ck('c1','Ottenere l’anticipo regolato dal Contratto quadro di affidamento / contratto di concessione di linee di credito a fronte di presentazione di portafoglio e/o per anticipi su presentazione di documenti',ANX.c1)}</div>
+   ${I('antic','Importo anticipo richiesto (€)',anVal(ANX.antic),'inputmode="decimal"')}
+   <label>Accredito sul conto del Cliente<select id="an_mod"><option value="" ${!ANX.mod?'selected':''}>— non indicato —</option><option value="unica" ${ANX.mod=='unica'?'selected':''}>In un’unica soluzione</option><option value="tranches" ${ANX.mod=='tranches'?'selected':''}>In più tranches, in base alle istruzioni del Cliente</option></select></label>
+   ${I('npres','N° di presentazione originaria (max 10 caratteri, solo per più tranches)',ANX.npres,'maxlength="10"','full')}
+   <div class="full">${ck('c2','Utilizzare l’apertura di credito a tassi differenziati di cui dispone, regolata dal Contratto quadro di affidamento / contratto di concessione di aperture di credito in conto corrente',ANX.c2)}</div>
+   <h3 class="full" style="margin:8px 0 0">Allegati e firma</h3>
+   <div class="full"><div id="anAll">${anAllHtml()}</div><input type="file" id="anFile" accept="application/pdf" multiple style="display:none" onchange="anAdd([...this.files]);this.value=''">
+   <button class="b" onclick="$('#anFile').click()">+ Aggiungi allegati PDF</button> <span class="mut" style="font-size:12px">Vengono uniti al PDF del modulo, in questo ordine, quando lo esporti. Restano memorizzati su questo computer.</span></div>
+   <div class="full">${ck('sig','Applica la firma sopra la riga «Firma del Cliente»'+(fx.firma?'':' (nessuna firma caricata: caricala in «Dati fissi del modulo»)'),ANX.sig!==0&&ANX.sig!==false)}</div>
+   <h3 class="full" style="margin:8px 0 0">Spazio riservato alla banca <span class="mut" style="font-weight:400;font-size:12px">(di solito lo compila la banca: lascia vuoto se non serve)</span></h3>
+   ${I('port','A valere sul rapporto di Portafoglio (cat. 3800, max 8 caratteri)',ANX.port,'maxlength="8"')}${I('val','Valuta di accredito',ANX.val,'type="date"')}
+   <div class="full"><div style="font-size:12px;font-weight:600;color:var(--mut,#667);margin-bottom:4px">Modalità di utilizzo</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 14px">${ANF_MU.map(([c,l])=>ck('mu'+c,`<b>${c}</b> ${l}`,(ANX.mu||[]).includes(c))).join('')}
+   <label style="flex-direction:row;display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" id="an_muX" ${(ANX.mu||[]).includes('x')?'checked':''} style="width:auto"> altro codice <input id="an_mux" value="${esc(ANX.mux||'')}" maxlength="3" style="width:70px"></label></div></div>
+   ${I('fido','Numero fido (max 3)',ANX.fido,'maxlength="3"')}${I('ft','Forma tecnica (max 3)',ANX.ft,'maxlength="3"')}
+   ${I('not','Notifica',ANX.not)}${I('tasso','Tasso (solo se diverso da Price), es. 2,50',ANX.tasso,'inputmode="decimal"')}
+  </div><div class="df">${id?`<button class="b dng l" onclick="anDel(${id},1)">Elimina</button>`:''}<button class="b" onclick="$('#dlg').close()">Annulla</button><button class="b" onclick="anSave(${id},1)">Salva ed esporta PDF</button><button class="b pri" onclick="anSave(${id},0)">Salva</button></div>`;
+  d.showModal();
+}
+const anAllHtml=()=>(ANX.all||[]).length?`<div class="tw" style="margin-bottom:6px"><table><tbody>${ANX.all.map((a,i)=>`<tr><td>${i+1}.</td><td>${esc(a.n)}</td><td class="n">${a.p?a.p+' pag.':''}</td><td class="n">${anKb(a.s)}</td><td style="width:1%"><button class="b dng" onclick="anRmAll(${i})">✕</button></td></tr>`).join('')}</tbody></table></div>`:'';
+async function anAdd(files){
+  const okLib=await anLib();
+  for(const f of [...files]){
+    const buf=await f.arrayBuffer(),h=new Uint8Array(buf.slice(0,5));
+    if(String.fromCharCode(...h)!='%PDF-'){alert('«'+f.name+'» non è un PDF.');continue}
+    if(buf.byteLength>25*1048576){alert('«'+f.name+'» supera i 25 MB.');continue}
+    let p=0;if(okLib){try{p=(await PDFLib.PDFDocument.load(buf,{ignoreEncryption:true})).getPageCount()}catch(e){alert('«'+f.name+'» non si apre: potrebbe essere protetto o danneggiato.');continue}}
+    const u=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+    try{await anPut('a:'+u,buf)}catch(e){alert('Non riesco a memorizzare l’allegato su questo computer.');continue}
+    ANX.all.push({u,n:f.name,s:buf.byteLength,p});
+  }
+  $('#anAll').innerHTML=anAllHtml();
+}
+function anRmAll(i){const a=ANX.all.splice(i,1)[0];(ANX._rm=ANX._rm||[]).push(a.u);$('#anAll').innerHTML=anAllHtml()}
+function anPick(){
+  const ids=[...document.querySelectorAll('.an_f:checked')].map(x=>+x.value),L=D.inv.filter(i=>ids.includes(i.id));
+  if(!L.length){alert('Seleziona almeno una fattura.');return}
+  $('#an_nft').value=L.length;$('#an_imp').value=anVal(r2(L.reduce((t,i)=>t+aTot(i),0)));$('#an_impon').value=anVal(r2(L.reduce((t,i)=>t+aNet(i),0)));
+  if(!$('#an_antic').value)$('#an_antic').value=$('#an_imp').value;
+  $('#an_deb').value=[...new Set(L.map(i=>aParty(i)))].join(', ');
+  toast(L.length+' fatture: importo complessivo '+eur2(L.reduce((t,i)=>t+aTot(i),0))+'. Controlla l’anticipo richiesto.');
+}
+function anRead(){
+  const v=i=>$('#an_'+i).value.trim(),A=ANX;
+  A.date=v('date');A.num=v('num');A.pag=v('pag');A.fil=v('fil');A.contr=v('contr');A.den=v('den');A.nft=v('nft');A.imp=anNum(v('imp'));A.impon=anNum(v('impon'));A.split=$('#an_split').checked?1:0;
+  A.c1=$('#an_c1').checked?1:0;A.antic=anNum(v('antic'));A.mod=$('#an_mod').value;A.npres=v('npres');A.c2=$('#an_c2').checked?1:0;
+  A.port=v('port');A.val=v('val');A.mu=ANF_MU.map(x=>x[0]).filter(c=>$('#an_mu'+c).checked);if($('#an_muX').checked)A.mu.push('x');A.mux=v('mux');
+  A.deb=v('deb');A.sig=$('#an_sig').checked?1:0;A.fido=v('fido');A.ft=v('ft');A.not=v('not');A.tasso=v('tasso');A.fts=[...document.querySelectorAll('.an_f:checked')].map(x=>+x.value);
+}
+function anSave(id,pdf){
+  anRead();const A=ANX;
+  if(A.nft&&!/^\d{1,2}$/.test(A.nft)){alert('Il numero di fatture può avere al massimo due cifre.');return}
+  if(A.pag&&!/^\d{1,2}$/.test(A.pag)){alert('Le pagine devono essere un numero.');return}
+  if((A.imp!==''&&A.imp>99999999.99)||(A.impon!==''&&A.impon>99999999.99)||(A.antic!==''&&A.antic>99999999.99)){alert('Gli importi non possono superare 99.999.999,99 euro (il modulo ha dieci caselle).');return}
+  if(A.tasso&&anNum(A.tasso)==='' ){alert('Il tasso deve essere un numero, per esempio 2,50.');return}
+  if(A.tasso&&anNum(A.tasso)>99.99){alert('Il tasso può avere al massimo due cifre intere.');return}
+  let rid=id;const rm=A._rm||[];delete A._rm;rm.forEach(u=>anRm('a:'+u));
+  if(id){Object.assign(D.anf.find(x=>x.id==id),A)}else{rid=aId();D.anf.push({id:rid,...A})}
+  addLog('Anticipo fatture: '+(id?'modificata':'creata')+' distinta del '+(A.date?dt(A.date):'-'));
+  save();$('#dlg').close();render();
+  if(pdf)anPdf(rid);
+}
+function anDup(id){const g=D.anf.find(x=>x.id==id);if(!g)return;const n={...JSON.parse(JSON.stringify(g)),id:aId(),date:TODAY,contr:'',val:'',npres:'',all:[],num:String(anNext(TODAY))};D.anf.push(n);save();render();anEdit(n.id)}
+function anDel(id,fromDlg){const g=D.anf.find(x=>x.id==id);if(!g)return;
+  askConfirm('Eliminare questa distinta'+((g.all||[]).length?' e i suoi allegati':'')+'?',()=>{(g.all||[]).forEach(a=>anRm('a:'+a.u));D.anf=D.anf.filter(x=>x.id!=id);addLog('Anticipo fatture: eliminata una distinta');save();if(fromDlg)$('#dlg').close();render()})}
+// ---- disegno del modulo (coordinate in pixel della pagina originale 850x1203, convertite in mm)
+function anDraw(doc,f,copia,pages,firma){
+  const k=210/850,G=[46,158,85];
+  const tx=(t,x,y,b,s,al)=>{doc.setFont('helvetica',b?'bold':'normal');doc.setFontSize(s||8);doc.setTextColor(0,0,0);doc.text(String(t),x*k,y*k,al?{align:al}:undefined)};
+  const rc=(x,y,w,h,lw)=>{doc.setDrawColor(...G);doc.setLineWidth(lw||.25);doc.rect(x*k,y*k,w*k,h*k)};
+  const ln=(x1,y1,x2,y2,c)=>{doc.setDrawColor(...(c||[0,0,0]));doc.setLineWidth(.2);doc.line(x1*k,y1*k,x2*k,y2*k)};
+  const cells=(x,y,n,str,w,h)=>{str=String(str==null?'':str);for(let i=0;i<n;i++){rc(x+i*w,y,w,h);const c=str[i];if(c&&c!=' ')tx(c.toUpperCase(),x+i*w+w/2,y+h*.7,1,10,'center')}return x+n*w};
+  const chk=(x,y,on,w,h)=>{w=w||21;h=h||24;rc(x,y,w,h);if(on){doc.setDrawColor(0,0,0);doc.setLineWidth(.5);doc.line((x+4)*k,(y+4)*k,(x+w-4)*k,(y+h-4)*k);doc.line((x+w-4)*k,(y+4)*k,(x+4)*k,(y+h-4)*k)}};
+  const money=(x,y,v)=>{const W=21.5,H=26,GP=8;let d=new Array(10).fill('');
+    if(v!==''&&v!=null&&!isNaN(+v)){const s=String(Math.round(Math.abs(+v)*100)).padStart(10,'0');let z=0;while(z<7&&s[z]=='0')z++;for(let i=z;i<10;i++)d[i]=s[i]}
+    let cx=x,i=0;[[2,'.'],[3,'.'],[3,','],[2,'']].forEach(([n,sep])=>{for(let j=0;j<n;j++,i++){rc(cx+j*W,y,W,H);if(d[i])tx(d[i],cx+j*W+W/2,y+H*.7,1,10,'center')}cx+=n*W;if(sep){tx(sep,cx+GP/2,y+H*.92,1,13,'center');cx+=GP}})};
+  const dmy=iso=>{const m=/^(\d{4})-(\d\d)-(\d\d)$/.exec(iso||'');return m?[m[3],m[2],m[1].slice(2)]:['','','']};
+  const dcells=(x,y,iso,w,gap,h)=>{const p=dmy(iso);let cx=x;p.forEach((s,i)=>{cells(cx,y,2,s,w,h);cx+=2*w;if(i<2){tx('/',cx+gap/2,y+h*.78,1,13,'center');cx+=gap}})};
+  // intestazione
+  tx('Documento unico formato da n° '+(f.pag||pages)+' pagine.'+(copia==0?' Si richiede l’apposizione della data certa mediante validazione temporale con sistemi elettronici.':''),59,75,0,6.3);
+  tx('Presentazione FATTURE ITALIA',433,102,1,8,'center');
+  tx('Spett.',59,185,0,8);tx('Intesa Sanpaolo S.p.A.',59+doc.getTextWidth('Spett. ')/k,185,1,8);
+  tx('Filiale di',59,223,1,8);ln(105,228,398,228);tx(f.fil||'',108,225,0,9);
+  cells(476,195,5,f.contr,21,25);tx('(contrassegno)',529,229,0,6.3,'center');
+  // cliente
+  rc(59,257,748,365,.3);
+  tx('Denominazione Cliente:',67,270,0,8);ln(188,275,799,275);tx(f.den||'',192,272,1,9);
+  tx('presenta, allegate a questa distinta e con modalità concordate, n.',67,307,0,8);cells(412,291,2,String(f.nft||'').padStart(2,' '),20,27);tx('fatture, emesse a carico di propria clientela,',472,307,0,8);
+  tx('dell’importo complessivo di Euro:',67,343,0,8);money(247,330,f.imp);
+  tx('* per imponibile pari a Euro:',67,379,0,8);money(247,364,f.impon);tx('* Split Payment:',499,379,0,8);chk(591,364,f.split,18,25);
+  tx('* Compilare entrambi i campi solo in caso di fatture soggette a',67,404,0,8);tx('Split Payment',67+doc.getTextWidth('* Compilare entrambi i campi solo in caso di fatture soggette a ')/k+1,404,1,8);
+  tx('a valere sulle forme tecniche di seguito indicate per:',67,422,0,8);
+  chk(67,440,f.c1,21,22);
+  tx('ottenere il seguente anticipo regolato dal Contratto quadro di affidamento, se sottoscritto, ovvero dal contratto di concessione di linee',98,456,1,7.1);
+  tx('di credito a fronte di presentazione di portafoglio e/o per anticipi su presentazione di documenti ed eventuali successive modifiche',98,470,1,7.1);
+  tx('Importo anticipo richiesto Euro:',67,492,0,8);money(247,476,f.antic);tx('da accreditare sul conto del Cliente:',499,492,0,8);
+  chk(99,516,f.mod=='unica',21,24);tx('in un’unica soluzione',131,531,0,8);
+  chk(99,548,f.mod=='tranches',21,24);tx('in più tranches, in base alle istruzioni conferite dal Cliente',131,563,0,7.6);cells(427,545,10,f.mod=='tranches'?f.npres:'',21.9,26);tx('N° di presentazione originaria',652,563,0,8,'left');
+  chk(67,587,f.c2,21,23);
+  tx('utilizzare l’apertura di credito a tassi differenziati di cui dispone, regolata dal Contratto quadro di affidamento, se sottoscritto, ovvero',98,598,1,7.1);
+  tx('dal contratto di concessione di aperture di credito in conto corrente ed eventuali successive modifiche',98,611,1,7.1);
+  // banca
+  rc(59,631,748,214,.3);
+  tx('SPAZIO RISERVATO ALLA BANCA',67,641,0,8);
+  tx('A valere sul rapporto di Portafoglio (cat. 3800)',67,672,0,8);cells(306,653,8,f.port,21.7,27);tx('Valuta di accredito:',527,672,0,8);dcells(632,654,f.val,20,14,26);
+  tx('Modalità di utilizzo:',67,719,0,8);
+  const mu=c=>(f.mu||[]).includes(c);
+  const rowMu=(x,y,code,l1,l2,on)=>{chk(x,y,on,20,28);cells(x+31,y+3,3,code,21,22);tx(l1,x+98,y+9,0,6.3);if(l2)tx(l2,x+98,y+21,0,6.3)};
+  rowMu(201,697,'236','A.F. con cessione del credito','fra le parti',mu('236'));rowMu(449,697,'053','A.F. in monte','',mu('053'));
+  rowMu(201,733,'239','A.F. con cessione perfetta','del credito',mu('239'));rowMu(449,733,'059','A.F. senza cessione','del credito',mu('059'));
+  rowMu(201,771,'136','A.P.C. a t.d.','',mu('136'));
+  chk(449,771,mu('x'),20,28);cells(480,774,3,f.mux,21,22);ln(552,797,686,797);
+  tx('Numero fido:',66,832,1,8);cells(141,817,3,f.fido,21,24);
+  tx('Forma Tecnica:',220,832,1,8);cells(308,817,3,f.ft,21,24);
+  tx('Notifica',387,832,1,8);tx(f.not||'',431,832,0,8);
+  tx('Tasso',468,832,1,8);{const t=String(f.tasso||'').replace('.',',').split(',');const a=(t[0]||'').padStart(2,' ').slice(-2),b=((t[1]||'')+'  ').slice(0,2);cells(508,817,2,f.tasso?a:'',19,24);tx(',',553,839,1,13,'center');cells(560,817,2,f.tasso?b:'',19,24)}
+  tx('(da indicare solo se diverso da Price)',605,832,1,7.4);
+  // testo
+  rc(59,855,748,195,.3);
+  let y=867;doc.setFont('helvetica','normal');doc.setFontSize(7.1);doc.setTextColor(0,0,0);
+  ANF_TXT.forEach(p=>{doc.splitTextToSize(p,(740-8)*k).forEach(l=>{doc.text(l,67*k,y*k);y+=11.3})});
+  // firme
+  tx('(Per Ricevuta)',644,1061,0,6.8);
+  tx('DATA',59,1103,0,8);dcells(98,1085,f.date,21,12,26);
+  if(firma&&firma.d&&f.sig!==0&&f.sig!==false){const mw=250,mh=64,sc=Math.min(mw/firma.w,mh/firma.h),w=firma.w*sc,h=firma.h*sc;try{doc.addImage(firma.d,'PNG',(389-w/2)*k,(1108-h)*k,w*k,h*k)}catch(e){}}
+  ln(256,1111,522,1111);tx('(Firma del Cliente)',389,1121,0,6.8,'center');ln(541,1111,807,1111);tx('(Filiale)',674,1121,0,6.8,'center');
+  tx(copia==0?'COPIA PER LA BANCA':'COPIA PER IL CLIENTE',807,1146,1,8.3,'right');
+  doc.setFont('helvetica','normal');doc.setFontSize(5.2);doc.setTextColor(90,90,90);doc.text('Mod. IM110MOFI000511ECO - Ed. 10/20',52*k,1150*k,{angle:90});
+}
+async function anPdf(id){
+  const f=D.anf.find(x=>x.id==id);if(!f)return;if(!pdfReady())return;
+  const L=(f.fts||[]).map(i=>D.inv.find(x=>x.id==i)).filter(Boolean),al=f.all||[],fx=anFx();
+  if(al.length&&!(await anLib())){alert('Per unire gli allegati serve la libreria PDF: controlla la connessione a internet e riprova.');return}
+  const bufs=[];const miss=[];for(const a of al){const b=await anGet('a:'+a.u);if(b)bufs.push([a,b]);else miss.push(a.n)}
+  if(miss.length){alert('Questi allegati non sono su questo computer (la distinta è stata creata altrove): riaggiungili con «Modifica» e riprova.\n\n'+miss.join('\n'));return}
+  const pages=2+(L.length?1:0)+al.reduce((t,a)=>t+(a.p||0),0);
+  const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});doc.pw=210;
+  anDraw(doc,f,0,pages,fx.firma);doc.addPage();anDraw(doc,f,1,pages,fx.firma);
+  if(L.length){doc.addPage();doc.setTextColor(0,0,0);doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text('Allegato alla distinta di presentazione fatture',14,16);
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(90,90,90);doc.text((f.den||'')+(f.date?'   |   Distinta del '+dt(f.date):''),14,22);
+    const tot=r2(L.reduce((t,i)=>t+aTot(i),0)),net=r2(L.reduce((t,i)=>t+aNet(i),0));
+    doc.autoTable({startY:28,head:[['Fattura','Data','Debitore','Imponibile','Totale']],body:[...L.map(i=>[i.num||'',i.date?dt(i.date):'',aParty(i),eur2(aNet(i)),eur2(aTot(i))]),[{content:'Totale ('+L.length+' fatture)',colSpan:3,styles:{fontStyle:'bold',fillColor:[236,236,236]}},{content:eur2(net),styles:{fontStyle:'bold',halign:'right',fillColor:[236,236,236]}},{content:eur2(tot),styles:{fontStyle:'bold',halign:'right',fillColor:[236,236,236]}}]],
+      styles:{fontSize:9,textColor:0},headStyles:{fillColor:[46,158,85],textColor:255},columnStyles:{3:{halign:'right'},4:{halign:'right'}},margin:{left:14,right:14}})}
+  const name=anFn(f);
+  if(!bufs.length)return pdfSave(doc,name,true);
+  try{
+    const out=await PDFLib.PDFDocument.create(),add=async b=>{const s=await PDFLib.PDFDocument.load(b,{ignoreEncryption:true});(await out.copyPages(s,s.getPageIndices())).forEach(p=>out.addPage(p))};
+    await add(doc.output('arraybuffer'));for(const[,b] of bufs)await add(b);
+    const by=await out.save(),ab=by.buffer.slice(by.byteOffset,by.byteOffset+by.byteLength);
+    return pdfSave({output:()=>ab,save:n=>{const u=URL.createObjectURL(new Blob([ab],{type:'application/pdf'})),a=document.createElement('a');a.href=u;a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(u),4000)}},name,true);
+  }catch(e){alert('Non riesco a unire gli allegati al modulo: '+(e&&e.message||e))}
+}
+
 // ---------- avvio
 (function(){AUTH_READY=true;authInit();let sid=null;try{sid=+sessionStorage.getItem('carp_sess')}catch(e){}
   const u=D.users.find(x=>x.id==sid&&x.on);
@@ -6340,7 +6653,7 @@ function hrCsv(id){
 (function(){
 const C=window.GC_CLOUD;if(!C)return;
 const API=C.url.replace(/\/+$/,''),PK=C.key,SK='gc_cloud_session',DOM='@gc-gremo.app';
-const COLL=['cl','sup','items','jobs','quotes','orders','moves','hours','rcv','xsheets','sl','nt','inv','cmov','cset','pdc','reg','ces','hre','hrd'];
+const COLL=['cl','sup','items','jobs','quotes','orders','moves','hours','rcv','xsheets','sl','nt','inv','cmov','cset','pdc','reg','ces','hre','hrd','anf'];
 const NOCONF=new Set([...COLL,'users','roles','log']);
 let SES=null,SYNC={},CONFV=null,WM='',PEND=[],pushing=0,again=0,pushT=null,pollT=null,authT=null,online=true,errCnt=0,LOADED=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -6789,9 +7102,9 @@ setInterval(()=>{if(ME)stat()},4000);
 <script>
 /* ===== VARIANTE UFFICIO · barra multifunzione, barra di stato, scorciatoie ===== */
 (function(){
-const IC={dash:'M3 12l9-8 9 8M5 10v10h14V10',jobs:'M4 6h16M4 12h16M4 18h10',quotes:'M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6',ordc:'M5 4h14v16H5zM9 9h6M9 13h6',sheets:'M4 4h16v16H4zM4 12h16M12 4v16',fatt:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',items:'M3 8l9-5 9 5v12H3zM9 20v-7h6v7',prod:'M12 3l9 5v8l-9 5-9-5V8zM12 12l9-4M12 12v9M12 12L3 8',orders:'M3 5h3l2 11h10l2-8H7',hours:'M12 7v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z',cl:'M16 11a4 4 0 10-8 0 4 4 0 008 0zM4 21c1-4 4-6 8-6s7 2 8 6',sup:'M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',imp:'M12 15a3 3 0 100-6 3 3 0 000 6zM12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1',usr:'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',nuovo:'M12 5v14M5 12h14',pdf:'M6 3h9l4 4v14H6zM14 3v5h5',stats:'M4 20V10M10 20V4M16 20v-8M22 20H2',cdash:'M4 20V10M10 20V4M16 20v-8M22 20H2',cinv:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',cscad:'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',cpn:'M5 4h14v16H5zM9 9h6M9 13h6M9 17h4',cces:'M3 8l9-5 9 5v12H3zM9 20v-7h6v7',cgio:'M5 4h12a2 2 0 012 2v14H7a2 2 0 01-2-2zM9 9h6M9 13h6',chr:'M12 11a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0',cmas:'M4 4h16v16H4zM4 12h16M12 4v16',cbil:'M4 20V4M4 20h16M8 16v-5M12 16V8M16 16v-3',civa:'M5 19L19 5M7 8a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',csim:'M4 4h16v16H4zM8 8h8M8 12h3M13 12h3M8 16h3M13 16h3',cimp:'M12 15a3 3 0 100-6 3 3 0 000 6zM12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1',cerca:'M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-4-4'};
+const IC={dash:'M3 12l9-8 9 8M5 10v10h14V10',jobs:'M4 6h16M4 12h16M4 18h10',quotes:'M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6',ordc:'M5 4h14v16H5zM9 9h6M9 13h6',sheets:'M4 4h16v16H4zM4 12h16M12 4v16',fatt:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',items:'M3 8l9-5 9 5v12H3zM9 20v-7h6v7',prod:'M12 3l9 5v8l-9 5-9-5V8zM12 12l9-4M12 12v9M12 12L3 8',orders:'M3 5h3l2 11h10l2-8H7',hours:'M12 7v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z',cl:'M16 11a4 4 0 10-8 0 4 4 0 008 0zM4 21c1-4 4-6 8-6s7 2 8 6',sup:'M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',imp:'M12 15a3 3 0 100-6 3 3 0 000 6zM12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1',usr:'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',nuovo:'M12 5v14M5 12h14',pdf:'M6 3h9l4 4v14H6zM14 3v5h5',stats:'M4 20V10M10 20V4M16 20v-8M22 20H2',cdash:'M4 20V10M10 20V4M16 20v-8M22 20H2',cinv:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',cscad:'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',cpn:'M5 4h14v16H5zM9 9h6M9 13h6M9 17h4',cces:'M3 8l9-5 9 5v12H3zM9 20v-7h6v7',cgio:'M5 4h12a2 2 0 012 2v14H7a2 2 0 01-2-2zM9 9h6M9 13h6',canf:'M4 5h16v14H4zM4 10h16M8 15h3',chr:'M12 11a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0',cmas:'M4 4h16v16H4zM4 12h16M12 4v16',cbil:'M4 20V4M4 20h16M8 16v-5M12 16V8M16 16v-3',civa:'M5 19L19 5M7 8a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',csim:'M4 4h16v16H4zM8 8h8M8 12h3M13 12h3M8 16h3M13 16h3',cimp:'M12 15a3 3 0 100-6 3 3 0 000 6zM12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1',cerca:'M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-4-4'};
 const G=[['Cruscotto',[['dash','Cruscotto'],['stats','Statistiche']]],['Commesse',[['jobs','Commesse'],['sheets','Schede'],['quotes','Preventivi'],['ordc','Ordini cl.'],['fatt','Fattura']]],['Magazzino',[['items','Inventario'],['prod','Prodotti'],['orders','Ordini']]],['Personale',[['hours','Ore']]],['Anagrafica',[['cl','Clienti'],['sup','Fornitori']]]];
-const GC=[['Contabilità',[['cdash','Cruscotto'],['cinv','Fatture'],['cscad','Scadenze']]],['Personale',[['chr','Personale']]],['Registrazioni',[['cpn','Prima nota'],['cces','Cespiti'],['cgio','Giornale'],['cmas','Mastro'],['cbil','Bilancio']]],['Fiscale',[['civa','IVA'],['csim','Simulazione']]]];
+const GC=[['Contabilità',[['cdash','Cruscotto'],['cinv','Fatture'],['cscad','Scadenze'],['canf','Anticipo FT']]],['Personale',[['chr','Personale']]],['Registrazioni',[['cpn','Prima nota'],['cces','Cespiti'],['cgio','Giornale'],['cmas','Mastro'],['cbil','Bilancio']]],['Fiscale',[['civa','IVA'],['csim','Simulazione']]]];
 const ico=(d,c)=>`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
 function first(sel,rx){const l=[...document.querySelectorAll(sel)];return rx?l.find(b=>rx.test(b.textContent)):l[0]}
 function nuovo(){const b=first('#main button.pri')||first('#main .tools button.b',/^\s*(\+|Nuov|Aggiung|Registra|Crea)/i);if(b)b.click();else if(typeof toast=='function')toast('In questa schermata non c’è nulla da creare.')}
