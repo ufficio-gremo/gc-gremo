@@ -206,7 +206,7 @@ body.lock #sb,body.lock #rb{display:none}
 function toast(m){const t=document.getElementById('toast');m=(m==null?'':String(m)).trim();clearTimeout(t._t);try{t.hidePopover()}catch(e){}t.classList.remove('on');if(!m){t.textContent='';return}t.textContent=m;t.classList.add('on');try{t.showPopover()}catch(e){}t._t=setTimeout(()=>{try{t.hidePopover()}catch(e){}t.classList.remove('on')},7000)}
 window.alert=toast;
 function askConfirm(msg,yes){const d=document.getElementById('cfm');document.getElementById('cfmm').textContent=msg;document.getElementById('cfmy').onclick=()=>{d.close();yes()};d.showModal()}
-const APP_VER='1.8.0', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
+const APP_VER='1.9.0', KEY='gc_cloud_cache', TODAY=new Date().toISOString().slice(0,10);
 const OLDPH=['Taglio','Saldatura','Assemblaggio','Verniciatura/zincatura','Collaudo','Montaggio'], PHMAP=[0,0,0,1,0,2];
 const V28=['In produzione','Verniciatura/zincatura','Montaggio'];
 const PH=['Produzione','Zincatura/Verniciatura','Montaggio'];
@@ -361,6 +361,13 @@ const mar=j=>j.price-Math.max(cp(j),cc(j)), pct=j=>j.price?Math.round(mar(j)/j.p
 const jobsOpt=z=>[...(z?[{v:0,t:'Scorta (nessuna commessa)'}]:[]),...D.jobs.map(j=>({v:j.id,t:j.code+' · '+cn(j.client)}))];
 const supOpt=()=>D.sup.map(s=>({v:s.id,t:s.n}));
 
+// giacenza espressa anche in barre / fogli (se si conosce la lunghezza della barra o il formato del foglio) e in kg
+const packQ=it=>{if(+it.bl>0)return +it.bl;if(it.uc&&/^(barra|barre|foglio|fogli|lastra|lastre)$/i.test(String(it.uc).trim())&&+it.fc>0)return +it.fc;return 0};
+const stkExtra=it=>{const u=nu(it.um),s=+it.stock||0,q=packQ(it),o=[];
+  if(q>0&&(u=='m'||u=='m²')){const nm=u=='m²'?['foglio','fogli']:['barra','barre'],w=Math.floor(s/q+1e-9),rest=r4(s-w*q);let t=w+' '+(w==1?nm[0]:nm[1]);if(rest>0.0001)t+=' + '+fN(rest)+' '+u;o.push(t)}
+  if(u!='kg'&&+it.kg>0)o.push(fN(Math.round(s*it.kg*10)/10)+' kg');
+  return o};
+const stkTxt=it=>{const e=stkExtra(it);return `${fN(it.stock)} ${esc(it.um)}`+(e.length?` <small class="mut">= ${e.join(' · ')}</small>`:'')};
 const E={
 cl:{c:'cl',nw:'Nuovo cliente',h:['Ragione sociale','P. IVA','Referente','Telefono','Commesse'],req:'n',
  f:[{k:'n',l:'Ragione sociale',full:1},{k:'iva',l:'Partita IVA'},{k:'ref',l:'Referente'},{k:'tel',l:'Telefono'},{k:'pay',l:'Giorni di pagamento (per le scadenze)',t:'number'},{k:'iban',l:'IBAN'}],
@@ -370,12 +377,12 @@ sup:{c:'sup',nw:'Nuovo fornitore',h:['Ragione sociale','Categoria','P. IVA','Ref
  r:x=>[`<b>${x.n}</b>`,x.cat,x.iva,x.ref,x.tel],use:x=>D.items.some(i=>i.sup==x.id)},
 items:{c:'items',nw:'Nuovo articolo',h:['Codice','Descrizione','Giacenza','Scorta minima','Costo unitario','Fornitore'],req:'code',
  f:[{k:'code',l:'Codice articolo'},{k:'um',l:'Unità di misura',t:'sel',o:()=>['m','kg','pz','m²']},{k:'desc',l:'Descrizione',full:1},{k:'stock',l:'Giacenza',t:'number'},{k:'min',l:'Scorta minima',t:'number'},{k:'cost',l:'Costo unitario (€)',t:'number'},{k:'sup',l:'Fornitore abituale',t:'sel',id:1,o:supOpt}],
- r:x=>[`<b>${x.code}</b>`,x.desc,`${fN(x.stock)} ${x.um}`+(x.stock<x.min?' <span class="tag late">sotto scorta</span>':'')+(incoming(x).length?` <span class="tag" style="background:#ffd43b;color:#000;border-color:#e0a800">in arrivo +${fN(r4(incoming(x).reduce((a,o)=>a+o.qty,0)))} ${esc(x.um)} · ${dt(incoming(x).map(o=>o.due).sort()[0])}</span>`:''),`${fN(x.min)} ${x.um}`,`${eur2(x.cost)}/${x.um}`,nm('sup',x.sup)],
+ r:x=>[`<b>${x.code}</b>`,x.desc,stkTxt(x)+(x.stock<x.min?' <span class="tag late">sotto scorta</span>':'')+(incoming(x).length?` <span class="tag" style="background:#ffd43b;color:#000;border-color:#e0a800">in arrivo +${fN(r4(incoming(x).reduce((a,o)=>a+o.qty,0)))} ${esc(x.um)} · ${dt(incoming(x).map(o=>o.due).sort()[0])}</span>`:''),`${fN(x.min)} ${x.um}`,`${eur2(x.cost)}/${x.um}`,nm('sup',x.sup)],
  use:x=>D.moves.some(m=>m.item==x.id)||D.orders.some(o=>o.item==x.id)||D.jobs.some(j=>j.bom.some(l=>l.item==x.id)||j.xBom.some(l=>l.item==x.id))||D.rcv.some(r=>r.lines.some(l=>l.item==x.id))},
-prod:{c:'items',nw:'Nuovo prodotto',h:['Codice','Descrizione','Categoria','Materiale / qualità','Dimensioni','Peso','Unità acquisto / vendita','Finitura','Costo acquisto → vendita','Fornitore'],req:'code',
- f:[{k:'code',l:'Codice prodotto'},{k:'cat',l:'Categoria (scegli dall’elenco o scrivine una nuova)'},{k:'desc',l:'Descrizione',full:1},{k:'mat',l:'Materiale / qualità (es. S275JR)'},{k:'dim',l:'Dimensioni / sezione'},{k:'um',l:'Unità di misura principale (VENDITA / scarico su commessa)',t:'sel',o:()=>['m','kg','pz','m²']},{k:'kg',l:'Peso (kg per 1 unità principale) - facoltativo',t:'number'},{k:'uc',l:'Unità di misura di ACQUISTO (carico da bolla), es. kg'},{k:'pc',l:'Quante unità di acquisto in 1 unità principale (es. 78,5 kg in 1 m²)',t:'number'},{k:'fc',l:'Oppure: 1 unità di acquisto = quante unità principali (es. 1 barra = 6 m)',t:'number'},{k:'fin',l:'Finitura (es. grezzo, zincato)'},{k:'ca',l:'Costo unitario di ACQUISTO (€ per unità di acquisto; senza unità di acquisto, per unità principale)',t:'number',full:1},{k:'sup',l:'Fornitore abituale',t:'sel',id:1,o:supOpt},{k:'pnote',l:'Note e caratteristiche aggiuntive',full:1}],
+prod:{c:'items',nw:'Nuovo prodotto',h:['Codice','Descrizione','Categoria','Materiale / qualità','Dimensioni','Peso','Unità acquisto / vendita','Finitura','Costo acquisto → vendita','Fornitore','Giacenza'],req:'code',
+ f:[{k:'code',l:'Codice prodotto'},{k:'cat',l:'Categoria (scegli dall’elenco o scrivine una nuova)'},{k:'desc',l:'Descrizione',full:1},{k:'mat',l:'Materiale / qualità (es. S275JR)'},{k:'dim',l:'Dimensioni / sezione'},{k:'um',l:'Unità di misura principale (VENDITA / scarico su commessa)',t:'sel',o:()=>['m','kg','pz','m²']},{k:'kg',l:'Peso (kg per 1 unità principale) - facoltativo',t:'number'},{k:'bl',l:'Lunghezza di 1 barra in m (o area di 1 foglio in m²): mostra la giacenza in barre/fogli',t:'number'},{k:'uc',l:'Unità di misura di ACQUISTO (carico da bolla), es. kg'},{k:'pc',l:'Quante unità di acquisto in 1 unità principale (es. 78,5 kg in 1 m²)',t:'number'},{k:'fc',l:'Oppure: 1 unità di acquisto = quante unità principali (es. 1 barra = 6 m)',t:'number'},{k:'fin',l:'Finitura (es. grezzo, zincato)'},{k:'ca',l:'Costo unitario di ACQUISTO (€ per unità di acquisto; senza unità di acquisto, per unità principale)',t:'number',full:1},{k:'sup',l:'Fornitore abituale',t:'sel',id:1,o:supOpt},{k:'pnote',l:'Note e caratteristiche aggiuntive',full:1}],
  ap:(r,s)=>{if(s==1){r.stock=+r.stock||0;r.min=+r.min||0;r.cost=+r.cost||0}},
- r:x=>[`<b>${esc(x.code)}</b>`,esc(x.desc),esc(catName(x.cat))||'<span class="mut">-</span>',esc(x.mat||'')||'<span class="mut">-</span>',esc(x.dim||'')||'<span class="mut">-</span>',(x.kg&&nu(x.um)!='kg')?`${fN(x.kg)} kg/${esc(x.um)}`:'<span class="mut">-</span>',`${esc(x.uc||x.um)} / ${esc(x.um)}`,esc(x.fin||'')||'<span class="mut">-</span>',(x.uc&&+x.fc>0?`${eur2(x.ca)}/${esc(x.uc)} <small class="mut">→ ${eur2(x.cost)}/${esc(x.um)}</small>`:`${eur2(x.cost)}/${esc(x.um)}`),nm('sup',x.sup)],
+ r:x=>[`<b>${esc(x.code)}</b>`,esc(x.desc),esc(catName(x.cat))||'<span class="mut">-</span>',esc(x.mat||'')||'<span class="mut">-</span>',esc(x.dim||'')||'<span class="mut">-</span>',(x.kg&&nu(x.um)!='kg')?`${fN(x.kg)} kg/${esc(x.um)}`:'<span class="mut">-</span>',`${esc(x.uc||x.um)} / ${esc(x.um)}`,esc(x.fin||'')||'<span class="mut">-</span>',(x.uc&&+x.fc>0?`${eur2(x.ca)}/${esc(x.uc)} <small class="mut">→ ${eur2(x.cost)}/${esc(x.um)}</small>`:`${eur2(x.cost)}/${esc(x.um)}`),nm('sup',x.sup),stkTxt(x)],
  use:x=>D.moves.some(m=>m.item==x.id)||D.orders.some(o=>o.item==x.id)||D.jobs.some(j=>j.bom.some(l=>l.item==x.id)||j.xBom.some(l=>l.item==x.id))||D.rcv.some(r=>r.lines.some(l=>l.item==x.id))},
 moves:{c:'moves',nw:'Nuovo scarico',h:['Data','Articolo','Commessa','Quantità','Valore'],ap:(m,s)=>{const i=itm(m.item);slCtx=s>0?'Scarico su commessa':'Annullo scarico';if(i.id)i.stock-=m.qty*s},
  f:[{k:'date',l:'Data',t:'date'},{k:'item',l:'Codice articolo',t:'item'},{k:'job',l:'Commessa',t:'sel',id:1,o:()=>jobsOpt(0)},{k:'qty',l:'Quantità prelevata',t:'number'}],
@@ -392,7 +399,7 @@ const oJobs=ls=>[...new Set(ls.flatMap(o=>o.split?Object.keys(o.split).map(Numbe
 const poOrig=()=>{const a=oJobs(PO.lines);return a.length?a.map(j=>j?'Commessa '+jb(j):'Scorta di magazzino').join(' + '):'Scorta di magazzino'};
 const jobSplit=l=>{if(l.split){const k=Object.keys(l.split),t=k.reduce((a,j)=>a+l.split[j],0)||1;return k.map(j=>esc(jb(+j))+': <b>'+fN(l.split[j]/t*(+l.qty||0))+' '+esc(l.um||'')+'</b>').join(' · ')}return l.job?esc(jb(l.job)):'Scorta'};
 const oLate=o=>o.status=='Ordinato'&&o.due<TODAY;
-const tabs=[['dash','Cruscotto'],{g:'com',l:'Commesse',it:[['jobs','Commesse'],['quotes','Preventivi'],['ordc','Ordini cliente'],['sheets','Schede di lavorazione'],['fatt','Fatturazione']]},{g:'mag',l:'Magazzino',it:[['items','Inventario'],['prod','Prodotti'],['orders','Ordini']]},['hours','Ore'],{g:'ana',l:'Anagrafica',it:[['cl','Clienti'],['sup','Fornitori']]},{g:'set',l:'Impostazioni',it:[['imp','Impostazioni'],['usr','Utenti e permessi']]}];
+const tabs=[['dash','Cruscotto'],{g:'com',l:'Commesse',it:[['jobs','Commesse'],['sheets','Schede di lavorazione']]},{g:'mag',l:'Magazzino',it:[['items','Inventario'],['prod','Prodotti'],['orders','Ordini']]},['hours','Ore'],{g:'ana',l:'Anagrafica',it:[['cl','Clienti'],['sup','Fornitori']]},{g:'set',l:'Impostazioni',it:[['imp','Impostazioni'],['usr','Utenti e permessi']]}];
 const gOf=v=>(v=='rcv'||v=='moves')?'mag':((MOD=='cont'?tabsC:tabs).find(t=>t.g&&t.it.some(i=>i[0]==v))||{}).g;
 function goView(v){ddClose();accSync(v);if(view=='imp'&&v!='imp'){if(SD&&sdDirty())sdSave(true);SD=null}view=v;render()}
 let view='dash', q='', fs='', cur, lsq='';
@@ -860,7 +867,7 @@ function oType(){const f=$('#o_type').value=='free';$('#o_inv').style.display=f?
 function oPick(keep){
   const it=findItem($('#o_code').value), e=$('#o_info');
   if(!it){e.textContent=$('#o_code').value.trim()?'Articolo non trovato in inventario.':'';return}
-  e.textContent=it.desc+' · giacenza '+fN(it.stock)+' '+it.um+' · fornitore '+nm('sup',it.sup);
+  e.textContent=it.desc+' · giacenza '+fN(it.stock)+' '+it.um+(stkExtra(it).length?' ('+stkExtra(it).join(' · ')+')':'')+' · fornitore '+nm('sup',it.sup);
   if(!keep&&!(+$('#o_price').value))$('#o_price').value=it.cost;
 }
 function oSave(id){
@@ -1322,7 +1329,7 @@ function convertQuote(qid){
     D.jobs.push(j); q.status='Convertito'; q.job=j.id;
     const pq=o&&D.quotes.find(x=>(x.kind||'Q')=='Q'&&x.num==q.pref&&!x.job); if(pq){pq.status='Convertito';pq.job=j.id}
     const so=syncOrders(j); save();
-    $('#dlg').close(); view='jobs'; render(); editJob(j.id);
+    $('#dlg').close(); goView('jobs'); editJob(j.id);
     toast('Commessa '+j.code+' generata '+(o?'dall’ordine cliente ':'dal preventivo ')+q.num+'. Controlla la data di consegna e gli altri dati.'+(so.c?' '+syncMsg(so):''));
   });
 }
@@ -1332,7 +1339,7 @@ function qToOrder(id){
     const o=JSON.parse(JSON.stringify(q));
     Object.assign(o,{id:Date.now(),kind:'O',num:nextQuoteNum('O'),date:TODAY,status:'Confermato',pref:q.num,ref:'',due:'',validDays:0,job:0});
     D.quotes.push(o); q.status='Accettato'; save();
-    $('#dlg').close(); view='ordc'; render(); editQuote(o.id);
+    $('#dlg').close(); goView('ordc'); editQuote(o.id);
     toast('Ordine cliente '+o.num+' creato dal preventivo '+q.num+'. Scrivi il numero d’ordine del cliente e salva.');
   });
 }
@@ -1711,6 +1718,7 @@ const IC=(id,l,v)=>`<label>${l}<input id="${id}" list="artlist" autocomplete="of
 const S=(id,l,opts,v)=>`<label>${l}<select id="${id}">${opts.map(o=>`<option value="${esc(o.v??o)}" ${(o.v??o)==v?'selected':''}>${o.t??o}</option>`).join('')}</select></label>`;
 
 function ed(k,id){
+  if((k=='prod'||k=='items')&&!id&&!ED_RAW)return wzOpen();
   if(k=='orders')return editOrder(id);
   if(k=='moves')return mvOpen(id);
   const e=E[k], old=id?D[e.c].find(x=>x.id==id):null, rec=old||{};
@@ -1724,6 +1732,7 @@ function ed(k,id){
   if(k=='prod'){
     // unità e prezzo guidati: la logica (unità di acquisto, conversione, costo) è la stessa, cambia solo come si inserisce
     const g=x=>$('#'+x),lab=x=>g(x).closest('label'),setL=(x,t)=>{const l=lab(x);if(l&&l.firstChild)l.firstChild.nodeValue=t},num=v=>{v=+String(v).replace(',','.');return isFinite(v)?v:0};
+    $('#dlg .db').insertAdjacentHTML('afterbegin','<div class="full"><button class="b" type="button" onclick="wcToggle()">Calcola il peso dal materiale e dalla sezione…</button><div id="wcp"></div></div>');
     lab('pc').style.display=lab('fc').style.display='none';
     const on0=!!String(rec.uc||'').trim(),dir0=(+rec.pc>0)?'pc':(+rec.fc>0?'fc':(nu(rec.uc||'')=='kg'?'pc':'fc')),n0=dir0=='pc'?(+rec.pc||''):(+rec.fc||'');
     lab('uc').insertAdjacentHTML('beforebegin',`<label class="full" style="flex-direction:row;display:flex;gap:8px;align-items:center;color:var(--ink);font-size:15px"><input type="checkbox" id="cv_on" style="width:auto" ${on0?'checked':''}> Lo acquisto in un’unità diversa da quella con cui lo vendo (es. compro a kg, vendo a metro)</label>`);
@@ -1752,6 +1761,262 @@ function ed(k,id){
     d.addEventListener('input',()=>codeAuto(false));
     $('#dlg .df').insertAdjacentHTML('afterbegin','<button class="b l" type="button" onclick="codeAuto(true)">Genera codice dalla descrizione</button>')}
 }
+// ================= PRODOTTO GUIDATO: PESO DA MATERIALE E SEZIONE =================
+const WZ_MAT=[['fe','Ferro / acciaio',7.85],['inox','Acciaio inox',7.9],['al','Alluminio',2.7],['cu','Rame',8.96],['ot','Ottone',8.5],['br','Bronzo',8.8],['zn','Zinco',7.14],['gh','Ghisa',7.2],['ti','Titanio',4.51],['x','Altro (scrivo la densità)',0]];
+const WZ_PROF={IPE:{80:6,100:8.1,120:10.4,140:12.9,160:15.8,180:18.8,200:22.4,220:26.2,240:30.7,270:36.1,300:42.2,330:49.1,360:57.1,400:66.3,450:77.6,500:90.7,550:106,600:122},
+ HEA:{100:16.7,120:19.9,140:24.7,160:30.4,180:35.5,200:42.3,220:50.5,240:60.3,260:68.2,280:76.4,300:88.3,320:97.6,340:105,360:112,400:125,450:140,500:155},
+ HEB:{100:20.4,120:26.7,140:33.7,160:42.6,180:51.2,200:61.3,220:71.5,240:83.2,260:93,280:103,300:117,320:127,340:134,360:142,400:155,450:171,500:187},
+ UPN:{80:8.64,100:10.6,120:13.4,140:16,160:18.8,180:22,200:25.3,220:29.4,240:33.2,260:37.9,280:41.8,300:46.2}};
+const WZ_SH=[
+ {k:'piatto',n:'Piatto',ab:'PT',f:[['a','Larghezza'],['t','Spessore']]},
+ {k:'tondo',n:'Tondo pieno',ab:'TO',f:[['a','Diametro']]},
+ {k:'quadro',n:'Quadro pieno',ab:'QU',f:[['a','Lato']]},
+ {k:'tq',n:'Tubo quadro / rettangolare',ab:'TQ',f:[['a','Lato A'],['b','Lato B'],['t','Spessore']]},
+ {k:'tt',n:'Tubo tondo',ab:'TT',f:[['a','Diametro esterno'],['t','Spessore']]},
+ {k:'ang',n:'Angolare',ab:'AN',f:[['a','Lato A'],['b','Lato B'],['t','Spessore']]},
+ {k:'lam',n:'Lamiera / foglio',ab:'LA',f:[['t','Spessore']],area:1},
+ {k:'prof',n:'Trave / profilato (IPE, HEA, HEB, UPN)',ab:'',steel:1,f:[]},
+ {k:'man',n:'Altro: scrivo io il peso',ab:'PR',f:[]}];
+const WZ_CAT={piatto:'Piatti',tondo:'Tondi',quadro:'Quadri',tq:'Tubi quadri e rettangolari',tt:'Tubi tondi',ang:'Angolari',lam:'Lamiere',prof:'Travi e profilati',man:''};
+const WZ_ABM={fe:'',inox:'INOX',al:'AL',cu:'CU',ot:'OT',br:'BR',zn:'ZN',gh:'GH',ti:'TI',x:'ALT'};
+const f3=n=>(Math.round(n*1000)/1000).toFixed(3).replace('.',',');
+const WZ_FMT=[[1000,2000],[1250,2500],[1250,3000],[1500,2000],[1500,3000],[1500,6000],[2000,3000],[2000,4000],[2000,6000]];
+const WZS={w:null,c:null};
+const wzNew=()=>({m:'fe',dx:'',s:'',v:{a:'',b:'',t:''},ps:'IPE',pz:'200',man:'',manU:'m',bar:6,fw:1500,fl:3000,ff:'1500,3000',gu:'pz',gkg:'',gpk:'',gpq:'',q:'',desc:'',code:'',cat:'',sup:0,fin:'',price:'',pu:'kg',st:'',stU:'u',mn:'',mnU:'u',dA:1,cA:1,gA:1});
+const wzDens=S=>S.m=='x'?(+String(S.dx).replace(',','.')||0):(WZ_MAT.find(m=>m[0]==S.m)||[0,0,7.85])[2];
+const wzN=v=>{v=+String(v).replace(',','.');return isFinite(v)&&v>0?v:0};
+// risultato: kg per 1 unità principale (m oppure m²)
+function wzCalc(S){
+  const d=wzDens(S),k=d/1000,a=wzN(S.v.a),b=wzN(S.v.b),t=wzN(S.v.t);
+  if(!S.s)return null;
+  if(S.s!='man'&&S.s!='prof'&&!(d>0))return null;
+  let kg=0,um='m';
+  switch(S.s){
+    case 'piatto':if(a&&t)kg=a*t*k;break;
+    case 'tondo':if(a)kg=Math.PI*a*a/4*k;break;
+    case 'quadro':if(a)kg=a*a*k;break;
+    case 'tq':if(a&&t&&t*2<Math.min(a,b||a))kg=t*(2*(a+(b||a))-4*t)*k;break;
+    case 'tt':if(a&&t&&t*2<a)kg=Math.PI*t*(a-t)*k;break;
+    case 'ang':if(a&&t)kg=t*(a+(b||a)-t)*k;break;
+    case 'lam':if(t){kg=t*d;um='m²'}break;
+    case 'prof':{const w=(WZ_PROF[S.ps]||{})[S.pz];if(w&&d>0)kg=w*d/7.85;break}
+    case 'man':kg=wzN(S.man);um=S.manU=='m²'?'m²':'m';break;
+  }
+  return kg>0?{kg,um}:null;
+}
+function wzDesc(S){
+  const n=x=>String(wzN(x)).replace('.',','),sh=WZ_SH.find(x=>x.k==S.s);if(!sh)return '';
+  let d='';
+  switch(S.s){
+    case 'piatto':d='Piatto '+n(S.v.a)+'x'+n(S.v.t);break;
+    case 'tondo':d='Tondo Ø'+n(S.v.a);break;
+    case 'quadro':d='Quadro '+n(S.v.a)+'x'+n(S.v.a);break;
+    case 'tq':d='Tubo '+(wzN(S.v.b)&&wzN(S.v.b)!=wzN(S.v.a)?'rettangolare ':'quadro ')+n(S.v.a)+'x'+n(S.v.b||S.v.a)+'x'+n(S.v.t);break;
+    case 'tt':d='Tubo tondo Ø'+n(S.v.a)+'x'+n(S.v.t);break;
+    case 'ang':d='Angolare '+n(S.v.a)+'x'+n(S.v.b||S.v.a)+'x'+n(S.v.t);break;
+    case 'lam':d='Lamiera sp. '+n(S.v.t)+' mm';break;
+    case 'prof':d=S.ps+' '+S.pz;break;
+    case 'man':return S.desc||'';
+  }
+  const mt=WZ_MAT.find(m=>m[0]==S.m);
+  return d+(S.m!='fe'?' - '+(S.m=='x'?'altro materiale':mt[1]):'');
+}
+function wzDim(S){
+  const n=x=>String(wzN(x)).replace('.',',');
+  switch(S.s){case 'piatto':return n(S.v.a)+'x'+n(S.v.t)+' mm';case 'tondo':return 'Ø'+n(S.v.a)+' mm';case 'quadro':return n(S.v.a)+'x'+n(S.v.a)+' mm';
+    case 'tq':return n(S.v.a)+'x'+n(S.v.b||S.v.a)+'x'+n(S.v.t)+' mm';case 'tt':return 'Ø'+n(S.v.a)+'x'+n(S.v.t)+' mm';case 'ang':return n(S.v.a)+'x'+n(S.v.b||S.v.a)+'x'+n(S.v.t)+' mm';
+    case 'lam':return 'sp. '+n(S.v.t)+' mm';case 'prof':return S.ps+' '+S.pz}return '';
+}
+function wzCode(S){
+  const n=x=>String(wzN(x)).replace('.','_'),sh=WZ_SH.find(x=>x.k==S.s);if(!sh)return '';
+  let c='';
+  switch(S.s){case 'piatto':c='PT-'+n(S.v.a)+'X'+n(S.v.t);break;case 'tondo':c='TO-'+n(S.v.a);break;case 'quadro':c='QU-'+n(S.v.a);break;
+    case 'tq':c='TQ-'+n(S.v.a)+'X'+n(S.v.b||S.v.a)+'X'+n(S.v.t);break;case 'tt':c='TT-'+n(S.v.a)+'X'+n(S.v.t);break;case 'ang':c='AN-'+n(S.v.a)+'X'+n(S.v.b||S.v.a)+'X'+n(S.v.t);break;
+    case 'lam':c='LA-'+n(S.v.t);break;case 'prof':c=S.ps+'-'+S.pz;break;default:c='PR-'}
+  return (WZ_ABM[S.m]?WZ_ABM[S.m]+'-':'')+c;
+}
+function wzMatHtml(c){
+  const S=WZS[c],fe=S.m=='fe',gen=S.m=='gen',met=!fe&&!gen;
+  return `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><button class="b ${fe?'pri':''}" style="font-size:16px;padding:10px 22px" onclick="wzMat('${c}','fe')">FERRO</button><button class="b ${met?'pri':''}" style="font-size:16px;padding:10px 22px" onclick="wzMat('${c}','${met?S.m:'al'}')">ALTRO METALLO</button>${c=='w'?`<button class="b ${gen?'pri':''}" style="font-size:16px;padding:10px 22px" onclick="wzMat('w','gen')" title="Legno, bulloni, scatole, materiale di consumo: senza calcolo del peso">ALTRO ARTICOLO</button>`:''}
+  ${fe?'<span class="mut">Acciaio al carbonio: 7,85 kg/dm³</span>':gen?'<span class="mut">Legno, bulloni, scatole, consumabili… senza calcolo del peso</span>':`<select onchange="wzMat('${c}',this.value)">${WZ_MAT.filter(m=>m[0]!='fe').map(m=>`<option value="${m[0]}" ${S.m==m[0]?'selected':''}>${m[1]}${m[2]?' · '+String(m[2]).replace('.',',')+' kg/dm³':''}</option>`).join('')}</select>
+  ${S.m=='x'?`<label style="display:inline-flex;gap:6px;align-items:center;color:inherit;font-size:14px">Densità (kg/dm³)<input type="number" step="any" min="0" value="${esc(S.dx)}" oninput="wzIn('${c}','dx',this.value)" style="width:90px"></label>`:''}`}</div>`;
+}
+function wzShapeHtml(c){
+  const S=WZS[c];
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px">${WZ_SH.filter(x=>!x.steel||S.m=='fe'||S.m=='inox').map(x=>`<button class="b ${S.s==x.k?'pri':''}" style="text-align:left;padding:10px 12px" onclick="wzShape('${c}','${x.k}')">${x.n}</button>`).join('')}</div>`;
+}
+function wzDimsHtml(c){
+  const S=WZS[c],sh=WZ_SH.find(x=>x.k==S.s);if(!sh)return '<div class="mut">Scegli il tipo di prodotto.</div>';
+  const inp=(k,l)=>`<label style="display:flex;flex-direction:column;font-size:13px;gap:3px;color:inherit">${l} (mm)<input type="number" step="any" min="0" value="${esc(S.v[k])}" oninput="wzV('${c}','${k}',this.value)" style="width:130px"></label>`;
+  let h='<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">';
+  if(S.s=='prof')h+=`<label style="display:flex;flex-direction:column;font-size:13px;gap:3px;color:inherit">Serie<select onchange="wzIn('${c}','ps',this.value);WZS.${c}.pz=Object.keys(WZ_PROF[this.value])[0];wzRe('${c}')">${Object.keys(WZ_PROF).map(k=>`<option ${S.ps==k?'selected':''}>${k}</option>`).join('')}</select></label>
+   <label style="display:flex;flex-direction:column;font-size:13px;gap:3px;color:inherit">Misura<select onchange="wzIn('${c}','pz',this.value)">${Object.keys(WZ_PROF[S.ps]).map(k=>`<option ${S.pz==k?'selected':''}>${k}</option>`).join('')}</select></label>`;
+  else if(S.s=='man')h+=`<label style="display:flex;flex-direction:column;font-size:13px;gap:3px;color:inherit">Peso<input type="number" step="any" min="0" value="${esc(S.man)}" oninput="wzIn('${c}','man',this.value)" style="width:130px"></label><label style="display:flex;flex-direction:column;font-size:13px;gap:3px;color:inherit">Espresso in<select onchange="WZS.${c}.manU=this.value;wzRe('${c}')"><option value="m" ${S.manU=='m'?'selected':''}>kg al metro</option><option value="m²" ${S.manU=='m²'?'selected':''}>kg al mq</option></select></label>`;
+  else h+=sh.f.map(([k,l])=>inp(k,l)).join('');
+  return h+'</div>';
+}
+function wzResHtml(c){
+  const S=WZS[c],r=wzCalc(S);if(!S.s)return '';
+  if(!r)return '<span class="mut">Inserisci le misure per vedere il peso.</span>';
+  const area=r.um=='m²',bar=area?wzN(S.fw)*wzN(S.fl)/1e6:wzN(S.bar);
+  return `<div style="font-size:26px;font-weight:800">${f3(r.kg)} <span style="font-size:16px;font-weight:700">kg al ${area?'metro quadro':'metro lineare'}</span></div>
+  ${bar>0?`<div class="mut">${area?'Foglio '+fN(wzN(S.fw))+' × '+fN(wzN(S.fl))+' mm':'Barra da '+fN(bar)+' m'} = <b>${f2(r.kg*bar)} kg</b></div>`:''}`;
+}
+function wzMat(c,m){const S=WZS[c],was=S.m;S.m=m;if(m!='fe'&&m!='inox'&&S.s=='prof')S.s='';
+  if(c=='w'&&(m=='gen')!=(was=='gen')){S.desc='';S.cat='';S.code='';S.dA=m!='gen'?1:0;S.gA=m!='gen'?1:0;S.cA=1;S.pu=m=='gen'?'u':'kg';S.stU='u';S.mnU='u'}
+  wzRe(c)}
+function wzShape(c,s){WZS[c].s=s;wzRe(c)}
+function wzV(c,k,v){WZS[c].v[k]=v;wzLive(c)}
+function wzIn(c,k,v){WZS[c][k]=v;wzLive(c)}
+function wzFmt(v){const S=WZS.w;S.ff=v;if(v!='c'){const a=v.split(',');S.fw=+a[0];S.fl=+a[1]}wzRender()}
+function wzRe(c){if(c=='w')wzRender();else wcRender()}
+function wzGDesc(v){const S=WZS.w;S.desc=v;wzAuto(S);const x=$('#wz_code');if(x&&x!==document.activeElement)x.value=S.code}
+function wzLive(c){
+  const S=WZS[c],e=$('#wz_res_'+c);if(e)e.innerHTML=wzResHtml(c);
+  if(c=='w'){wzAuto(S);['desc','code','cat'].forEach(k=>{const x=$('#wz_'+k);if(x&&x!==document.activeElement)x.value=S[k]});wzPrice()}
+}
+const wzSlug=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,28);
+function wzAuto(S){
+  if(S.m=='gen'){if(S.cA)S.code=wzSlug(S.desc);return}
+  if(S.dA&&S.s!='man'){const d=wzDesc(S);S.desc=(wzN(S.v.a)||wzN(S.v.t)||S.s=='prof')?d:''}
+  if(S.cA)S.code=(wzN(S.v.a)||wzN(S.v.t)||S.s=='prof')?wzCode(S):'';
+  if(S.gA)S.cat=WZ_CAT[S.s]||'';
+}
+function wzUnits(S){
+  const r=wzCalc(S),area=S.s=='lam'||(S.s=='man'&&S.manU=='m²');
+  return{area,main:area?'m²':'m',pack:area?'foglio':'barra',packQ:area?wzN(S.fw)*wzN(S.fl)/1e6:wzN(S.bar),kg:r?r.kg:0};
+}
+function wzPrice(){
+  const S=WZS.w,e=$('#wz_pp');if(!e)return;const u=wzUnits(S),p=wzN(S.price);
+  if(!p||!u.kg){e.textContent='';return}
+  let pm=0;
+  if(S.pu=='kg')pm=p*u.kg;else if(S.pu==u.main)pm=p;else if(S.pu==u.pack&&u.packQ>0)pm=p/u.packQ;
+  e.innerHTML=pm>0?`= <b>${eur2(pm)}</b> al ${u.main==='m'?'metro':'mq'} · <b>${eur2(pm/u.kg)}</b> al kg${u.packQ>0?' · <b>'+eur2(pm*u.packQ)+'</b> '+(u.area?'al foglio':'alla barra')+' ('+fN(u.packQ)+' '+u.main+')':''}`:'';
+}
+function wzOpen(){
+  WZS.w=wzNew();wzRender();$('#dlg').showModal();
+}
+function wzRender(){
+  const S=WZS.w;wzAuto(S);if(S.m=='gen')return wzGenRender();const u=wzUnits(S),d=$('#dlg');d.oninput=null;d.onchange=null;d.classList.remove('wide');
+  const lbl=(t,h,x='')=>`<label ${x}>${t}${h}</label>`;
+  const sups=[{v:0,t:'— nessuno —'},...D.sup.filter(x=>!x.man).map(x=>({v:x.id,t:x.n}))];
+  const PU=u.area?[['kg','€ al kg'],['m²','€ al mq'],['foglio','€ al foglio']]:[['kg','€ al kg'],['m','€ al metro'],['barra','€ alla barra']];
+  if(!PU.some(x=>x[0]==S.pu))S.pu='kg';
+  const su=[['u',u.main==='m'?'metri':'mq'],['p',u.area?'fogli':'barre'],['k','kg']];
+  d.innerHTML=`<div class="dh"><h2>Nuovo prodotto</h2><div class="mut">Scegli il materiale e le misure: il peso si calcola da solo.</div></div><div class="db" style="display:block">
+  <h3 style="margin:0 0 8px">1 · Materiale</h3>${wzMatHtml('w')}
+  <h3 style="margin:18px 0 8px">2 · Tipo di prodotto</h3>${wzShapeHtml('w')}
+  <h3 style="margin:18px 0 8px">3 · Misure</h3>${wzDimsHtml('w')}
+  ${S.s?`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px">${u.area?`<label style="display:flex;flex-direction:column;font-size:13px;gap:3px;color:inherit">Formato del foglio (mm)<select onchange="wzFmt(this.value)" style="width:190px">${WZ_FMT.map(f=>`<option value="${f[0]},${f[1]}" ${S.ff==f[0]+','+f[1]?'selected':''}>${f[0]} × ${f[1]}</option>`).join('')}<option value="c" ${S.ff=='c'?'selected':''}>Altro formato…</option></select></label>${S.ff=='c'?`<label style="display:flex;flex-direction:column;font-size:13px;gap:3px;color:inherit">Larghezza (mm)<input type="number" min="0" value="${esc(S.fw)}" oninput="wzIn('w','fw',this.value)" style="width:120px"></label><label style="display:flex;flex-direction:column;font-size:13px;gap:3px;color:inherit">Lunghezza (mm)<input type="number" min="0" value="${esc(S.fl)}" oninput="wzIn('w','fl',this.value)" style="width:120px"></label>`:''}`:`<label style="display:flex;flex-direction:column;font-size:13px;gap:3px;color:inherit">Lunghezza della barra (m)<input type="number" step="any" min="0" value="${esc(S.bar)}" oninput="wzIn('w','bar',this.value)" style="width:130px"></label>`}</div>`:''}
+  <div id="wz_res_w" style="margin-top:12px;border:2px solid var(--steel);border-radius:4px;padding:10px 14px;min-height:30px">${wzResHtml('w')}</div>
+  ${S.s?`<h3 style="margin:18px 0 8px">4 · Dati del prodotto</h3>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px">
+   ${lbl('Descrizione',`<input id="wz_desc" value="${esc(S.desc)}" oninput="WZS.w.desc=this.value;WZS.w.dA=0">`,'style="grid-column:1/-1"')}
+   ${lbl('Codice',`<input id="wz_code" value="${esc(S.code)}" oninput="WZS.w.code=this.value;WZS.w.cA=0">`)}
+   ${lbl('Categoria',`<input id="wz_cat" list="catdl" autocomplete="off" value="${esc(S.cat)}" oninput="WZS.w.cat=this.value;WZS.w.gA=0">`)}
+   ${lbl('Qualità (es. S235JR, S275JR)',`<input value="${esc(S.q)}" oninput="WZS.w.q=this.value">`)}
+   ${lbl('Finitura',`<input list="findl" value="${esc(S.fin)}" placeholder="grezzo, zincato…" oninput="WZS.w.fin=this.value">`)}
+   ${lbl('Fornitore abituale',`<select onchange="WZS.w.sup=+this.value">${sups.map(o=>`<option value="${o.v}" ${o.v==S.sup?'selected':''}>${esc(o.t)}</option>`).join('')}</select>`)}
+  </div><datalist id="catdl">${catList().map(c=>`<option value="${esc(c)}">`).join('')}</datalist><datalist id="findl"><option>grezzo<option>zincato<option>verniciato<option>decapato<option>satinato</datalist>
+  <h3 style="margin:18px 0 8px">5 · Acquisto e magazzino</h3>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+   <label style="display:flex;flex-direction:column;font-size:13px;gap:3px;color:inherit">Prezzo di acquisto<input type="number" step="any" min="0" value="${esc(S.price)}" oninput="WZS.w.price=this.value;wzPrice()" style="width:130px"></label>
+   <label style="display:flex;flex-direction:column;font-size:13px;gap:3px;color:inherit">&nbsp;<select onchange="WZS.w.pu=this.value;wzPrice()">${PU.map(p=>`<option value="${p[0]}" ${S.pu==p[0]?'selected':''}>${p[1]}</option>`).join('')}</select></label>
+   <span class="mut" id="wz_pp" style="padding-bottom:8px"></span></div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
+   <label style="display:flex;flex-direction:column;font-size:13px;gap:3px;color:inherit">Giacenza iniziale<input type="number" step="any" min="0" value="${esc(S.st)}" oninput="WZS.w.st=this.value" style="width:110px"></label>
+   <label style="display:flex;flex-direction:column;font-size:13px;gap:3px;color:inherit">&nbsp;<select onchange="WZS.w.stU=this.value">${su.map(x=>`<option value="${x[0]}" ${S.stU==x[0]?'selected':''}>${x[1]}</option>`).join('')}</select></label>
+   <label style="display:flex;flex-direction:column;font-size:13px;gap:3px;color:inherit">Scorta minima<input type="number" step="any" min="0" value="${esc(S.mn)}" oninput="WZS.w.mn=this.value" style="width:110px"></label>
+   <label style="display:flex;flex-direction:column;font-size:13px;gap:3px;color:inherit">&nbsp;<select onchange="WZS.w.mnU=this.value">${su.map(x=>`<option value="${x[0]}" ${S.mnU==x[0]?'selected':''}>${x[1]}</option>`).join('')}</select></label></div>`:''}
+  </div><div class="df"><button class="b l" title="Il modulo completo con tutte le unità di misura e conversioni" onclick="ED_RAW=1;ed('prod',0);ED_RAW=0">Modulo completo</button><button class="b" onclick="$('#dlg').close()">Annulla</button><button class="b pri" onclick="wzSave()">Salva prodotto</button></div>`;
+  wzPrice();
+}
+function wzSave(){
+  if(WZS.w.m=='gen')return wzGenSave();
+  const S=WZS.w,r0=wzCalc(S),u=wzUnits(S);
+  if(!S.s)return toast('Scegli il tipo di prodotto.');
+  if(!r0)return toast('Inserisci le misure: serve il peso del prodotto.');
+  if(!String(S.desc).trim())return toast('Scrivi la descrizione.');
+  let code=String(S.code).trim()||wzCode(S);
+  if(!code)return toast('Scrivi il codice.');
+  if(D.items.some(x=>x.code.trim().toLowerCase()==code.toLowerCase())&&!confirm('Esiste già un articolo con il codice «'+code+'». Salvare comunque con un codice diverso?'))return;
+  while(D.items.some(x=>x.code.trim().toLowerCase()==code.toLowerCase()))code+='-2';
+  const kg=r4(r0.kg),p=wzN(S.price),r={code,desc:String(S.desc).trim(),cat:String(S.cat).trim(),mat:String(S.q).trim()||(S.m=='fe'?'':(S.m=='x'?'':WZ_MAT.find(m=>m[0]==S.m)[1])),dim:wzDim(S),um:u.main,kg,fin:String(S.fin).trim(),sup:+S.sup||0,uc:'',pc:0,fc:0,ca:0,cost:0,stock:0,min:0,bl:u.packQ>0?r4(u.packQ):0,
+    sh:{m:S.m,dx:S.dx,s:S.s,v:{...S.v},ps:S.ps,pz:S.pz,bar:S.bar,fw:S.fw,fl:S.fl}};
+  if(S.pu=='kg'){r.uc='kg';r.pc=kg;r.fc=1/kg;r.ca=p;r.cost=r4(p/r.fc)}
+  else if(S.pu==u.pack){if(!(u.packQ>0)&&p)return toast('Indica la lunghezza della barra (o il formato del foglio).');r.uc=u.pack;r.fc=u.packQ;r.pc=0;r.ca=p;r.cost=u.packQ>0?r4(p/u.packQ):0}
+  else{r.ca=p;r.cost=p}
+  const conv=(v,k)=>{v=wzN(v);return k=='u'?v:k=='p'?v*u.packQ:v/kg};
+  r.stock=r4(conv(S.st,S.stU));r.min=r4(conv(S.mn,S.mnU));
+  r.id=Date.now();D.items.push(r);addLog('Prodotto creato: '+r.code);save();$('#dlg').close();render();
+  toast('Prodotto salvato: '+r.code+' · '+f3(kg)+' kg al '+(u.area?'mq':'metro')+'.');
+}
+
+// ---- altro articolo (legno, bulloni, scatole...): senza peso obbligatorio
+function wzGenRender(){
+  const S=WZS.w,d=$('#dlg');d.oninput=null;d.onchange=null;d.classList.remove('wide');
+  const sups=[{v:0,t:'— nessuno —'},...D.sup.filter(x=>!x.man).map(x=>({v:x.id,t:x.n}))];
+  const pk=String(S.gpk).trim(),pq=wzN(S.gpq),hasPk=!!pk&&pq>0,um=S.gu;
+  if(!['u','p'].includes(S.pu))S.pu='u';if(!hasPk&&S.pu=='p')S.pu='u';
+  const L=(t,h,x='')=>`<label ${x} style="display:flex;flex-direction:column;font-size:13px;gap:3px;color:inherit;${x}">${t}${h}</label>`;
+  const un=[['u',um],...(hasPk?[['p',pk]]:[])];
+  d.innerHTML=`<div class="dh"><h2>Nuovo articolo</h2><div class="mut">Per legno, bulloni, scatole e tutto ciò che non si pesa: nessun peso da inserire.</div></div><div class="db" style="display:block">
+  <h3 style="margin:0 0 8px">1 · Materiale</h3>${wzMatHtml('w')}
+  <h3 style="margin:18px 0 8px">2 · Articolo</h3>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px">
+   ${L('Descrizione',`<input id="wz_desc" value="${esc(S.desc)}" placeholder="Es. Pannello multistrato 18 mm, Bulloni M12x60" oninput="wzGDesc(this.value)">`,'grid-column:1/-1')}
+   ${L('Si conta in',`<select onchange="WZS.w.gu=this.value;wzGenRender()">${[['pz','pezzi'],['m','metri'],['m²','metri quadri'],['kg','kg']].map(x=>`<option value="${x[0]}" ${S.gu==x[0]?'selected':''}>${x[1]}</option>`).join('')}</select>`)}
+   ${L('Acquisto a confezione (facoltativo): nome',`<input value="${esc(S.gpk)}" placeholder="Es. scatola, pannello, rotolo" onchange="WZS.w.gpk=this.value;wzGenRender()">`)}
+   ${L('Quanti '+(S.gu=='pz'?'pezzi':S.gu)+' in 1 '+(pk||'confezione'),`<input type="number" step="any" min="0" value="${esc(S.gpq)}" placeholder="Es. 100" onchange="WZS.w.gpq=this.value;wzGenRender()">`)}
+   ${S.gu!='kg'?L('Peso di 1 '+(S.gu=='pz'?'pezzo':S.gu)+' in kg (facoltativo)',`<input type="number" step="any" min="0" value="${esc(S.gkg)}" oninput="WZS.w.gkg=this.value">`):''}
+  </div>
+  <h3 style="margin:18px 0 8px">3 · Dati</h3>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px">
+   ${L('Codice',`<input id="wz_code" value="${esc(S.code)}" oninput="WZS.w.code=this.value;WZS.w.cA=0">`)}
+   ${L('Categoria',`<input id="wz_cat" list="catdl" autocomplete="off" value="${esc(S.cat)}" placeholder="Es. Legno, Bulloneria" oninput="WZS.w.cat=this.value">`)}
+   ${L('Materiale / qualità (facoltativo)',`<input value="${esc(S.q)}" oninput="WZS.w.q=this.value">`)}
+   ${L('Fornitore abituale',`<select onchange="WZS.w.sup=+this.value">${sups.map(o=>`<option value="${o.v}" ${o.v==S.sup?'selected':''}>${esc(o.t)}</option>`).join('')}</select>`)}
+  </div><datalist id="catdl">${catList().map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
+  <h3 style="margin:18px 0 8px">4 · Acquisto e magazzino</h3>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+   ${L('Prezzo di acquisto (€)',`<input type="number" step="any" min="0" value="${esc(S.price)}" oninput="WZS.w.price=this.value" style="width:130px">`)}
+   ${L('&nbsp;',`<select onchange="WZS.w.pu=this.value">${un.map(x=>`<option value="${x[0]}" ${S.pu==x[0]?'selected':''}>${x[0]=='u'?'€ al '+(um=='pz'?'pezzo':um=='m²'?'mq':um=='m'?'metro':'kg'):'€ alla '+esc(x[1])}</option>`).join('')}</select>`)}
+  </div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
+   ${L('Giacenza iniziale',`<input type="number" step="any" min="0" value="${esc(S.st)}" oninput="WZS.w.st=this.value" style="width:110px">`)}
+   ${L('&nbsp;',`<select onchange="WZS.w.stU=this.value">${un.map(x=>`<option value="${x[0]}" ${S.stU==x[0]?'selected':''}>${x[0]=='u'?esc(um=='pz'?'pezzi':um=='m²'?'mq':um=='m'?'metri':'kg'):esc(x[1])}</option>`).join('')}</select>`)}
+   ${L('Scorta minima',`<input type="number" step="any" min="0" value="${esc(S.mn)}" oninput="WZS.w.mn=this.value" style="width:110px">`)}
+   ${L('&nbsp;',`<select onchange="WZS.w.mnU=this.value">${un.map(x=>`<option value="${x[0]}" ${S.mnU==x[0]?'selected':''}>${x[0]=='u'?esc(um=='pz'?'pezzi':um=='m²'?'mq':um=='m'?'metri':'kg'):esc(x[1])}</option>`).join('')}</select>`)}</div>
+  </div><div class="df"><button class="b l" onclick="ED_RAW=1;ed('prod',0);ED_RAW=0">Modulo completo</button><button class="b" onclick="$('#dlg').close()">Annulla</button><button class="b pri" onclick="wzGenSave()">Salva articolo</button></div>`;
+}
+function wzGenSave(){
+  const S=WZS.w;if(!String(S.desc).trim())return toast('Scrivi la descrizione.');
+  let code=String(S.code).trim()||wzSlug(S.desc);if(!code)return toast('Scrivi il codice.');
+  while(D.items.some(x=>x.code.trim().toLowerCase()==code.toLowerCase()))code+='-2';
+  const pk=String(S.gpk).trim(),pq=wzN(S.gpq),hasPk=!!pk&&pq>0,p=wzN(S.price),um=S.gu;
+  const r={code,desc:String(S.desc).trim(),cat:String(S.cat).trim(),mat:String(S.q).trim(),dim:'',um,kg:um=='kg'?0:r4(wzN(S.gkg)),fin:'',sup:+S.sup||0,uc:'',pc:0,fc:0,ca:p,cost:p,stock:0,min:0,sh:{m:'gen'}};
+  if(hasPk){r.uc=pk;r.fc=pq;r.ca=S.pu=='p'?p:r4(p*pq);r.cost=r4(r.ca/pq)}
+  const conv=(v,k)=>{v=wzN(v);return k=='p'&&hasPk?v*pq:v};
+  r.stock=r4(conv(S.st,S.stU));r.min=r4(conv(S.mn,S.mnU));
+  r.id=Date.now();D.items.push(r);addLog('Articolo creato: '+r.code);save();$('#dlg').close();render();toast('Articolo salvato: '+r.code+'.');
+}
+// calcolatore del peso dentro il modulo completo di un prodotto esistente
+function wcToggle(){const e=$('#wcp');if(!e)return;if(e.innerHTML){e.innerHTML='';return}if(!WZS.c)WZS.c=wzNew();wcRender()}
+function wcRender(){
+  const e=$('#wcp');if(!e)return;const S=WZS.c;
+  e.innerHTML=`<div style="border:2px solid var(--steel);border-radius:4px;padding:12px;margin-top:8px"><h3 style="margin:0 0 8px">Materiale</h3>${wzMatHtml('c')}<h3 style="margin:14px 0 8px">Tipo di prodotto</h3>${wzShapeHtml('c')}<h3 style="margin:14px 0 8px">Misure</h3>${wzDimsHtml('c')}
+  <div id="wz_res_c" style="margin-top:10px">${wzResHtml('c')}</div><div class="tools" style="margin-top:8px"><button type="button" class="b pri" onclick="wcUse()">Usa questo peso</button></div></div>`;
+}
+function wcUse(){
+  const S=WZS.c,r=wzCalc(S),um=nu($('#um').value);
+  if(!r)return toast('Inserisci le misure per calcolare il peso.');
+  if(um!=r.um)return toast('L’unità principale di questo prodotto è «'+um+'»: il peso calcolato è al '+(r.um=='m²'?'mq':'metro')+'. Cambia l’unità di misura principale (se il prodotto non è ancora stato usato) e riprova.');
+  $('#kg').value=r4(r.kg);$('#kg').dispatchEvent(new Event('input',{bubbles:true}));
+  const dm=$('#dim');if(dm&&!dm.value)dm.value=wzDim(S);
+  $('#wcp').innerHTML='';toast('Peso inserito: '+f3(r.kg)+' kg al '+(r.um=='m²'?'mq':'metro')+'. Ricordati di salvare.');
+}
+let ED_RAW=0;
+
 function sv(k,id){
   const e=E[k], old=id?D[e.c].find(x=>x.id==id):null, r={};
   for(const f of e.f){
@@ -1850,9 +2115,9 @@ function salRender(){
   <div class="full tw"><table style="min-width:0"><thead><tr><th>N.</th><th>Data</th><th>Descrizione</th><th class="n">%</th><th class="n">Imponibile</th><th class="n">IVA</th><th class="n">Totale lordo</th><th>Stato</th><th></th></tr></thead><tbody>
   ${(j.sals||[]).length?j.sals.map(x=>`<tr ${x.id==SE?'style="background:rgba(127,127,127,.15)"':''}><td><b>${x.n}</b></td><td>${dt(x.date)}</td><td>${esc(x.desc||'')||'-'}</td><td class="n">${j.price?fN(r2(x.amt/j.price*100)):'-'}%</td><td class="n">${eur(x.amt)}</td><td class="n">${eur(salIva(j,x))}</td><td class="n">${eur(x.amt+salIva(j,x))}</td><td>${x.status=='Fatturato'?'<span class="tag">Fatturato n. '+esc(x.invNum||'-')+(x.invDate?' del '+dt(x.invDate):'')+'</span>':'Da fatturare'}</td>
    <td style="white-space:nowrap">${lock?'':x.status=='Fatturato'?`<button class="b dng" onclick="salUndo(${x.id})">Annulla fatturazione</button>`:`<button class="b" onclick="salEdit(${x.id})">Modifica</button> <button class="b dng" onclick="salDel(${x.id})">Elimina</button>`}</td></tr>`).join(''):'<tr><td colspan="9" class="empty">Nessun S.A.L. richiesto.</td></tr>'}</tbody></table></div>
-  ${lock?'<div class="full rsn">Commessa fatturata: i S.A.L. non sono più modificabili. Per intervenire elimina la fatturazione da Fatturazione › Commesse fatturate.</div></div>':`<h3>${ed?'Modifica S.A.L. n. '+nn:'Richiedi un nuovo S.A.L. (n. '+nn+')'}</h3>
+  ${lock?'<div class="full rsn">Commessa fatturata: i S.A.L. non sono più modificabili. Per intervenire elimina la fattura da Contabilità › Fatture.</div></div>':`<h3>${ed?'Modifica S.A.L. n. '+nn:'Richiedi un nuovo S.A.L. (n. '+nn+')'}</h3>
   <div class="full" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px" oninput="salCalc(event)">${F('sl_desc','Descrizione (es. fine fase di produzione)',ed?ed.desc:'','text')}${F('sl_date','Data richiesta',ed?ed.date:TODAY,'date')}${F('sl_pct','Percentuale sul prezzo (%)',ed&&j.price?r2(ed.amt/j.price*100):'','number')}${F('sl_amt','Importo imponibile (€)',ed?ed.amt:'','number')}<div class="bt">IVA e totale lordo<b id="sl_lord">-</b></div></div>
-  <div class="full mut">Il S.A.L. richiesto compare subito in Fatturazione, anche se la commessa non è terminata. A commessa completata si fatturerà solo il saldo (prezzo meno S.A.L.).</div></div>`}
+  <div class="full mut">Il S.A.L. richiesto compare subito in Contabilità › Fatture, tra le voci da fatturare, anche se la commessa non è terminata. A commessa completata si fatturerà solo il saldo (prezzo meno S.A.L.).</div></div>`}
   <div class="df"><button class="b" onclick="document.getElementById('dlgs').close()">Chiudi</button>${lock?'':`${ed?`<button class="b" onclick="salEdit(0)">Annulla modifica</button>`:''}<button class="b pri" onclick="salSave()">${ed?'Salva modifica':'Richiedi S.A.L.'}</button>`}</div>`;
   if(!d.open)d.showModal();
   if(!lock)salCalc();
@@ -1873,7 +2138,7 @@ function salSave(){
   if(altri+amt>j.price+0.005){alert('Il totale dei S.A.L. ('+eur(altri+amt)+') supera l’importo della commessa ('+eur(j.price)+').');return}
   j.sals=j.sals||[];
   if(ex)Object.assign(ex,{amt,date,desc});else j.sals.push({id:Date.now(),n:j.sals.reduce((m,x)=>Math.max(m,x.n),0)+1,date,desc,amt,status:'Richiesto'});
-  j.sal=true;SE=0;save();render();salRender();salSumUpd();toast(ex?'S.A.L. modificato.':'S.A.L. richiesto: lo trovi in Fatturazione, da fatturare.');
+  j.sal=true;SE=0;save();render();salRender();salSumUpd();toast(ex?'S.A.L. modificato.':'S.A.L. richiesto: lo trovi in Contabilità › Fatture, da fatturare.');
 }
 function salDel(id){askConfirm('Eliminare questo S.A.L.?',()=>{const j=salJob();j.sals=j.sals.filter(x=>x.id!=id);save();render();salRender();salSumUpd()})}
 function salUndo(id){askConfirm('Annullare la fatturazione di questo S.A.L.? Torna nell’elenco da fatturare.',()=>{const x=salJob().sals.find(y=>y.id==id);x.status='Richiesto';delete x.invNum;delete x.invDate;save();render();salRender()})}
@@ -2158,7 +2423,7 @@ function consHtml(){
 function jcAdd(){cur.xCost.push({cat:'Lavorazione esterna',desc:'',sup:'',um:'pz',qty:1,cost:0,note:''});consHtml();sum();const e=$('#xcd'+(cur.xCost.length-1));if(e){e.scrollIntoView({block:'nearest'});e.focus()}}
 function jcSet(i,f,v){const l=cur.xCost[i];l[f]=(f=='qty'||f=='cost')?(+v||0):v;const e=$('#xct'+i);if(e)e.textContent=eur2(l.qty*l.cost);sum()}
 function jcDel(i){cur.xCost.splice(i,1);consHtml();extHtml('ext');sum()}
-function jcInfo(){const it=findItem($('#jci').value);$('#jcinf').innerHTML='Giacenza<b>'+(it?fN(it.stock)+' '+esc(it.um):'-')+'</b>'}
+function jcInfo(){const it=findItem($('#jci').value);$('#jcinf').innerHTML='Giacenza<b>'+(it?stkTxt(it):'-')+'</b>'}
 function jcMvAdd(){
   if(!cur.id)return;
   const it=findItem($('#jci').value), q=+$('#jcq').value||0;
@@ -2260,11 +2525,12 @@ function saveJob(id){
   const g=k=>$('#'+k).value, n=k=>+g(k)||0;
   if(!g('code').trim()){alert('Inserisci il codice commessa.');return}
   if(!D.cl.length){alert('Crea prima almeno un cliente.');return}
-  const j=id?D.jobs.find(x=>x.id==id):{id:Date.now()};
+  const j=id?D.jobs.find(x=>x.id==id):{id:Date.now()},wasDone=!!id&&j&&j.status=='Completato';
   Object.assign(j,{code:g('code'),quote:g('quote').trim(),ordCli:g('ordCli').trim(),client:+g('client'),desc:g('desc'),due:g('due'),status:g('status'),prio:g('prio'),price:n('price'),vat:n('vat'),sal:!!$('#salf').checked,parent:cur.parent||0,poC:n('poC'),poS:n('poS'),mC:n('mC'),mS:n('mS'),xC:xHsum(cur.xHrs,'C'),xS:xHsum(cur.xHrs,'S'),xHrs:cleanHrs(cur.xHrs),ph:cur.ph,
    bom:cleanBom(cur.bom),xBom:cleanBom(cur.xBom),ext:cleanExt(cur.ext),xExt:cleanExt(cur.xExt),xCost:cleanCost(cur.xCost),opt:optNorm(cur.opt),v2:1,zv:cur.zv!==false});
   if(!id)D.jobs.push(j);const so=syncOrders(j);save();$('#dlg').close();render();
   if(so.c+so.u+so.r)toast(syncMsg(so));
+  if(j.status=='Completato'&&!wasDone&&!so.c&&!so.u&&!so.r)toast('Commessa '+j.code+' completata: è pronta da fatturare in Contabilità › Fatture.')
 }
 function delJob(id){
   askConfirm('Eliminare questa commessa insieme a ore e prelievi collegati? Eventuali aggiunte collegate diventeranno commesse autonome. L’operazione non si può annullare.',()=>{
@@ -3899,7 +4165,7 @@ function shSave(q){
   save();if(!q)toast('Documento salvato.');
 }
 // ================= NESTING LAMIERE (pezzi rettangolari) =================
-const NST_PRE=[[1000,2000],[1250,2500],[1500,3000],[1500,6000],[2000,4000],[2000,6000]];
+const NST_PRE=[[1000,2000],[1250,2500],[1250,3000],[1500,2000],[1500,3000],[1500,6000],[2000,3000],[2000,4000],[2000,6000]];
 const NST_COL=['#cfe3f5','#f5dcc0','#d4ecd0','#ecd0e8','#f3eec0','#c9ece9','#f1cccc','#dcdcf2'];
 const nstNum=v=>{v=+v;return isFinite(v)&&v>0?v:0};
 const nstDef=()=>({sw:1500,sl:3000,t:'',mat:'',mg:10,gap:4,rot:true,mode:'free',pc:[{name:'',w:'',l:'',qty:1,rot:true,note:''}],res:null});
@@ -5165,7 +5431,7 @@ function srtDir(){const L=srtTables(),{st}=srtState(L);SRT[view]={k:st.k,d:-st.d
 // Dati propri: D.inv (fatture emesse/ricevute) e D.cmov (prima nota: movimenti di cassa e banca).
 // Dialoga con la produzione tramite: anagrafica clienti/fornitori, commesse (fatturazione, ore) e ordini ricevuti.
 const CV=['cdash','cinv','cscad','canf','cpn','cgio','cmas','cbil','cces','civa','csim','cimp','chr'];
-const tabsC=[['cdash','Cruscotto'],['cinv','Fatture'],['cscad','Scadenziario'],['canf','Anticipo FT'],{g:'reg',l:'Registrazioni',it:[['cpn','Prima nota'],['cces','Cespiti'],['cgio','Libro giornale'],['cmas','Mastro e mastrini'],['cbil','Bilancio']]},['chr','Personale'],['civa','IVA'],['csim','Simulazione reddito'],['cimp','Impostazioni']];
+const tabsC=[['cdash','Cruscotto'],{g:'vend',l:'Vendite',it:[['quotes','Preventivi'],['ordc','Ordini cliente']]},['cinv','Fatture'],['cscad','Scadenziario'],['canf','Anticipo FT'],{g:'reg',l:'Registrazioni',it:[['cpn','Prima nota'],['cces','Cespiti'],['cgio','Libro giornale'],['cmas','Mastro e mastrini'],['cbil','Bilancio']]},['chr','Personale'],['civa','IVA'],['csim','Simulazione reddito'],['cimp','Impostazioni']];
 let MOD='prod',cDir='E',cQ='',cYr=String(new Date().getFullYear()),cScad='tutte',cAcc='',cMese='',cPQ='',cIvaP='a',cOnlyOpen=false,cGC='',cMC='',cBT='ver',cMM='mas',cMT='cli',cMP='';
 let _aIdL=0;const aId=()=>{let v=Date.now()*10+Math.floor(Math.random()*10);if(v<=_aIdL)v=_aIdL+1;_aIdL=v;return v}; // sempre crescente: nessun identificativo ripetuto
 const aAdd=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
@@ -5187,11 +5453,12 @@ const aJobs=i=>[...new Set([...(i.jobs||[]),...(i.job?[i.job]:[])])];
 const aJobTxt=i=>aJobs(i).map(id=>esc(jb(id))).join(', ')||'<span class="mut">-</span>';
 const aInYr=d=>!cYr||(d||'').slice(0,4)==cYr;
 function accInit(){D.inv=D.inv||[];D.cmov=D.cmov||[];D.cset=D.cset||[];D.pdc=D.pdc||[];D.reg=D.reg||[];D.ces=D.ces||[];D.hre=D.hre||[];D.hrd=D.hrd||[];D.anf=D.anf||[]}
-function accModFix(){const pv=tabs.some(t=>(t.g?t.it:[t]).some(i=>lv(i[0])>0));if(MOD=='cont'&&lv('cont')<1)MOD='prod';if(MOD=='prod'&&!pv&&lv('cont')>0)MOD='cont'}
-function accSync(v){if(!ME)return;const w=CV.includes(v)?'cont':'prod';if(MOD!=w){MOD=w;buildNav()}}
+const aCok=()=>lv('cont')>0||lv('quotes')>0||lv('ordc')>0;
+function accModFix(){const pv=tabs.some(t=>(t.g?t.it:[t]).some(i=>lv(i[0])>0));if(MOD=='cont'&&!aCok())MOD='prod';if(MOD=='prod'&&!pv&&aCok())MOD='cont'}
+function accSync(v){if(!ME)return;const w=(CV.includes(v)||v=='quotes'||v=='ordc')?'cont':'prod';if(MOD!=w){MOD=w;buildNav()}}
 function accMod(m){MOD=m;buildNav();view=firstView();render()}
 function accSwitch(){
-  if(!ME||lv('cont')<1)return '';
+  if(!ME||!aCok())return '';
   const pv=tabs.some(t=>(t.g?t.it:[t]).some(i=>lv(i[0])>0));if(!pv)return '';
   return `<span class="msw"><button class="${MOD=='prod'?'on':''}" onclick="accMod('prod')">Produzione</button><button class="${MOD=='cont'?'on':''}" onclick="accMod('cont')">Contabilità</button></span> `;
 }
@@ -5229,6 +5496,7 @@ function cDash(){
   const nx=(a,n)=>[...a].filter(i=>i.due).sort((x,y2)=>x.due.localeCompare(y2.due)).slice(0,n);
   const ln=i=>`<div class="ph"><span><b>${esc(i.num||'-')}</b> · ${esc(aParty(i))}<br><small class="mut">scad. ${dt(i.due)}${i.due<TODAY?' · <span style="color:var(--bad)">in ritardo</span>':''}</small></span><b>${eur2(aOpen(i))}</b></div>`;
   return `<div class="tools"><button class="b" onclick="invEdit(0,'E')">Nuova fattura emessa</button><button class="b" onclick="invEdit(0,'R')">Nuova fattura ricevuta</button><button class="b" onclick="pnEdit(0)">Nuovo movimento</button></div>
+  ${aToInv().length?`<div class="tools" style="background:var(--soft);border:1px solid var(--steel);padding:8px 12px;border-radius:4px"><span style="flex:1"><b>${aToInv().length}</b> ${aToInv().length==1?'commessa o S.A.L. è pronto':'commesse o S.A.L. sono pronti'} da fatturare.</span><button class="b pri" onclick="cDir='E';goView('cinv')">Vai a fatturare</button></div>`:''}
   ${toReg?`<div class="tools" style="background:var(--soft);border:1px solid var(--line);padding:8px 12px;border-radius:4px"><span style="flex:1"><b>${toReg}</b> ${toReg==1?'fattura di commessa non è ancora registrata':'fatture di commessa non sono ancora registrate'} in contabilità.</span><button class="b pri" onclick="invImpOpen()">Registra ora</button></div>`:''}
   <div class="kpis">
    <div class="kpi acc"><span>Da incassare</span><b>${eur(sum(E_))}</b><span>${lat(E_)?'di cui scaduti '+eur(lat(E_)):'nessun ritardo'}</span></div>
@@ -5247,6 +5515,28 @@ function cDash(){
    <div><h3 style="margin:0 0 6px">Prossimi pagamenti</h3><div class="tw" style="padding:4px 12px">${nx(R_,6).map(ln).join('')||'<div class="empty">Nessun pagamento in sospeso.</div>'}</div></div>
   </div>`;
 }
+// ---- commesse completate e S.A.L. richiesti: da fatturare
+let INVPRE=null,INVSRC=null;
+function aToInv(){
+  const out=[];
+  fattReady().forEach(g=>out.push({k:'j',id:g.id,jobs:g.jobs,open:g.open,client:g.jobs[0].client,net:r2(g.net),iva:r2(g.iva),desc:g.jobs.map(j=>j.code+' · '+j.desc).join(' | ')}));
+  salRows('Richiesto').forEach(r=>out.push({k:'s',id:r.j.id,n:r.x.n,jobs:[r.j],open:[],client:r.j.client,net:r2(r.net),iva:r2(r.iva),desc:r.j.code+' · S.A.L. '+r.x.n+(r.x.desc?' · '+r.x.desc:'')}));
+  return out;
+}
+function aToInvBox(){
+  const td=aToInv();if(!td.length)return '';
+  return `<div style="border:2px solid var(--steel);border-radius:4px;padding:10px 12px;margin-bottom:12px"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b style="font-size:15px">Da fatturare (${td.length})</b><span class="mut" style="flex:1;min-width:240px">Commesse completate e S.A.L. richiesti: «Crea fattura» prepara la fattura con i dati della commessa. Le commesse collegate tra loro si fatturano insieme.</span><button class="b" onclick="pdfFatt()">Esporta PDF</button></div>
+  <div class="tw" style="margin-top:8px"><table style="min-width:0"><thead><tr><th>Commessa</th><th>Cliente e lavoro</th><th class="n">Imponibile</th><th class="n">IVA</th><th class="n">Totale</th><th></th></tr></thead><tbody>
+  ${td.map((t,k)=>`<tr><td>${t.jobs.map(j=>'<b>'+esc(j.code)+'</b>').join('<br>')}${t.k=='s'?'<br><small class="mut"><span class="tag">S.A.L. n. '+t.n+'</span></small>':''}${t.k=='j'?linkNote(t):''}</td><td>${esc(cn(t.client))}<br><small class="mut">${esc(t.desc.slice(0,110))}</small></td><td class="n">${eur2(t.net)}</td><td class="n">${eur2(t.iva)}</td><td class="n"><b>${eur2(t.net+t.iva)}</b></td>
+   <td style="white-space:nowrap">${t.net>0.005?`<button class="b pri" onclick="invFromJob(${k})">Crea fattura</button>`:`<button class="b" onclick="invZero(${k})" title="La commessa è già stata fatturata a S.A.L.: nessuna fattura da emettere">Chiudi (già fatturata)</button>`}</td></tr>`).join('')}
+  </tbody></table></div></div>`;
+}
+function invFromJob(k){const t=aToInv()[k];if(!t)return;INVPRE=t;cDir='E';invEdit(0,'E')}
+function invZero(k){
+  const t=aToInv()[k];if(!t||t.k!='j')return toast('Questo S.A.L. ha un importo: crea la fattura.');
+  askConfirm('La commessa '+t.jobs.map(j=>j.code).join(', ')+' risulta già interamente fatturata a S.A.L.: chiuderla come fatturata, senza nuova fattura?',()=>{
+    t.jobs.forEach(j=>{const x=D.jobs.find(y=>y.id==j.id);if(x){x.status='Fatturata';x.invNum='';x.invDate=TODAY}});save();render()});
+}
 // ---- fatture
 function cInv(){
   let a=D.inv.filter(i=>i.dir==cDir&&aInYr(i.date));
@@ -5254,7 +5544,7 @@ function cInv(){
   if(cOnlyOpen)a=a.filter(i=>aSt(i)!='ok');
   a.sort((x,y)=>(y.date||'').localeCompare(x.date||'')||String(y.num).localeCompare(String(x.num),'it',{numeric:true}));
   const tn=r2(a.reduce((t,i)=>t+aNet(i),0)),ti=r2(a.reduce((t,i)=>t+aIva(i),0)),E_=cDir=='E',toReg=E_?aToReg().length:0;
-  return `<div class="tools"><button class="b ${E_?'pri':''}" onclick="cDir='E';render()">Fatture emesse</button><button class="b ${E_?'':'pri'}" onclick="cDir='R';render()">Fatture ricevute</button>${aYSel()}
+  return (E_?aToInvBox():'')+`<div class="tools"><button class="b ${E_?'pri':''}" onclick="cDir='E';render()">Fatture emesse</button><button class="b ${E_?'':'pri'}" onclick="cDir='R';render()">Fatture ricevute</button>${aYSel()}
    <input id="cq" placeholder="Cerca numero, cliente, commessa" value="${esc(cQ)}" style="flex:1;min-width:200px"><label style="display:flex;gap:4px;align-items:center;font-size:13px"><input type="checkbox" ${cOnlyOpen?'checked':''} onchange="cOnlyOpen=this.checked;render()"> solo aperte</label>
    <button class="b" onclick="pdfInv()">Esporta PDF</button><button class="b" onclick="csvInv()">Esporta CSV</button><button class="b" onclick="xmlOpen(cDir)">Importa XML</button>
    ${E_&&toReg?`<button class="b" onclick="invImpOpen()">Da commesse (${toReg})</button>`:''}<button class="b pri" onclick="invEdit(0,'${cDir}')">Nuova fattura</button></div>
@@ -5269,17 +5559,21 @@ function invRowAdd(){const b=$('#iRows');const t=document.createElement('div');t
 function invRowDel(btn){btn.closest('.rg').remove();if(window._invTot)_invTot()}
 function invRowsGet(){return [...document.querySelectorAll('#iRows .rg')].map(r=>({n:r.querySelector('.rgN').value,net:+r.querySelector('.rgN').value||0,vat:+r.querySelector('.rgV').value||0}))}
 function invEdit(id,dir){
+  const pre=(!id&&dir!='R'&&INVPRE)?INVPRE:null;INVPRE=null;INVSRC=pre;
   const n=!id,i=n?{dir:dir||cDir,num:(dir||cDir)=='E'?aNext():'',date:TODAY,vat:CS().vatDef,net:'',party:0,pname:'',job:0,desc:'',due:'',nc:0,ords:[]}:D.inv.find(x=>x.id==id);if(!i)return;
   const E_=i.dir=='E',col=aCol(i);
-  if(n)i.due=aAdd(TODAY,aDays(col,0));
+  if(pre){const m={};pre.jobs.forEach(j=>{const v=j.vat??22,nt=pre.k=='s'?pre.net:netOf(j);m[v]=r2((m[v]||0)+nt)});const ks=Object.keys(m).map(Number).sort((a,b)=>m[b]-m[a]);
+    Object.assign(i,{party:pre.client,desc:pre.desc,net:r2(ks.reduce((t,k)=>t+m[k],0)),vat:ks[0]??CS().vatDef,job:pre.jobs[0].id,jobs:pre.jobs.map(j=>j.id)});if(ks.length>1)i.rig=ks.map(k=>({net:m[k],vat:k}))}
+  if(n)i.due=aAdd(TODAY,aDays(col,i.party||0));
   const d=$('#dlg');d.oninput=null;d.classList.remove('wide');
   const pays=D.cmov.filter(m=>m.inv==i.id).sort((x,y)=>x.date.localeCompare(y.date));
   d.innerHTML=`<div class="dh"><h2>${n?'Nuova fattura '+(E_?'emessa':'ricevuta'):'Fattura '+esc(i.num||'')+' · '+(E_?'emessa':'ricevuta')}</h2></div><div class="db">
+   ${pre?`<div class="full rsn" style="background:var(--soft)">Fattura preparata con i dati di <b>${esc(pre.jobs.map(j=>j.code).join(', '))}</b>${pre.k=='s'?' (S.A.L. n. '+pre.n+')':''}: controlla importi, IVA e scadenza. Salvando, ${pre.k=='s'?'il S.A.L. risulta fatturato':'la commessa passa a «Fatturata»'}.</div>`:''}
    ${S('iNc','Tipo documento',[{v:0,t:'Fattura'},{v:1,t:'Nota di credito'}],i.nc?1:0)}${F('iNum','Numero',i.num||'')}${F('iDate','Data',i.date,'date')}
    ${S('iParty',E_?'Cliente':'Fornitore',[{v:0,t:'— altro / non in anagrafica —'},...D[col].filter(x=>!x.man).map(x=>({v:x.id,t:x.n}))],i.party||0)}
    ${F('iPname','Nome (se non in anagrafica)',i.pname||'')}${S('iJob','Commessa collegata',[{v:0,t:'Nessuna (spesa generale)'},...D.jobs.map(j=>({v:j.id,t:j.code+' · '+cn(j.client)}))],i.job||0)}
    <label class="full">Descrizione<input id="iDesc" value="${esc(i.desc||'')}"></label>
-   ${S('iCc',E_?'Conto di ricavo':'Conto di costo',invCcOpts(E_,i.cc||''),i.cc||CS().map[E_?'ricavi':'costi'])}<div class="full"><div class="mut" style="margin-bottom:4px">Imponibile e IVA: se la fattura ha aliquote diverse, aggiungi una riga per ciascuna</div><div id="iRows">${aRows(i).map((x,k)=>invRowHtml(n?{net:'',vat:i.vat}:x,k)).join('')}</div><datalist id="vatlist">${CS().vat.map(v=>`<option value="${v}">`).join('')}</datalist><button class="b" type="button" onclick="invRowAdd()" style="margin-top:6px">+ Aggiungi aliquota</button><div class="mut" id="iBrk" style="margin-top:6px"></div></div>${F('iDue','Scadenza pagamento',i.due||'','date')}${F('iRit','Ritenuta d’acconto (%)',i.rit||'','number')}${F('iRitb','Base della ritenuta (% dell’imponibile)',(i.ritb==null||i.ritb==='')?100:i.ritb,'number')}${E_?'':F('iDed','Deducibilità del costo (%): vuoto = come il conto',i.ded==null?'':i.ded,'number')}
+   ${S('iCc',E_?'Conto di ricavo':'Conto di costo',invCcOpts(E_,i.cc||''),i.cc||CS().map[E_?'ricavi':'costi'])}<div class="full"><div class="mut" style="margin-bottom:4px">Imponibile e IVA: se la fattura ha aliquote diverse, aggiungi una riga per ciascuna</div><div id="iRows">${aRows(i).map((x,k)=>invRowHtml(n&&!pre?{net:'',vat:i.vat}:x,k)).join('')}</div><datalist id="vatlist">${CS().vat.map(v=>`<option value="${v}">`).join('')}</datalist><button class="b" type="button" onclick="invRowAdd()" style="margin-top:6px">+ Aggiungi aliquota</button><div class="mut" id="iBrk" style="margin-top:6px"></div></div>${F('iDue','Scadenza pagamento',i.due||'','date')}${F('iRit','Ritenuta d’acconto (%)',i.rit||'','number')}${F('iRitb','Base della ritenuta (% dell’imponibile)',(i.ritb==null||i.ritb==='')?100:i.ritb,'number')}${E_?'':F('iDed','Deducibilità del costo (%): vuoto = come il conto',i.ded==null?'':i.ded,'number')}
    <div class="bt">Totale fattura<b id="iTot">-</b></div>
    ${E_?'':'<div class="full" id="iOrds"></div>'}
    ${n?'':`<div class="full"><div class="mut" style="margin-bottom:4px">${E_?'Incassi':'Pagamenti'} registrati</div>${pays.length?`<div class="tw"><table style="min-width:0"><tbody>${pays.map(m=>`<tr class="row" onclick="pnEdit(${m.id})"><td>${dt(m.date)}</td><td>${esc(m.acc)}</td><td class="n">${eur2(Math.abs(m.amt))}</td><td>${esc(m.desc||'')}</td></tr>`).join('')}</tbody></table></div>`:'<span class="mut">Nessuno.</span>'}</div>
@@ -5306,17 +5600,25 @@ function invSave(id,dir){
   if(!party&&!pname){alert('Scegli un '+(dir=='E'?'cliente':'fornitore')+' dall’anagrafica oppure scrivi il nome.');return}
   if(R.some(x=>!(x.net>=0))||R.some(x=>x.n==='')||!R.length){alert('Inserisci l’imponibile di ogni riga (o togli le righe vuote).');return}
   if(dir=='R'&&!num){alert('Inserisci il numero della fattura del fornitore.');return}
+  if(!id&&INVSRC&&!num){alert('Inserisci il numero della fattura.');return}
   if(D.inv.some(x=>x.id!=i.id&&x.dir==dir&&num&&x.num==num&&(x.date||'').slice(0,4)==date.slice(0,4)&&(x.party||x.pname)==(party||pname))&&!confirm('Esiste già una fattura con lo stesso numero nello stesso anno per questa controparte. Salvare comunque?'))return;
   Object.assign(i,{nc:+v('iNc')?1:0,num,date,party,pname:party?'':pname,job:+v('iJob')||0,desc:v('iDesc').trim(),net:r2(net),due:v('iDue'),cc:v('iCc'),rit:+v('iRit')||0,ritb:v('iRitb')===''?100:+v('iRitb'),ded:(dir=='R'&&v('iDed')!=='')?+v('iDed'):null});
   {const m={};R.forEach(x=>{m[x.vat]=r2((m[x.vat]||0)+x.net)});const ks=Object.keys(m).map(Number).sort((a,b)=>m[b]-m[a]);
    i.vat=ks[0]||0;if(ks.length>1)i.rig=ks.map(k=>({net:m[k],vat:k}));else delete i.rig}
   if(dir=='R')i.ords=[...document.querySelectorAll('.iO:checked')].map(x=>+x.value);
+  if(!id&&INVSRC){const p=INVSRC;INVSRC=null;i.jobs=p.jobs.map(j=>j.id);
+    if(p.k=='j'){p.jobs.forEach(j=>{const x=D.jobs.find(y=>y.id==j.id);if(x){x.status='Fatturata';x.invNum=num;x.invDate=date}});i.ref='f:'+num+'|'+date+'|'+p.jobs[0].client}
+    else{const j=D.jobs.find(y=>y.id==p.id),s=j&&(j.sals||[]).find(z=>z.n==p.n);if(s){s.status='Fatturato';s.invNum=num;s.invDate=date}i.ref='s:'+p.id+':'+p.n}
+    addLog('Fattura '+num+' creata da '+p.jobs.map(j=>j.code).join(', '))}
   if(!id)D.inv.push(i);
   save();$('#dlg').close();render();
 }
 function invDel(id){
-  const i=D.inv.find(x=>x.id==id);if(!i)return;const np=D.cmov.filter(m=>m.inv==id).length;
-  askConfirm('Eliminare la fattura '+(i.num||'')+'?'+(np?' Verranno eliminati anche i '+np+' movimenti di prima nota collegati.':''),()=>{
+  const i=D.inv.find(x=>x.id==id);if(!i)return;const np=D.cmov.filter(m=>m.inv==id).length,rf=/^[fs]:/.test(i.ref||'');
+  askConfirm('Eliminare la fattura '+(i.num||'')+'?'+(np?' Verranno eliminati anche i '+np+' movimenti di prima nota collegati.':'')+(rf?' La commessa (o il S.A.L.) tornerà tra le voci da fatturare.':''),()=>{
+    if(rf){const m=/^s:(\d+):(\d+)$/.exec(i.ref);
+      if(m){const j=D.jobs.find(y=>y.id==+m[1]),s=j&&(j.sals||[]).find(z=>z.n==+m[2]);if(s&&s.status=='Fatturato'){s.status='Richiesto';delete s.invNum;delete s.invDate}}
+      else aJobs(i).forEach(jid=>{const j=D.jobs.find(y=>y.id==jid);if(j&&j.status=='Fatturata'&&(j.invNum||'')==(i.num||'')){j.status='Completato';delete j.invNum;delete j.invDate}})}
     D.cmov=D.cmov.filter(m=>m.inv!=id);D.inv=D.inv.filter(x=>x.id!=id);save();$('#dlg').close();render()});
 }
 // importa dalla fatturazione commesse
@@ -6232,7 +6534,7 @@ const EC_KW=[[/imposta di bollo|commission|competenze|conguaglio|spese (tenuta|c
  [/distributore|stazione di servizio|\bself\b|carburant|benzin|gasolio|diesel|\bq8\b|\besso\b|tamoil|telepass|autostrad|pedaggi|assicuraz|bollo auto|lavaggio/,'Carburante e mezzi'],
  [/affitt|locazion|leasing/,'Affitto e leasing'],
  [/interessi attivi|rimborso|storno/,'Altre entrate']];
-const ecRuleKey=r=>ecN(((r.lines&&r.lines[0])||r.desc||'').replace(/[0-9*]+/g,' ')).slice(0,40)+'|'+ecN(ecCpt(r)).slice(0,22);
+const ecRuleKey=r=>ecN(((r.lines&&r.lines[0])||r.desc||'').replace(/[0-9*]+/g,' ')).slice(0,40)+'|'+ecN(ecCpt(r)).slice(0,28);
 function ecScore(r,i,rem,cx){
   const A=Math.abs(r.amt),o=rem[i.id],sig=[];let s=0;
   const ex=Math.abs(A-o)<0.011,g=r.gross&&(Math.abs(r.gross-o)<0.011||Math.abs(r.gross-aTot(i))<0.011);
@@ -7371,8 +7673,8 @@ setInterval(()=>{if(ME)stat()},4000);
 /* ===== VARIANTE UFFICIO · barra multifunzione, barra di stato, scorciatoie ===== */
 (function(){
 const IC={dash:'M3 12l9-8 9 8M5 10v10h14V10',jobs:'M4 6h16M4 12h16M4 18h10',quotes:'M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6',ordc:'M5 4h14v16H5zM9 9h6M9 13h6',sheets:'M4 4h16v16H4zM4 12h16M12 4v16',fatt:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',items:'M3 8l9-5 9 5v12H3zM9 20v-7h6v7',prod:'M12 3l9 5v8l-9 5-9-5V8zM12 12l9-4M12 12v9M12 12L3 8',orders:'M3 5h3l2 11h10l2-8H7',hours:'M12 7v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z',cl:'M16 11a4 4 0 10-8 0 4 4 0 008 0zM4 21c1-4 4-6 8-6s7 2 8 6',sup:'M3 7h11v9H3zM14 10h4l3 3v3h-7zM7 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',imp:'M12 15a3 3 0 100-6 3 3 0 000 6zM12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1',usr:'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',nuovo:'M12 5v14M5 12h14',pdf:'M6 3h9l4 4v14H6zM14 3v5h5',stats:'M4 20V10M10 20V4M16 20v-8M22 20H2',cdash:'M4 20V10M10 20V4M16 20v-8M22 20H2',cinv:'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',cscad:'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',cpn:'M5 4h14v16H5zM9 9h6M9 13h6M9 17h4',cces:'M3 8l9-5 9 5v12H3zM9 20v-7h6v7',cgio:'M5 4h12a2 2 0 012 2v14H7a2 2 0 01-2-2zM9 9h6M9 13h6',canf:'M4 5h16v14H4zM4 10h16M8 15h3',chr:'M12 11a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0',cmas:'M4 4h16v16H4zM4 12h16M12 4v16',cbil:'M4 20V4M4 20h16M8 16v-5M12 16V8M16 16v-3',civa:'M5 19L19 5M7 8a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',csim:'M4 4h16v16H4zM8 8h8M8 12h3M13 12h3M8 16h3M13 16h3',cimp:'M12 15a3 3 0 100-6 3 3 0 000 6zM12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1',cerca:'M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-4-4'};
-const G=[['Cruscotto',[['dash','Cruscotto'],['stats','Statistiche']]],['Commesse',[['jobs','Commesse'],['sheets','Schede'],['quotes','Preventivi'],['ordc','Ordini cl.'],['fatt','Fattura']]],['Magazzino',[['items','Inventario'],['prod','Prodotti'],['orders','Ordini']]],['Personale',[['hours','Ore']]],['Anagrafica',[['cl','Clienti'],['sup','Fornitori']]]];
-const GC=[['Contabilità',[['cdash','Cruscotto'],['cinv','Fatture'],['cscad','Scadenze'],['canf','Anticipo FT']]],['Personale',[['chr','Personale']]],['Registrazioni',[['cpn','Prima nota'],['cces','Cespiti'],['cgio','Giornale'],['cmas','Mastro'],['cbil','Bilancio']]],['Fiscale',[['civa','IVA'],['csim','Simulazione']]]];
+const G=[['Cruscotto',[['dash','Cruscotto'],['stats','Statistiche']]],['Commesse',[['jobs','Commesse'],['sheets','Schede']]],['Magazzino',[['items','Inventario'],['prod','Prodotti'],['orders','Ordini']]],['Personale',[['hours','Ore']]],['Anagrafica',[['cl','Clienti'],['sup','Fornitori']]]];
+const GC=[['Contabilità',[['cdash','Cruscotto'],['cinv','Fatture'],['cscad','Scadenze'],['canf','Anticipo FT']]],['Vendite',[['quotes','Preventivi'],['ordc','Ordini cl.']]],['Personale',[['chr','Personale']]],['Registrazioni',[['cpn','Prima nota'],['cces','Cespiti'],['cgio','Giornale'],['cmas','Mastro'],['cbil','Bilancio']]],['Fiscale',[['civa','IVA'],['csim','Simulazione']]]];
 const ico=(d,c)=>`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
 function first(sel,rx){const l=[...document.querySelectorAll(sel)];return rx?l.find(b=>rx.test(b.textContent)):l[0]}
 function nuovo(){const b=first('#main button.pri')||first('#main .tools button.b',/^\s*(\+|Nuov|Aggiung|Registra|Crea)/i);if(b)b.click();else if(typeof toast=='function')toast('In questa schermata non c’è nulla da creare.')}
